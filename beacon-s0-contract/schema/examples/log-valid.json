@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "timestamp": "2026-06-02T10:15:30.123456789Z",
+  "observed_timestamp": "2026-06-02T10:15:30.124000000Z",
+  "severity_number": 17,
+  "severity_text": "ERROR",
+  "body": "charge declined",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id": "00f067aa0ba902b7",
+  "trace_flags": 1,
+  "resource": {
+    "service.name": "payments-api",
+    "service.version": "2.3.1",
+    "deployment.environment": "prod",
+    "host.name": "pod-7c9f",
+    "telemetry.sdk.language": "java",
+    "telemetry.sdk.name": "beacon-sdk"
+  },
+  "scope": { "name": "PaymentProcessor" },
+  "attributes": {
+    "order.id": 9921,
+    "decline.reason": "insufficient_funds",
+    "http.request.method": "POST"
+  }
+}
