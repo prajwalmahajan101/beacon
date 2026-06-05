@@ -1,6 +1,6 @@
 # 02 — SDK Behavior Spec
 
-**Status:** Draft for M0 freeze
+**Status:** Frozen — M0 (2026-06-05)
 Normative keywords (**MUST**, **SHOULD**, **MAY**) per RFC 2119. Every requirement here maps to an FR-SDK item in the PRD and to a conformance scenario in `03-conformance-suite.md`.
 
 > **Framing:** Beacon SDKs build *on* OpenTelemetry — they reuse its data model and exporters and add a resilient async transport, zero-config integration, and redaction. They MUST NOT re-implement OTel.

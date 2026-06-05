@@ -42,12 +42,14 @@ beacon-m0-contract/
 
 ## Definition of done for M0
 
-- [ ] `01-telemetry-record-spec.md` reviewed and frozen (field names, types, severity mapping).
-- [ ] `02-sdk-behavior-spec.md` reviewed; every FR-SDK requirement has a normative statement.
-- [ ] `log-record.schema.json` validates `log-valid.json` and rejects `log-invalid.json`.
-- [ ] `scenarios.yaml` enumerates C1–C12 with parameters.
-- [ ] Java + Python skeletons compile/collect with one stubbed test per scenario.
-- [ ] No production SDK code yet — M0 ends with a contract, not an implementation.
+**Status: FROZEN — 2026-06-05.** See [`M0-FROZEN.md`](./M0-FROZEN.md) for the freeze record.
+
+- [x] `01-telemetry-record-spec.md` reviewed and frozen (field names, types, severity mapping).
+- [x] `02-sdk-behavior-spec.md` reviewed; every FR-SDK requirement has a normative statement (34 MUST/SHOULD clauses).
+- [x] `log-record.schema.json` validates `log-valid.json` and rejects `log-invalid.json` (plus all 7 single-failure fixtures in `schema/examples/invalid/`).
+- [x] `scenarios.yaml` enumerates C1–C12 with parameters.
+- [x] Java + Python skeletons compile/collect with one stubbed test per scenario (Python: 20 tests collected via parameterisation; Java: 12 `@Test` methods).
+- [x] No production SDK code yet — M0 ends with a contract, not an implementation.
 
 ## Next (M1)
 
