@@ -1,0 +1,137 @@
+version: 1
+# Machine-readable conformance manifest. Both language harnesses read this and
+# assert the same Given/When/Then. See spec/03-conformance-suite.md for prose.
+
+defaults:
+  buffer_capacity: 10000
+  drop_policy: DROP_OLDEST
+  batch_max_records: 512
+  flush_interval_ms: 1000
+  max_retries: 5
+  shutdown_drain_timeout_ms: 5000
+
+scenarios:
+  - id: C1
+    title: Record validates against schema
+    type: schema
+    params:
+      schema: ../schema/log-record.schema.json
+      valid_examples: ["../schema/examples/log-valid.json"]
+      # log-invalid.json is the multi-violation smoke fixture; each file under
+      # examples/invalid/ isolates ONE constraint, so a regression that drops a
+      # single rule is caught by exactly one case.
+      invalid_examples:
+        - ../schema/examples/log-invalid.json
+        - ../schema/examples/invalid/invalid-missing-body.json
+        - ../schema/examples/invalid/invalid-missing-resource-service-name.json
+        - ../schema/examples/invalid/invalid-severity-number-out-of-range.json
+        - ../schema/examples/invalid/invalid-severity-text-not-enum.json
+        - ../schema/examples/invalid/invalid-trace-id-bad-pattern.json
+        - ../schema/examples/invalid/invalid-trace-id-all-zero.json
+        - ../schema/examples/invalid/invalid-timestamp-bad-format.json
+
+  - id: C2
+    title: Emit is non-blocking
+    type: runtime
+    params:
+      exporter: blocking
+      emit_count: 1000
+      max_emit_latency_ms_p99: 1
+
+  - id: C3
+    title: Buffer overflow applies drop policy
+    type: runtime
+    params:
+      buffer_capacity: 100
+      exporter: stalled
+      emit_count: 1000
+      expect_dropped_min: 850
+      drop_policy: DROP_OLDEST
+
+  - id: C4
+    title: Flush by batch size
+    type: runtime
+    params:
+      batch_max_records: 10
+      flush_interval_ms: 60000
+      emit_count: 10
+      expect_batches: 1
+      expect_batch_size: 10
+
+  - id: C5
+    title: Flush by interval
+    type: runtime
+    params:
+      batch_max_records: 10000
+      flush_interval_ms: 200
+      emit_count: 3
+      expect_flush_within_ms: 400
+
+  - id: C6
+    title: Retry with backoff then fallback
+    type: runtime
+    params:
+      exporter: fail_n_times
+      fail_times: 6
+      max_retries: 5
+      expect_fallback: true
+
+  - id: C7
+    title: Fallback sink on broker down
+    type: runtime
+    params:
+      exporter: unreachable
+      emit_count: 50
+      expect_fallback_min: 50
+
+  - id: C8
+    title: Recovery after broker returns
+    type: runtime
+    params:
+      exporter: down_then_up
+      down_ms: 1000
+      emit_after_recovery: 10
+      expect_exported_after_recovery: 10
+
+  - id: C9
+    title: Graceful shutdown drains buffer
+    type: runtime
+    params:
+      pending_records: 200
+      shutdown_drain_timeout_ms: 5000
+      expect_flushed_or_fallback: 200
+
+  - id: C10
+    title: PII redaction before export
+    type: runtime
+    params:
+      redact_keys: ["password", "card.number"]
+      record_attributes:
+        password: "hunter2"
+        card.number: "4111111111111111"
+        order.id: 9921
+      expect_present: ["order.id"]
+      expect_absent_or_masked: ["password", "card.number"]
+
+  - id: C11
+    title: Trace context propagation
+    type: runtime
+    params:
+      trace_id: "4bf92f3577b34da6a3ce929d0e0e4736"
+      span_id: "00f067aa0ba902b7"
+      across_async: true
+
+  - id: C12
+    title: Severity mapping
+    type: runtime
+    params:
+      cases:
+        - native: WARN
+          severity_number: 13
+          severity_text: WARN
+        - native: ERROR
+          severity_number: 17
+          severity_text: ERROR
+        - native: INFO
+          severity_number: 9
+          severity_text: INFO
