@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "timestamp": "2026-06-02T10:15:30.123456789Z",
+  "severity_number": 17,
+  "severity_text": "CRITICAL",
+  "body": "charge declined",
+  "resource": {
+    "service.name": "payments-api",
+    "telemetry.sdk.language": "python"
+  }
+}
