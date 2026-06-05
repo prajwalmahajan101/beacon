@@ -1,6 +1,6 @@
 # 03 — Conformance Suite
 
-**Status:** Draft for M0 freeze
+**Status:** Frozen — M0 (2026-06-05)
 One set of scenarios that **both** the Java and Python SDKs must pass. A SDK is "conformant" only when every scenario is green in its language.
 
 - **Schema scenarios** run identically in both languages (validate records against the JSON Schema).
