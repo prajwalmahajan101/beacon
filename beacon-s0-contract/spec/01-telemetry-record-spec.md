@@ -1,6 +1,6 @@
 # 01 — Telemetry Record Spec
 
-**Status:** Draft for M0 freeze · **Aligns to:** OpenTelemetry data model (logs, traces, metrics) + W3C Trace Context
+**Status:** Frozen — M0 (2026-06-05) · **Aligns to:** OpenTelemetry data model (logs, traces, metrics) + W3C Trace Context
 
 All Beacon SDKs MUST emit records conforming to this spec. The canonical wire format is **OTLP/protobuf**; the **canonical JSON representation below** is the normative shape used for conformance validation (`schema/log-record.schema.json`).
 
