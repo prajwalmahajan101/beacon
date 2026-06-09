@@ -1,0 +1,96 @@
+name: contract
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-schema:
+    name: Validate JSON Schema fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install validators
+        run: |
+          pip install --upgrade pip
+          pip install jsonschema==4.23.0 pyyaml==6.0.2
+
+      - name: Validate schema itself is well-formed Draft 2020-12
+        run: |
+          python -c "
+          import json, sys
+          from jsonschema import Draft202012Validator
+          with open('beacon-s0-contract/schema/log-record.schema.json') as f:
+              schema = json.load(f)
+          Draft202012Validator.check_schema(schema)
+          print('schema OK')
+          "
+
+      - name: Valid fixtures must validate
+        run: |
+          python <<'EOF'
+          import json, sys, glob
+          from jsonschema import Draft202012Validator
+          with open('beacon-s0-contract/schema/log-record.schema.json') as f:
+              schema = json.load(f)
+          v = Draft202012Validator(schema)
+          paths = ['beacon-s0-contract/schema/examples/log-valid.json']
+          failed = []
+          for p in paths:
+              with open(p) as f:
+                  doc = json.load(f)
+              errors = list(v.iter_errors(doc))
+              if errors:
+                  failed.append((p, [e.message for e in errors]))
+          if failed:
+              for p, msgs in failed:
+                  print(f"FAIL {p}:")
+                  for m in msgs:
+                      print(f"  - {m}")
+              sys.exit(1)
+          print(f"validated {len(paths)} valid fixture(s)")
+          EOF
+
+      - name: Invalid fixtures must NOT validate
+        run: |
+          python <<'EOF'
+          import json, sys, glob
+          from jsonschema import Draft202012Validator
+          with open('beacon-s0-contract/schema/log-record.schema.json') as f:
+              schema = json.load(f)
+          v = Draft202012Validator(schema)
+          paths = sorted(glob.glob('beacon-s0-contract/schema/examples/invalid/*.json'))
+          paths.append('beacon-s0-contract/schema/examples/log-invalid.json')
+          unexpectedly_valid = []
+          for p in paths:
+              with open(p) as f:
+                  doc = json.load(f)
+              errors = list(v.iter_errors(doc))
+              if not errors:
+                  unexpectedly_valid.append(p)
+          if unexpectedly_valid:
+              print("These fixtures were expected to be invalid but validated:")
+              for p in unexpectedly_valid:
+                  print(f"  - {p}")
+              sys.exit(1)
+          print(f"confirmed {len(paths)} invalid fixture(s) rejected")
+          EOF
+
+      - name: Conformance scenarios YAML parses
+        run: |
+          python -c "
+          import yaml
+          with open('beacon-s0-contract/conformance/scenarios.yaml') as f:
+              data = yaml.safe_load(f)
+          assert data, 'scenarios.yaml is empty'
+          print(f'scenarios.yaml OK ({len(data) if isinstance(data, list) else len(data.keys())} top-level entries)')
+          "
