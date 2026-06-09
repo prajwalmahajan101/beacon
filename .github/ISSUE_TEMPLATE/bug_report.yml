@@ -1,0 +1,66 @@
+name: SDK bug report
+description: A published Beacon SDK (Java or Python) diverges from the M0 contract.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template **only** for SDK behavior that violates the spec —
+        emission diverges from JSON Schema, conformance scenarios fail, or a
+        spec-mandated behavior invariant (non-blocking, non-crashing,
+        PII-masked) is broken. For ergonomics or "I wish it did X", open a
+        Discussion instead.
+
+  - type: dropdown
+    id: sdk
+    attributes:
+      label: SDK affected
+      options:
+        - Java
+        - Python
+        - Both
+        - Other (please specify in description)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SDK version
+      placeholder: "e.g. 0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal code + emitted record (or scenario id from C1-C12 that failed).
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. observed
+      description: What does the spec say should happen, and what actually happened?
+    validations:
+      required: true
+
+  - type: input
+    id: spec-section
+    attributes:
+      label: Relevant spec section
+      description: Pointer into PRD.md, the JSON Schema, or the scenario manifest.
+      placeholder: "e.g. beacon-s0-contract/scenarios/C7.md"
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Runtime version, OS, transport (Kafka producer config, etc.).
+      render: text
+    validations:
+      required: true

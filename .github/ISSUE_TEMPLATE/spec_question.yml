@@ -1,0 +1,44 @@
+name: Spec question
+description: The PRD or M0 contract is ambiguous, contradicts itself, or you need clarification before implementing against it.
+title: "[spec] "
+labels: ["spec", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when you're trying to implement against the spec
+        and need a clarification, *not* when you want the spec to change.
+        For spec changes, open a Discussion first.
+
+  - type: input
+    id: section
+    attributes:
+      label: Spec section
+      description: Exact file + heading or fixture path.
+      placeholder: "e.g. PRD.md §4.2 — record envelope"
+    validations:
+      required: true
+
+  - type: textarea
+    id: ambiguity
+    attributes:
+      label: What's ambiguous?
+      description: Quote the passage and explain the two (or more) ways it can be read.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested clarification
+      description: One sentence — what should the spec say to remove the ambiguity?
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Why does this block you?
+      description: What can't you build until this is resolved? (Helps prioritize.)
+    validations:
+      required: false
