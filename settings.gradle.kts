@@ -1,3 +1,9 @@
+plugins {
+    // Auto-provision missing JDKs from the Foojay Disco API so contributors don't
+    // need to install Java 17 manually before running ./gradlew build.
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 rootProject.name = "beacon"
 
 include(":beacon-sdk-java")
