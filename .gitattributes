@@ -1,0 +1,5 @@
+gradle/wrapper/gradle-wrapper.jar binary
+gradlew    text eol=lf
+gradlew.bat text eol=crlf
+*.kts text eol=lf
+*.java text eol=lf
