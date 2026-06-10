@@ -13,6 +13,7 @@ otel-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp", 
 
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "jsonSchema" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }

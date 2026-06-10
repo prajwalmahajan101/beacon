@@ -24,6 +24,7 @@ dependencies {
     testImplementation(libs.json.schema.validator)
     testImplementation(libs.snakeyaml)
     testImplementation(libs.assertj)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.named<Test>("test") {

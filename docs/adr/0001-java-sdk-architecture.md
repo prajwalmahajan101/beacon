@@ -27,7 +27,7 @@ Gradle KTS gives type-safe build config, first-class multi-project, and a versio
 - `:beacon-sdk-java` — the SDK library.
 - `:conformance-java` — the M0 contract's Java conformance harness, declared via `projectDir = file("beacon-s0-contract/conformance/java")` so the harness file map advertised in M0-FROZEN.md does not move.
 
-Wrapper pinned at Gradle **8.10**. Version catalog at `gradle/libs.versions.toml`.
+Wrapper pinned at Gradle **9.5.1** (latest stable at scaffolding date; required for Java 25 toolchain support in the embedded Kotlin compiler — Gradle 8.10 with its Kotlin 1.9.24 cannot parse the Java 25 version string). Settings file applies `org.gradle.toolchains.foojay-resolver-convention` (1.0.0) so contributors don't need to install Java 17 manually — Gradle auto-provisions a Temurin 17 JDK from the Foojay Disco API on first build. Version catalog at `gradle/libs.versions.toml`.
 
 ### 2. Java baseline — **Java 17**
 

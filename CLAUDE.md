@@ -10,7 +10,7 @@ Beacon — self-hosted, OpenTelemetry-native observability platform (logs, trace
 
 | Layer | Choice |
 |---|---|
-| Build (root + Java SDK) | Gradle Kotlin DSL, wrapper 8.10, version catalog at `gradle/libs.versions.toml` |
+| Build (root + Java SDK) | Gradle Kotlin DSL, wrapper 9.5.1, version catalog at `gradle/libs.versions.toml` |
 | Java baseline | Java 17 (Temurin in CI) |
 | Java test stack | JUnit 5, AssertJ, `com.networknt:json-schema-validator`, SnakeYAML |
 | Transport backbone | OpenTelemetry Java SDK (`opentelemetry-sdk-logs`, OTLP exporters) |
