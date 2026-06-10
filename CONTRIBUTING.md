@@ -58,6 +58,12 @@ touches schema or fixtures.
 - **No squash-merging a stack** — atomic commits are easier to revert and bisect.
 - **Don't auto-format files you didn't touch** — keep diffs reviewable.
 
+## Working with AI assistants
+
+This repo expects AI coding assistants (Claude Code, Cursor, etc.) to use a **plan-before-code** workflow for any non-trivial change — new modules, cross-file refactors, spec/schema/scenario edits, CI changes, dependency bumps. Tooling-side, that is plan mode (`EnterPlanMode` → `ExitPlanMode` for explicit approval) in Claude Code; equivalents apply elsewhere. Trivial fixes (typos, one-line corrections, exact user-dictated edits) may skip. See `CLAUDE.md` for the full convention.
+
+If you open a PR generated with an AI assistant that skipped planning on non-trivial work, expect a request to redo it with a plan attached — not as gatekeeping, but because the spec-first ethos of the repo extends to how code gets written.
+
 ## A note on velocity
 
 This is a weekend-cadence project. PRs and Discussions get answered, but not
