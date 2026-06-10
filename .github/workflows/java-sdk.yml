@@ -1,0 +1,64 @@
+name: java-sdk
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "beacon-sdk-java/**"
+      - "beacon-s0-contract/conformance/java/**"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/java-sdk.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "beacon-sdk-java/**"
+      - "beacon-s0-contract/conformance/java/**"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/java-sdk.yml"
+
+jobs:
+  build:
+    name: Build + conformance harness (disabled-test report)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build (assemble + test)
+        run: ./gradlew build --no-daemon
+
+      - name: Surface conformance test report
+        if: always()
+        run: |
+          report_dir=beacon-s0-contract/conformance/java/build/reports/tests/test
+          if [ -d "$report_dir" ]; then
+            echo "Conformance HTML report at: $report_dir/index.html"
+            ls -la "$report_dir"
+          else
+            echo "No conformance test report found at $report_dir"
+            exit 1
+          fi
+
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-test-report
+          path: beacon-s0-contract/conformance/java/build/reports/tests/test
+          if-no-files-found: ignore
