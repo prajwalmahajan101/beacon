@@ -2,6 +2,29 @@
 
 All notable changes to Beacon are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow milestone semver (`v<major>.<minor>-m<milestone>`).
 
+## [Unreleased] — M1.1: Record model + canonical JSON + severity mapping
+
+First phase where real SDK behavior lands. Conformance scenarios C1 (schema) and C12 (severity) are now green; the remaining 10 stay `@Disabled` for M1.2–M1.6.
+
+### Added
+
+- **`LogRecord` Builder** + `LogRecord.minimal(...)` helper for the schema-required subset.
+- **`CanonicalJson.serialize(LogRecord)`** — hand-rolled, ns-precision RFC3339 timestamps, JSON string escaping (incl. `\u00XX` for control chars), schema-conformant field order. No new SDK dependency.
+- **`SeverityMapper`** — `Band` enum + `numberFor(name)` / `textFor(number)` / `bandFor(number)`. Implements spec/01 §1.1 band-anchor mapping (TRACE=1, DEBUG=5, INFO=9, WARN=13, ERROR=17, FATAL=21). Off-anchor inputs collapse to the band at or below.
+- **SDK unit tests** under `beacon-sdk-java/src/test/` — 13 tests across `LogRecordTest`, `CanonicalJsonTest`, `SeverityMapperTest` (parameterised band coverage).
+- **Conformance C1 implementation** — loads schema via `com.networknt:json-schema-validator` Draft 2020-12, reads valid + invalid fixture paths from `scenarios.yaml` via SnakeYAML, asserts each via AssertJ `SoftAssertions`.
+- **Conformance C12 implementation** — reads severity cases from `scenarios.yaml`, asserts against `SeverityMapper`.
+
+### Changed
+
+- `ConformanceTest.java` `@Disabled` reasons updated to point at the specific M1.x phase that implements each remaining scenario (M1.2 for buffer/non-blocking, M1.3 for batching, M1.4 for exporter/retry/fallback, M1.5 for shutdown, M1.6 for redaction/trace context).
+
+### Verified
+
+- `./gradlew :beacon-sdk-java:test` → BUILD SUCCESSFUL, 13 tests passing.
+- `./gradlew :conformance-java:test` → BUILD SUCCESSFUL, `tests=12 skipped=10 failures=0 errors=0`. C1 and C12 green.
+- M0 freeze untouched; no schema, scenario, or fixture changes.
+
 ## [Unreleased] — M1.0: Java SDK scaffolding
 
 First phase of M1 (Java SDK). Scaffolding only — no SDK runtime behaviour. All 12 conformance scenarios remain `@Disabled`; un-disabled incrementally in M1.1–M1.7 against the M0 contract.
