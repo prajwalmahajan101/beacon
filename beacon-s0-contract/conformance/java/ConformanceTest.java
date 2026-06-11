@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.beacon.sdk.BeaconSdk;
 import io.beacon.sdk.config.BeaconConfig;
 import io.beacon.sdk.config.BeaconConfig.DropPolicy;
+import io.beacon.sdk.pipeline.BatchSink;
 import io.beacon.sdk.record.LogRecord;
 import io.beacon.sdk.severity.SeverityMapper;
 import org.assertj.core.api.SoftAssertions;
@@ -25,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Beacon SDK conformance suite — Java harness.
@@ -124,13 +126,15 @@ class ConformanceTest {
         long expectDroppedMin = ((Number) c3.get("expect_dropped_min")).longValue();
         DropPolicy policy = DropPolicy.valueOf((String) c3.get("drop_policy"));
 
-        // Scope note (M1.2): scenarios.yaml's `exporter: stalled` is moot pre-M1.4 —
-        // no flusher drains the buffer in M1.2, so every offer beyond capacity reduces
-        // to the drop policy. That's exactly what we want to assert here.
+        // Scope note (M1.3): scenarios.yaml's `exporter: stalled` is simulated by
+        // stopping the M1.3 flusher right after build, so the buffer never drains
+        // and every offer beyond capacity exercises the drop policy. M1.4 swaps
+        // this for a real fail-then-fallback exporter when C6/C7 wire in.
         BeaconConfig cfg = BeaconConfig.defaults()
                 .withBufferCapacity(capacity)
                 .withDropPolicy(policy);
         BeaconSdk sdk = BeaconSdk.builder().config(cfg).build();
+        sdk.close();
 
         LogRecord template = LogRecord.minimal(
                 Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c3",
@@ -157,17 +161,95 @@ class ConformanceTest {
     }
 
     @Test
-    @Disabled("M1.3: implement against real SDK")
     @DisplayName("C4 — flush by batch size")
-    void c4_flushByBatchSize() {
-        // TODO: batch_max_records=10 -> exactly one batch of 10
+    void c4_flushByBatchSize() throws Exception {
+        Map<String, Object> c4 = scenarioParams("C4");
+        int batchMaxRecords = ((Number) c4.get("batch_max_records")).intValue();
+        long flushIntervalMs = ((Number) c4.get("flush_interval_ms")).longValue();
+        int emitCount = ((Number) c4.get("emit_count")).intValue();
+        int expectBatches = ((Number) c4.get("expect_batches")).intValue();
+        int expectBatchSize = ((Number) c4.get("expect_batch_size")).intValue();
+
+        CopyOnWriteArrayList<List<LogRecord>> batches = new CopyOnWriteArrayList<>();
+        BatchSink capturing = batches::add;
+
+        BeaconConfig cfg = BeaconConfig.defaults()
+                .withBatchMaxRecords(batchMaxRecords)
+                .withFlushIntervalMs(flushIntervalMs);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(capturing).build();
+        try {
+            LogRecord template = LogRecord.minimal(
+                    Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c4",
+                    Map.of("service.name", "c4-test", "telemetry.sdk.language", "java"));
+
+            for (int i = 0; i < emitCount; i++) sdk.emit(template);
+            awaitTrue(() -> sdk.metrics().batchesFlushed() >= expectBatches, 2_000);
+
+            SoftAssertions soft = new SoftAssertions();
+            soft.assertThat(sdk.metrics().batchesFlushed())
+                    .as("size-trigger should produce exactly %d batch(es)", expectBatches)
+                    .isEqualTo(expectBatches);
+            soft.assertThat(batches.get(0))
+                    .as("first batch must be the full batch_max_records")
+                    .hasSize(expectBatchSize);
+            soft.assertThat(sdk.metrics().recordsFlushed())
+                    .as("recordsFlushed must equal emit_count")
+                    .isEqualTo(emitCount);
+            soft.assertAll();
+        } finally {
+            sdk.close();
+        }
     }
 
     @Test
-    @Disabled("M1.3: implement against real SDK")
     @DisplayName("C5 — flush by interval")
-    void c5_flushByInterval() {
-        // TODO: flush_interval_ms=200 -> batch of 3 flushed within ~interval
+    void c5_flushByInterval() throws Exception {
+        Map<String, Object> c5 = scenarioParams("C5");
+        int batchMaxRecords = ((Number) c5.get("batch_max_records")).intValue();
+        long flushIntervalMs = ((Number) c5.get("flush_interval_ms")).longValue();
+        int emitCount = ((Number) c5.get("emit_count")).intValue();
+        long expectFlushWithinMs = ((Number) c5.get("expect_flush_within_ms")).longValue();
+
+        CopyOnWriteArrayList<List<LogRecord>> batches = new CopyOnWriteArrayList<>();
+        BatchSink capturing = batches::add;
+
+        BeaconConfig cfg = BeaconConfig.defaults()
+                .withBatchMaxRecords(batchMaxRecords)
+                .withFlushIntervalMs(flushIntervalMs);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(capturing).build();
+        try {
+            LogRecord template = LogRecord.minimal(
+                    Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c5",
+                    Map.of("service.name", "c5-test", "telemetry.sdk.language", "java"));
+
+            for (int i = 0; i < emitCount; i++) sdk.emit(template);
+            long t0 = System.nanoTime();
+            awaitTrue(() -> sdk.metrics().batchesFlushed() >= 1, expectFlushWithinMs + 200);
+            long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+
+            SoftAssertions soft = new SoftAssertions();
+            soft.assertThat(sdk.metrics().batchesFlushed())
+                    .as("interval-trigger should fire at least once within %dms", expectFlushWithinMs)
+                    .isGreaterThanOrEqualTo(1L);
+            soft.assertThat(elapsedMs)
+                    .as("flush must happen within expect_flush_within_ms")
+                    .isLessThanOrEqualTo(expectFlushWithinMs);
+            soft.assertThat(sdk.metrics().recordsFlushed())
+                    .as("recordsFlushed must equal emit_count (no size trigger hit)")
+                    .isEqualTo(emitCount);
+            soft.assertAll();
+        } finally {
+            sdk.close();
+        }
+    }
+
+    private static void awaitTrue(java.util.function.BooleanSupplier cond, long timeoutMs)
+            throws InterruptedException {
+        long deadline = System.nanoTime() + timeoutMs * 1_000_000L;
+        while (System.nanoTime() < deadline) {
+            if (cond.getAsBoolean()) return;
+            Thread.sleep(5);
+        }
     }
 
     // ---- Runtime: resilience --------------------------------------------
