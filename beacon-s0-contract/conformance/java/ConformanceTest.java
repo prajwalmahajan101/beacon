@@ -6,6 +6,10 @@ import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.beacon.sdk.BeaconSdk;
+import io.beacon.sdk.config.BeaconConfig;
+import io.beacon.sdk.config.BeaconConfig.DropPolicy;
+import io.beacon.sdk.record.LogRecord;
 import io.beacon.sdk.severity.SeverityMapper;
 import org.assertj.core.api.SoftAssertions;
 import org.junit.jupiter.api.Disabled;
@@ -16,6 +20,8 @@ import org.yaml.snakeyaml.Yaml;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -80,20 +86,74 @@ class ConformanceTest {
     // ---- Runtime: buffering & batching ----------------------------------
 
     @Test
-    @Disabled("M1.2: implement against real SDK")
     @DisplayName("C2 — emit is non-blocking")
-    void c2_emitIsNonBlocking() {
-        // GIVEN a blocking exporter
-        // WHEN N records are emitted
-        // THEN each emit returns < 1ms p99
-        // TODO
+    void c2_emitIsNonBlocking() throws Exception {
+        Map<String, Object> c2 = scenarioParams("C2");
+        int emitCount = ((Number) c2.get("emit_count")).intValue();
+        long maxP99Ns = ((Number) c2.get("max_emit_latency_ms_p99")).longValue() * 1_000_000L;
+
+        // Scope note (M1.2): scenarios.yaml's `exporter: blocking` parameter applies once the
+        // exporter wires in at M1.4. In M1.2 the emit path is record -> BoundedBuffer.offer
+        // (in-memory, wait-free), so the architectural invariant "emit MUST NOT perform
+        // network I/O on the caller's thread" is already what we measure here.
+        BeaconSdk sdk = BeaconSdk.builder().build();
+        LogRecord template = LogRecord.minimal(
+                Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c2",
+                Map.of("service.name", "c2-test", "telemetry.sdk.language", "java"));
+
+        long[] latencies = new long[emitCount];
+        for (int i = 0; i < emitCount; i++) {
+            long t0 = System.nanoTime();
+            sdk.emit(template);
+            latencies[i] = System.nanoTime() - t0;
+        }
+        Arrays.sort(latencies);
+        long p99 = latencies[(int) Math.ceil(latencies.length * 0.99) - 1];
+
+        assertThatLong(p99, "emit p99")
+                .as("emit p99 must stay under %d ns (= %d ms)", maxP99Ns, maxP99Ns / 1_000_000L)
+                .isLessThan(maxP99Ns);
     }
 
     @Test
-    @Disabled("M1.2: implement against real SDK")
     @DisplayName("C3 — buffer overflow applies drop policy")
-    void c3_bufferOverflowAppliesDropPolicy() {
-        // TODO: capacity=100, stalled exporter, emit 1000 -> ~900 dropped, never blocks
+    void c3_bufferOverflowAppliesDropPolicy() throws Exception {
+        Map<String, Object> c3 = scenarioParams("C3");
+        int capacity = ((Number) c3.get("buffer_capacity")).intValue();
+        int emitCount = ((Number) c3.get("emit_count")).intValue();
+        long expectDroppedMin = ((Number) c3.get("expect_dropped_min")).longValue();
+        DropPolicy policy = DropPolicy.valueOf((String) c3.get("drop_policy"));
+
+        // Scope note (M1.2): scenarios.yaml's `exporter: stalled` is moot pre-M1.4 —
+        // no flusher drains the buffer in M1.2, so every offer beyond capacity reduces
+        // to the drop policy. That's exactly what we want to assert here.
+        BeaconConfig cfg = BeaconConfig.defaults()
+                .withBufferCapacity(capacity)
+                .withDropPolicy(policy);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).build();
+
+        LogRecord template = LogRecord.minimal(
+                Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c3",
+                Map.of("service.name", "c3-test", "telemetry.sdk.language", "java"));
+
+        for (int i = 0; i < emitCount; i++) sdk.emit(template);
+
+        SoftAssertions soft = new SoftAssertions();
+        soft.assertThat(sdk.metrics().dropped())
+                .as("dropped must be >= %d (capacity=%d, emit=%d, policy=%s)",
+                        expectDroppedMin, capacity, emitCount, policy)
+                .isGreaterThanOrEqualTo(expectDroppedMin);
+        soft.assertThat(sdk.buffer().size())
+                .as("buffer size must respect capacity")
+                .isLessThanOrEqualTo(capacity);
+        soft.assertThat(sdk.metrics().enqueued())
+                .as("enqueued must equal emit_count for DROP_OLDEST (every offer accepted)")
+                .isEqualTo(emitCount);
+        soft.assertAll();
+    }
+
+    private static org.assertj.core.api.AbstractLongAssert<?> assertThatLong(long actual, String desc) {
+        return org.assertj.core.api.Assertions.assertThat(actual).as(desc);
     }
 
     @Test
