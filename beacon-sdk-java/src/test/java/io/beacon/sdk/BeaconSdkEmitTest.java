@@ -22,6 +22,9 @@ class BeaconSdkEmitTest {
     @Test
     void emit_enqueues_records_under_capacity_and_tracks_metrics() {
         BeaconSdk sdk = BeaconSdk.builder().build();
+        // M1.3: stop the flusher so we observe pure buffer/metrics behaviour.
+        // End-to-end flush coverage lives in BatchFlusherTest + C4/C5.
+        sdk.close();
         for (int i = 0; i < 100; i++) sdk.emit(rec(i));
 
         assertThat(sdk.buffer().size()).isEqualTo(100);
@@ -36,6 +39,7 @@ class BeaconSdkEmitTest {
                 .withBufferCapacity(10)
                 .withDropPolicy(DropPolicy.DROP_OLDEST);
         BeaconSdk sdk = BeaconSdk.builder().config(cfg).build();
+        sdk.close();
 
         for (int i = 0; i < 50; i++) sdk.emit(rec(i));
 
