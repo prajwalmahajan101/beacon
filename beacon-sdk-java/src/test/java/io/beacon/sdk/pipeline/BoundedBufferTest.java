@@ -97,6 +97,31 @@ class BoundedBufferTest {
     }
 
     @Test
+    void poll_returns_record_when_available() throws InterruptedException {
+        SdkMetrics m = new SdkMetrics();
+        BoundedBuffer b = new BoundedBuffer(4, DropPolicy.DROP_NEWEST, m);
+        b.offer(rec(0));
+        b.offer(rec(1));
+
+        LogRecord first = b.poll(100);
+        assertThat(first).isNotNull();
+        assertThat(b.size()).isEqualTo(1);
+        assertThat(m.bufferDepth()).isEqualTo(1);
+    }
+
+    @Test
+    void poll_returns_null_after_timeout_when_empty() throws InterruptedException {
+        SdkMetrics m = new SdkMetrics();
+        BoundedBuffer b = new BoundedBuffer(4, DropPolicy.DROP_NEWEST, m);
+        long t0 = System.nanoTime();
+        LogRecord r = b.poll(25);
+        long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+
+        assertThat(r).isNull();
+        assertThat(elapsedMs).isGreaterThanOrEqualTo(20);
+    }
+
+    @Test
     void concurrent_offers_drop_oldest_never_block_and_total_processed_matches() throws InterruptedException {
         SdkMetrics m = new SdkMetrics();
         BoundedBuffer b = new BoundedBuffer(100, DropPolicy.DROP_OLDEST, m);
