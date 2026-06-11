@@ -2,6 +2,34 @@
 
 All notable changes to Beacon are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow milestone semver (`v<major>.<minor>-m<milestone>`).
 
+## [Unreleased] — M1.3: Batch flusher (size + interval)
+
+Records now leave the buffer. A single daemon thread drains `BoundedBuffer` into batches triggered by either `batch_max_records` (size) or `flush_interval_ms` (interval) — whichever fires first — and hands each batch to a pluggable `BatchSink`. Conformance scenarios **C4** (one batch of 10 on size trigger) and **C5** (interval trigger fires within 400 ms) are green; 6 scenarios remain `@Disabled` for M1.4–M1.6.
+
+### Added
+
+- **`BatchSink`** — `@FunctionalInterface void accept(List<LogRecord> batch)` in `io.beacon.sdk.pipeline`. `BatchSink.NOOP` is the default; M1.4 will replace it with the OTLP exporter (with retry/backoff + fallback).
+- **`BatchFlusher`** — single daemon thread, `BoundedBuffer.poll(timeoutMs)` for the interval wait, opportunistic `drainTo(...)` to fill the batch up to the size cap. Empty intervals do not invoke the sink. `start()` / `stop()` are idempotent and synchronised; sink exceptions are swallowed (full retry/fallback path is M1.4).
+- **`BoundedBuffer.poll(long timeoutMs)`** — blocking consumer-side method delegating to `ArrayBlockingQueue.poll(timeout, MILLISECONDS)`; updates the `buffer_depth` gauge on consume.
+- **`SdkMetrics`** — `incBatchesFlushed()` / `batchesFlushed()` and `incRecordsFlushed(int)` / `recordsFlushed()` counters for spec/02 §3 self-observability.
+- **`BeaconConfig.withBatchMaxRecords(int)` / `.withFlushIntervalMs(long)`** — patch helpers mirroring the M1.2 `with*` pattern; used by C4/C5 to set per-scenario triggers.
+- **`BeaconSdk.builder().sink(BatchSink)`** — pluggable sink injection (defaults to `NOOP`). The SDK starts the flusher in its constructor; `close()` stops it.
+- **SDK unit tests** — new `BatchFlusherTest` (size, interval, idle, mixed, stop semantics); `BoundedBufferTest` gains poll coverage; `SdkMetricsTest` covers the new counters.
+- **Conformance C4** wired against a `CapturingSink`; asserts `batchesFlushed == 1` and first batch has size 10.
+- **Conformance C5** wired against a `CapturingSink`; asserts the first batch lands within `expect_flush_within_ms` and `recordsFlushed == emit_count`.
+
+### Changed
+
+- `BeaconSdk` constructor now wires `BatchFlusher(buffer, sink, batchMaxRecords, flushIntervalMs, metrics)` and calls `start()`. `close()` replaces the M1.5-pending `UnsupportedOperationException` with `flusher.stop()`; buffer drain on shutdown remains M1.5 (C9).
+- `BeaconSdkEmitTest` stops the flusher right after build so it observes pure buffer/drop behaviour (end-to-end flush coverage lives in `BatchFlusherTest` and the new C4/C5).
+- `ConformanceTest.C3` stops the flusher right after build to simulate `scenarios.yaml`'s `exporter: stalled` semantics; the comment now points at M1.4 for the real exporter substitution. Other 6 `@Disabled` reasons unchanged.
+
+### Verified
+
+- `./gradlew :beacon-sdk-java:test` → SDK unit suite passes (BatchFlusherTest added; SdkMetricsTest + BoundedBufferTest augmented).
+- `./gradlew :conformance-java:test` → `tests=12 skipped=6 failures=0 errors=0`. C1, C2, C3, C4, C5, C12 green.
+- `git status` clean; no edits under `beacon-s0-contract/spec/`, `schema/`, `M0-FROZEN.md`, or `scenarios.yaml`.
+
 ## [Unreleased] — M1.2: Bounded buffer + non-blocking emit + drop policy
 
 Emit path is now real. Conformance scenarios **C2** (`<1ms` p99 emit latency) and **C3** (`buffer_capacity=100` + `DROP_OLDEST` → ≥850 drops) are green; 8 scenarios remain `@Disabled` for M1.3–M1.6.
