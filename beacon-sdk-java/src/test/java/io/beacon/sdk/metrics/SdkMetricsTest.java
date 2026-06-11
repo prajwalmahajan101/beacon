@@ -18,6 +18,8 @@ class SdkMetricsTest {
         assertThat(m.enqueued()).isZero();
         assertThat(m.dropped()).isZero();
         assertThat(m.bufferDepth()).isZero();
+        assertThat(m.batchesFlushed()).isZero();
+        assertThat(m.recordsFlushed()).isZero();
     }
 
     @Test
@@ -27,10 +29,16 @@ class SdkMetricsTest {
         m.incEnqueued();
         m.incDropped();
         m.setBufferDepth(7);
+        m.incBatchesFlushed();
+        m.incBatchesFlushed();
+        m.incRecordsFlushed(10);
+        m.incRecordsFlushed(3);
 
         assertThat(m.enqueued()).isEqualTo(2);
         assertThat(m.dropped()).isEqualTo(1);
         assertThat(m.bufferDepth()).isEqualTo(7);
+        assertThat(m.batchesFlushed()).isEqualTo(2);
+        assertThat(m.recordsFlushed()).isEqualTo(13);
     }
 
     @Test

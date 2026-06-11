@@ -8,13 +8,16 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>Six metrics in the spec: {@code records_enqueued}, {@code records_dropped},
  * {@code records_exported}, {@code export_failures}, {@code buffer_depth},
  * {@code fallback_writes}. M1.2 implements the three driven by the emit path;
- * exporter/fallback metrics land in M1.4.</p>
+ * M1.3 adds {@code batches_flushed} + {@code records_flushed} for the batch
+ * flusher's observability; exporter/fallback metrics land in M1.4.</p>
  */
 public final class SdkMetrics {
 
     private final AtomicLong enqueued = new AtomicLong();
     private final AtomicLong dropped = new AtomicLong();
     private final AtomicLong bufferDepth = new AtomicLong();
+    private final AtomicLong batchesFlushed = new AtomicLong();
+    private final AtomicLong recordsFlushed = new AtomicLong();
 
     // ---- M1.2 surface ---------------------------------------------------
 
@@ -26,6 +29,14 @@ public final class SdkMetrics {
 
     public void setBufferDepth(int depth) { bufferDepth.set(depth); }
     public long bufferDepth() { return bufferDepth.get(); }
+
+    // ---- M1.3 surface — batch flusher -----------------------------------
+
+    public void incBatchesFlushed() { batchesFlushed.incrementAndGet(); }
+    public long batchesFlushed() { return batchesFlushed.get(); }
+
+    public void incRecordsFlushed(int n) { recordsFlushed.addAndGet(n); }
+    public long recordsFlushed() { return recordsFlushed.get(); }
 
     // ---- M1.4 surface — stays unimplemented until the exporter wires in -
 
