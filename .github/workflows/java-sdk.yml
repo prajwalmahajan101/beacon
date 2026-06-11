@@ -62,3 +62,11 @@ jobs:
           name: conformance-test-report
           path: beacon-s0-contract/conformance/java/build/reports/tests/test
           if-no-files-found: ignore
+
+      - name: Upload SDK unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beacon-sdk-java-test-report
+          path: beacon-sdk-java/build/reports/tests/test
+          if-no-files-found: ignore
