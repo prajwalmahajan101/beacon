@@ -2,6 +2,30 @@
 
 All notable changes to Beacon are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow milestone semver (`v<major>.<minor>-m<milestone>`).
 
+## [Unreleased] — M1.2: Bounded buffer + non-blocking emit + drop policy
+
+Emit path is now real. Conformance scenarios **C2** (`<1ms` p99 emit latency) and **C3** (`buffer_capacity=100` + `DROP_OLDEST` → ≥850 drops) are green; 8 scenarios remain `@Disabled` for M1.3–M1.6.
+
+### Added
+
+- **`SdkMetrics`** counters for the emit-path surface — `enqueued`, `dropped`, `bufferDepth` — backed by `AtomicLong` and safe under contention. Exporter/fallback counters still throw with M1.4 markers.
+- **`BoundedBuffer`** — `ArrayBlockingQueue`-backed, wait-free `offer()` honoring `DROP_OLDEST` and `DROP_NEWEST`. `SPILL_FALLBACK` throws `UnsupportedOperationException("M1.4: ...")` until the fallback sink lands. Exposes `drainTo(...)` for the M1.3 batch flusher.
+- **`BeaconSdk.emit(LogRecord)`** — non-blocking enqueue (`void` return; drop count observable via `metrics()`). New getters `buffer()` + `metrics()` for tests and self-observability.
+- **`BeaconConfig.withBufferCapacity(int)` / `.withDropPolicy(DropPolicy)`** — minimal patch helpers for tests; full Builder deferred until the YAML/env loader lands.
+- **SDK unit tests** — `SdkMetricsTest`, `BoundedBufferTest` (incl. an 8-thread × 2k-emit concurrency test), `BeaconSdkEmitTest`.
+- **Conformance C2** wired against `BeaconSdk.emit` (1000 emits, p99 latency sort + assert under `max_emit_latency_ms_p99 * 1e6` ns).
+- **Conformance C3** wired against `BeaconSdk` with `withBufferCapacity(100)` + `withDropPolicy(DROP_OLDEST)`; asserts `dropped >= expect_dropped_min` and `size <= capacity` via AssertJ `SoftAssertions`.
+
+### Changed
+
+- `ConformanceTest.java` — un-disabled C2 + C3. Other 8 `@Disabled` reasons unchanged.
+
+### Verified
+
+- `./gradlew :beacon-sdk-java:test` → 24 tests passing (+11 from M1.1's 13).
+- `./gradlew :conformance-java:test` → `tests=12 skipped=8 failures=0 errors=0`. C1, C2, C3, C12 green.
+- `git status` clean; no edits under `beacon-s0-contract/spec/`, `schema/`, `M0-FROZEN.md`, or `scenarios.yaml`.
+
 ## [Unreleased] — M1.1: Record model + canonical JSON + severity mapping
 
 First phase where real SDK behavior lands. Conformance scenarios C1 (schema) and C12 (severity) are now green; the remaining 10 stay `@Disabled` for M1.2–M1.6.
