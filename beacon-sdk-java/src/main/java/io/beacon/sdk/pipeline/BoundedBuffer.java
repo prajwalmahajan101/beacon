@@ -7,6 +7,7 @@ import io.beacon.sdk.record.LogRecord;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Bounded non-blocking buffer with a configurable drop policy.
@@ -79,5 +80,18 @@ public final class BoundedBuffer {
         int drained = queue.drainTo(sink, maxRecords);
         metrics.setBufferDepth(queue.size());
         return drained;
+    }
+
+    /**
+     * Wait up to {@code timeoutMs} for a record and return it, or {@code null} if
+     * the timeout elapsed without one. Lets the batch flusher block efficiently
+     * instead of busy-polling. A negative or zero timeout returns immediately.
+     */
+    public LogRecord poll(long timeoutMs) throws InterruptedException {
+        LogRecord r = queue.poll(Math.max(timeoutMs, 0L), TimeUnit.MILLISECONDS);
+        if (r != null) {
+            metrics.setBufferDepth(queue.size());
+        }
+        return r;
     }
 }
