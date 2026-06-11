@@ -1,17 +1,43 @@
 package io.beacon.sdk.metrics;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * SDK self-observability counters/gauges per spec/02 §3.
- * Six metrics: records_enqueued, records_dropped, records_exported,
- * export_failures, buffer_depth, fallback_writes.
- * Implemented in M1.2+ as each stage starts emitting.
+ *
+ * <p>Six metrics in the spec: {@code records_enqueued}, {@code records_dropped},
+ * {@code records_exported}, {@code export_failures}, {@code buffer_depth},
+ * {@code fallback_writes}. M1.2 implements the three driven by the emit path;
+ * exporter/fallback metrics land in M1.4.</p>
  */
 public final class SdkMetrics {
 
-    public void incEnqueued() { throw new UnsupportedOperationException("M1.2"); }
-    public void incDropped()  { throw new UnsupportedOperationException("M1.2"); }
-    public void incExported() { throw new UnsupportedOperationException("M1.4"); }
-    public void incExportFailure() { throw new UnsupportedOperationException("M1.4"); }
-    public void setBufferDepth(int depth) { throw new UnsupportedOperationException("M1.2"); }
-    public void incFallbackWrite() { throw new UnsupportedOperationException("M1.4"); }
+    private final AtomicLong enqueued = new AtomicLong();
+    private final AtomicLong dropped = new AtomicLong();
+    private final AtomicLong bufferDepth = new AtomicLong();
+
+    // ---- M1.2 surface ---------------------------------------------------
+
+    public void incEnqueued() { enqueued.incrementAndGet(); }
+    public long enqueued() { return enqueued.get(); }
+
+    public void incDropped() { dropped.incrementAndGet(); }
+    public long dropped() { return dropped.get(); }
+
+    public void setBufferDepth(int depth) { bufferDepth.set(depth); }
+    public long bufferDepth() { return bufferDepth.get(); }
+
+    // ---- M1.4 surface — stays unimplemented until the exporter wires in -
+
+    public void incExported() {
+        throw new UnsupportedOperationException("M1.4: exporter not wired yet");
+    }
+
+    public void incExportFailure() {
+        throw new UnsupportedOperationException("M1.4: exporter not wired yet");
+    }
+
+    public void incFallbackWrite() {
+        throw new UnsupportedOperationException("M1.4: fallback sink not wired yet");
+    }
 }
