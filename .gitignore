@@ -33,3 +33,6 @@ Thumbs.db
 # Local env
 .env
 .env.local
+
+# Developer working journal (per-author, not version-controlled)
+.journal/
