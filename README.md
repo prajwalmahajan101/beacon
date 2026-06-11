@@ -1,6 +1,7 @@
 # Beacon
 
 [![contract](https://github.com/prajwalmahajan101/beacon/actions/workflows/contract.yml/badge.svg?branch=main)](https://github.com/prajwalmahajan101/beacon/actions/workflows/contract.yml)
+[![java-sdk](https://github.com/prajwalmahajan101/beacon/actions/workflows/java-sdk.yml/badge.svg?branch=main)](https://github.com/prajwalmahajan101/beacon/actions/workflows/java-sdk.yml)
 
 > Self-hosted, OpenTelemetry-native observability platform — logs, traces, and metrics from polyglot services, correlated by W3C trace context, queryable from a single console.
 
