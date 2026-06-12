@@ -7,6 +7,8 @@ import io.beacon.sdk.pipeline.BatchSink;
 import io.beacon.sdk.pipeline.BoundedBuffer;
 import io.beacon.sdk.record.LogRecord;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Top-level entry point for the Beacon SDK. Build with {@link #builder()}.
  *
@@ -21,6 +23,7 @@ public final class BeaconSdk implements AutoCloseable {
     private final SdkMetrics metrics;
     private final BoundedBuffer buffer;
     private final BatchFlusher flusher;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     private BeaconSdk(BeaconConfig config, BatchSink sink) {
         this.config = config;
@@ -55,11 +58,24 @@ public final class BeaconSdk implements AutoCloseable {
         buffer.offer(record);
     }
 
+    /**
+     * Graceful shutdown per spec/02 §2.6 (C9). Drains the flusher's in-flight
+     * batch and the remaining buffer through the configured sink, joining within
+     * {@code config.shutdownDrainTimeoutMs()}. Idempotent.
+     *
+     * <p>When the sink is a {@code ResilientSink}, retry + fallback automatically
+     * route any drain-time failures to the fallback sink so records aren't
+     * silently dropped. With a raw sink, drain failures bubble up as the sink
+     * sees fit.</p>
+     *
+     * <p>The join is best-effort; if a misbehaving sink retries past the
+     * timeout, the flusher thread may live briefly beyond {@code close()}
+     * returning. Acceptable for shutdown — JVM teardown follows.</p>
+     */
     @Override
     public void close() {
-        // M1.5: drain remaining buffer to sink before stop (C9). For M1.3 we
-        // only stop the flusher cleanly; in-flight records are discarded.
-        flusher.stop();
+        if (!closed.compareAndSet(false, true)) return;
+        flusher.drainAndStop(config.shutdownDrainTimeoutMs());
     }
 
     public static final class Builder {
