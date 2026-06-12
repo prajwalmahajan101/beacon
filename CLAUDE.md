@@ -65,6 +65,11 @@ beacon/
 ## ADR index
 
 - [ADR-0001](docs/adr/0001-java-sdk-architecture.md) — Java SDK architecture & dependencies (M1.0).
+- [ADR-0002](docs/adr/0002-record-model-canonical-json.md) — Record model + canonical JSON serializer + severity mapping (M1.1).
+- [ADR-0003](docs/adr/0003-bounded-buffer-drop-policy.md) — Bounded buffer + drop policy (M1.2).
+- [ADR-0004](docs/adr/0004-batch-flusher-concurrency-model.md) — Batch flusher concurrency model (M1.3).
+- [ADR-0005](docs/adr/0005-resilience-layer-retry-backoff-fallback.md) — Resilience layer: retry, backoff + jitter, and fallback sink (M1.4).
+- [ADR-0006](docs/adr/0006-graceful-shutdown-drain.md) — Graceful shutdown drain (M1.5).
 
 ## Workflow conventions (READ before editing)
 
