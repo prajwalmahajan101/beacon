@@ -92,7 +92,7 @@ Every phase below ends when **all** of the following exist:
 1. **Code + tests** — feature + unit tests + any un-disabled conformance scenarios pass on the feature branch.
 2. **CHANGELOG entry** — an `[Unreleased]` section header for the phase with Added / Changed / Verified bullets.
 3. **ADR** — if the phase made a non-trivial architectural decision (most do), a numbered ADR under `docs/adr/`. M1.0–M1.5's ADRs are 0001–0006.
-4. **Journal entry** — a per-author working note at `.journal/M1.<N>.md` (gitignored, see `9bb8691`). One markdown file per phase, written **as the phase happens** (not later — backfilled entries lose nuance). Follows the template at `.journal/TEMPLATE.md`:
+4. **Journal entry** — a per-phase dev journal at `.journal/M1.<N>.md`, **versioned alongside the codebase**. One markdown file per phase, written **as the phase happens** (not later — backfilled entries lose nuance). Follows the canonical section template (`.journal/TEMPLATE.md` itself stays private as the author's scaffold; the structure is described below so contributors see it from the repo):
 
    - **What I did** — decisions ratified + atomic commits shipped. The "what got built" view.
    - **Problems I faced** — bugs caught (by tests or self-review), false starts, dead ends, library quirks, spec ambiguities surfaced by the conformance gate. The honest "what fought back" view.
@@ -101,7 +101,7 @@ Every phase below ends when **all** of the following exist:
    - **What's next** — split into (a) hand-off questions for the immediate next phase, (b) v2 carry-list (known deferrals, profiler-bait, accepted trade-offs to revisit after M1 closes).
    - **Journal** — chronological free-form dev log; the messy thinking the structured sections above eventually distill.
 
-   The journal is **for the author** (private, gitignored). The ADR is for the project (versioned). They're complementary: the journal is the messy thinking that gets distilled into the ADR's clean rationale. Skipping the journal means the next phase's plan mode has to re-derive context that was already in your head at the end of the previous phase.
+   The journal is **for the author first, the reader second.** It's where the messy thinking lives — false starts, frustrations, dead ends, decisions you almost made but didn't. The ADR is the clean rationale that survives review; the journal is the path that got you there. Both are versioned because the project is explicitly learning-in-public (see the README). Skipping the journal means the next phase's plan mode has to re-derive context that was already in your head at the end of the previous phase.
 
    `M1-COMPLETE.md` (the M1.8 retrospective) is dramatically easier to write when 8 journal files exist than when one does.
 
