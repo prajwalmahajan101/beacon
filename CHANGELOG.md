@@ -2,6 +2,30 @@
 
 All notable changes to Beacon are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow milestone semver (`v<major>.<minor>-m<milestone>`).
 
+## [Unreleased] — M1.5: Graceful shutdown drain
+
+`BeaconSdk.close()` now drains the flusher's in-flight batch and the buffer remainder through the configured sink within `shutdown_drain_timeout_ms` per spec/02 §2.6. With a `ResilientSink` in front of the transport, drain-time failures route to the fallback sink automatically. Conformance scenario **C9** (200 pending records → flushed-or-fallback within 5 s) is green; 2 scenarios remain `@Disabled` for M1.6.
+
+### Added
+
+- **`BatchFlusher.drainAndStop(long timeoutMs)`** — sets `running=false`, interrupts the thread, joins with `timeoutMs`, then drains everything still in the buffer through the existing `flush()` helper (updates `batchesFlushed` + `recordsFlushed` consistently). Existing `stop()` is retained as the non-draining variant for tests that want an abrupt halt.
+- **`BatchFlusher` runLoop exit hook** — on natural stop or interrupt, the loop's in-flight batch is flushed before the thread exits, so records the flusher had poll-pulled but not yet sized/timed-out are no longer silently dropped.
+- **`BeaconConfig.withShutdownDrainTimeoutMs(long)`** — completes the `with*` helper set.
+- **SDK unit tests** — `BatchFlusherTest` gains `drainAndStop_flushes_inflight_batch_and_buffer_remainder` and `drainAndStop_is_idempotent`.
+- **Conformance C9** — emits 200 records into a SDK with size/interval triggers tuned out, calls `close()`, asserts `elapsed_ms <= 5000`, `flushed + fallback_writes == 200`, and `recordsFlushed == 200` on the happy path.
+
+### Changed
+
+- **`BeaconSdk.close()`** — now calls `flusher.drainAndStop(config.shutdownDrainTimeoutMs())` per spec §2.6 (was: stops the flusher only). Idempotent via an `AtomicBoolean closed` guard.
+- **`BeaconSdkEmitTest`** — the two M1.3 tests that called `sdk.close()` purely to stop the flusher now use the non-draining `sdk.flusher().stop()` so they keep observing pure buffer/drop semantics.
+- **`ConformanceTest.C3`** — the stalled `BatchSink` now loops on an `AtomicBoolean released` flag (was: single `wait/notify` cycle per `accept` call), so the M1.5 drain-via-sink path unblocks cleanly when the gate is released.
+
+### Verified
+
+- `./gradlew :beacon-sdk-java:test` → SDK unit suite passes (BatchFlusherTest gains 2 tests).
+- `./gradlew :conformance-java:test` → `tests=12 skipped=2 failures=0 errors=0`. **C1–C9 + C12 green** (10/12).
+- `git status` clean; no edits under `beacon-s0-contract/spec/`, `schema/`, `M0-FROZEN.md`, or `scenarios.yaml`.
+
 ## [Unreleased] — M1.4: OTLP exporter + retry/backoff + fallback sink
 
 The resilience layer is live. Batches now flow through `ResilientSink` (retry + exponential backoff + full jitter) and, on exhaustion, into a `FallbackSink` (stderr or append-only file) — never silently dropped. The production OTLP transport wraps OTel Java's `OtlpGrpcLogRecordExporter` / `OtlpHttpLogRecordExporter` as a `BatchSink`. Conformance scenarios **C6** (fail 6× → fallback), **C7** (unreachable broker → 50 records in fallback) and **C8** (down-then-up → resumes export) are green; 3 scenarios remain `@Disabled` for M1.5–M1.6.
