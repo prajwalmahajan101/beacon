@@ -477,6 +477,8 @@ Sizing assumptions (avg log ~1 KB, retention per §15.4) are recorded so they ca
 
 ## 26. Milestones & phased delivery
 
+> **Superseded for execution numbering by [`docs/ROADMAP.md`](docs/ROADMAP.md) (2026-06-12).** This section's M0–M4 sketch predates the M0 freeze; the project now follows the README + ROADMAP M0–M5 breakdown (Java SDK and Python SDK are separate milestones; ingest, console, hardening get their own milestones). This section is retained as historical context.
+
 Each phase ends at a demoable, resume-worthy milestone.
 
 - **M0 — Contract (≈1 wk):** OTel-aligned record spec + behavior spec + conformance suite skeleton.

@@ -99,11 +99,13 @@ Full design rationale and alternatives considered are in [`PRD.md`](./PRD.md).
 | Milestone | Scope | Status |
 |---|---|---|
 | **M0** | Telemetry contract (spec + schema + conformance suite, no SDK code) | ✅ Frozen 2026-06-05 |
-| **M1** | Java SDK — implements the contract, passes C1–C12 against the suite | 🚧 Starting |
+| **M1** | Java SDK — implements the contract, passes C1–C12 against the suite | 🚧 6 / 9 phases done |
 | **M2** | Python SDK — same suite, same scenarios | Planned |
 | **M3** | Ingest pipeline (Kafka → indexer → storage) | Planned |
 | **M4** | Query API + live tail + Beacon Console | Planned |
 | **M5** | Platform hardening — RBAC, retention, redaction, self-observability, Helm | Planned |
+
+Per-milestone scope, acceptance gates, status, and cross-references: [`docs/ROADMAP.md`](./docs/ROADMAP.md). M1 phase breakdown: [`docs/M1-ROADMAP.md`](./docs/M1-ROADMAP.md).
 
 ## Status & expectations
 
