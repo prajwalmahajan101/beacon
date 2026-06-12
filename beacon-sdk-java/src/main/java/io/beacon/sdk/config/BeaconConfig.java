@@ -65,4 +65,28 @@ public record BeaconConfig(
                 maxRetries, backoffBaseMs, backoffMaxMs, fallbackSink, shutdownDrainTimeoutMs,
                 redactKeys, samplingRatio);
     }
+
+    public BeaconConfig withMaxRetries(int n) {
+        return new BeaconConfig(endpoint, apiKey, bufferCapacity, dropPolicy, batchMaxRecords, flushIntervalMs,
+                n, backoffBaseMs, backoffMaxMs, fallbackSink, shutdownDrainTimeoutMs,
+                redactKeys, samplingRatio);
+    }
+
+    public BeaconConfig withBackoffBaseMs(long ms) {
+        return new BeaconConfig(endpoint, apiKey, bufferCapacity, dropPolicy, batchMaxRecords, flushIntervalMs,
+                maxRetries, ms, backoffMaxMs, fallbackSink, shutdownDrainTimeoutMs,
+                redactKeys, samplingRatio);
+    }
+
+    public BeaconConfig withBackoffMaxMs(long ms) {
+        return new BeaconConfig(endpoint, apiKey, bufferCapacity, dropPolicy, batchMaxRecords, flushIntervalMs,
+                maxRetries, backoffBaseMs, ms, fallbackSink, shutdownDrainTimeoutMs,
+                redactKeys, samplingRatio);
+    }
+
+    public BeaconConfig withFallbackSink(String spec) {
+        return new BeaconConfig(endpoint, apiKey, bufferCapacity, dropPolicy, batchMaxRecords, flushIntervalMs,
+                maxRetries, backoffBaseMs, backoffMaxMs, spec, shutdownDrainTimeoutMs,
+                redactKeys, samplingRatio);
+    }
 }
