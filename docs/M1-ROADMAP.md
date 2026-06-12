@@ -85,6 +85,25 @@ The existing `beacon-s0-contract/conformance/java/ConformanceTest.java` is **the
 
 ---
 
+## Per-phase "done" definition
+
+Every phase below ends when **all** of the following exist:
+
+1. **Code + tests** — feature + unit tests + any un-disabled conformance scenarios pass on the feature branch.
+2. **CHANGELOG entry** — an `[Unreleased]` section header for the phase with Added / Changed / Verified bullets.
+3. **ADR** — if the phase made a non-trivial architectural decision (most do), a numbered ADR under `docs/adr/`. M1.0–M1.5's ADRs are 0001–0006.
+4. **Journal entry** — a per-author working note at `.journal/M1.<N>.md` (gitignored, see `9bb8691`). One short markdown file per phase, written **as the phase closes** (not later), covering:
+   - **What I tried first that didn't work** — false starts, dead ends, abandoned designs.
+   - **What surprised me** — behaviour that contradicted my mental model, library quirks, spec ambiguities surfaced by the conformance gate.
+   - **What I'd revisit** — known trade-offs accepted to ship the phase, deferred work, profiler-bait.
+   - **Open questions for the next phase** — anything I want my future self (or the next milestone's plan-mode session) to remember.
+
+   The journal is **for the author** (private, gitignored). The ADR is for the project (versioned). They're complementary: the journal is the messy thinking that gets distilled into the ADR's clean rationale. Skipping the journal means the next phase's plan mode has to re-derive context that was already in your head at the end of the previous phase.
+
+   `M1-COMPLETE.md` (the M1.8 retrospective) is much easier to write when 8 journal files exist than when one does.
+
+5. **PR merged** — atomic commits, Conventional Commits, CI green, rebase-merged to keep `main` linear.
+
 ## Suggested M1 phase breakdown (each phase = atomic-commit-sized, contract-test-gated)
 
 1. **M1.0** — module scaffold, Gradle, ADR-0001, conformance harness wired (all 12 still `@Disabled`, but compiling against the new SDK API surface).
