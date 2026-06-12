@@ -132,4 +132,39 @@ class BatchFlusherTest {
         f.stop(); // no-op
         assertThat(f.isRunning()).isFalse();
     }
+
+    @Test
+    void drainAndStop_flushes_inflight_batch_and_buffer_remainder() throws InterruptedException {
+        SdkMetrics m = new SdkMetrics();
+        BoundedBuffer b = new BoundedBuffer(1_000, DropPolicy.DROP_NEWEST, m);
+        CapturingSink sink = new CapturingSink();
+        // Large size + long interval so neither trigger fires before drainAndStop.
+        BatchFlusher f = new BatchFlusher(b, sink, 10_000, 60_000, m);
+        f.start();
+
+        for (int i = 0; i < 200; i++) b.offer(rec(i));
+        // Give the flusher a moment to pull at least the first record into its in-flight batch.
+        Thread.sleep(20);
+
+        f.drainAndStop(2_000);
+
+        assertThat(sink.totalRecords()).isEqualTo(200);
+        assertThat(m.recordsFlushed()).isEqualTo(200);
+        assertThat(b.size()).isZero();
+        assertThat(f.isRunning()).isFalse();
+    }
+
+    @Test
+    void drainAndStop_is_idempotent() {
+        SdkMetrics m = new SdkMetrics();
+        BoundedBuffer b = new BoundedBuffer(10, DropPolicy.DROP_NEWEST, m);
+        CapturingSink sink = new CapturingSink();
+        BatchFlusher f = new BatchFlusher(b, sink, 10, 100, m);
+        f.start();
+
+        f.drainAndStop(500);
+        assertThat(f.isRunning()).isFalse();
+        f.drainAndStop(500); // no-op, no exceptions
+        assertThat(f.isRunning()).isFalse();
+    }
 }
