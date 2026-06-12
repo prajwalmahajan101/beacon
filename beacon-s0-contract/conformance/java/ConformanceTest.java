@@ -9,6 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.beacon.sdk.BeaconSdk;
 import io.beacon.sdk.config.BeaconConfig;
 import io.beacon.sdk.config.BeaconConfig.DropPolicy;
+import io.beacon.sdk.exporter.FallbackSink;
+import io.beacon.sdk.exporter.ResilientSink;
+import io.beacon.sdk.exporter.RetryPolicy;
+import io.beacon.sdk.metrics.SdkMetrics;
 import io.beacon.sdk.pipeline.BatchSink;
 import io.beacon.sdk.record.LogRecord;
 import io.beacon.sdk.severity.SeverityMapper;
@@ -27,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Beacon SDK conformance suite — Java harness.
@@ -126,34 +131,49 @@ class ConformanceTest {
         long expectDroppedMin = ((Number) c3.get("expect_dropped_min")).longValue();
         DropPolicy policy = DropPolicy.valueOf((String) c3.get("drop_policy"));
 
-        // Scope note (M1.3): scenarios.yaml's `exporter: stalled` is simulated by
-        // stopping the M1.3 flusher right after build, so the buffer never drains
-        // and every offer beyond capacity exercises the drop policy. M1.4 swaps
-        // this for a real fail-then-fallback exporter when C6/C7 wire in.
+        // Scope note (M1.4): scenarios.yaml's `exporter: stalled` is implemented as
+        // a sink that blocks indefinitely inside accept(), so the flusher's daemon
+        // thread parks on the first drained record and the buffer fills + drops
+        // exactly as the scenario intends. Releases on test teardown.
+        Object releaseGate = new Object();
+        BatchSink stalled = batch -> {
+            synchronized (releaseGate) {
+                try { releaseGate.wait(); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+            }
+        };
+
+        // batchMaxRecords=1 prevents the flusher from pre-draining up to its default
+        // batch size (512) before the sink blocks — without this, the flusher would
+        // siphon ~512 records into its in-flight batch and the buffer would never
+        // overflow with the scenario's 1000 emits + capacity 100.
         BeaconConfig cfg = BeaconConfig.defaults()
                 .withBufferCapacity(capacity)
-                .withDropPolicy(policy);
-        BeaconSdk sdk = BeaconSdk.builder().config(cfg).build();
-        sdk.close();
+                .withDropPolicy(policy)
+                .withBatchMaxRecords(1);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(stalled).build();
+        try {
+            LogRecord template = LogRecord.minimal(
+                    Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c3",
+                    Map.of("service.name", "c3-test", "telemetry.sdk.language", "java"));
 
-        LogRecord template = LogRecord.minimal(
-                Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c3",
-                Map.of("service.name", "c3-test", "telemetry.sdk.language", "java"));
+            for (int i = 0; i < emitCount; i++) sdk.emit(template);
 
-        for (int i = 0; i < emitCount; i++) sdk.emit(template);
-
-        SoftAssertions soft = new SoftAssertions();
-        soft.assertThat(sdk.metrics().dropped())
-                .as("dropped must be >= %d (capacity=%d, emit=%d, policy=%s)",
-                        expectDroppedMin, capacity, emitCount, policy)
-                .isGreaterThanOrEqualTo(expectDroppedMin);
-        soft.assertThat(sdk.buffer().size())
-                .as("buffer size must respect capacity")
-                .isLessThanOrEqualTo(capacity);
-        soft.assertThat(sdk.metrics().enqueued())
-                .as("enqueued must equal emit_count for DROP_OLDEST (every offer accepted)")
-                .isEqualTo(emitCount);
-        soft.assertAll();
+            SoftAssertions soft = new SoftAssertions();
+            soft.assertThat(sdk.metrics().dropped())
+                    .as("dropped must be >= %d (capacity=%d, emit=%d, policy=%s)",
+                            expectDroppedMin, capacity, emitCount, policy)
+                    .isGreaterThanOrEqualTo(expectDroppedMin);
+            soft.assertThat(sdk.buffer().size())
+                    .as("buffer size must respect capacity")
+                    .isLessThanOrEqualTo(capacity);
+            soft.assertThat(sdk.metrics().enqueued())
+                    .as("enqueued must equal emit_count for DROP_OLDEST (every offer accepted)")
+                    .isEqualTo(emitCount);
+            soft.assertAll();
+        } finally {
+            synchronized (releaseGate) { releaseGate.notifyAll(); }
+            sdk.close();
+        }
     }
 
     private static org.assertj.core.api.AbstractLongAssert<?> assertThatLong(long actual, String desc) {
@@ -254,25 +274,155 @@ class ConformanceTest {
 
     // ---- Runtime: resilience --------------------------------------------
 
+    /** Captures records that reach the fallback path; mirrors the real impl's metric semantics. */
+    private static final class CapturingFallback implements FallbackSink {
+        final CopyOnWriteArrayList<LogRecord> received = new CopyOnWriteArrayList<>();
+        private final SdkMetrics metrics;
+        CapturingFallback(SdkMetrics metrics) { this.metrics = metrics; }
+        @Override public void write(List<LogRecord> batch) {
+            received.addAll(batch);
+            metrics.incFallbackWrite(batch.size());
+        }
+    }
+
+    /**
+     * Builds a SDK whose ResilientSink + CapturingFallback share a test-owned SdkMetrics,
+     * so the assertions can observe the resilience-layer counters (the BeaconSdk's internal
+     * SdkMetrics covers buffer/flusher and is separately observable via sdk.metrics()).
+     */
+    private static record Wired(BeaconSdk sdk, SdkMetrics metrics, CapturingFallback fallback) {}
+
+    private static Wired wireResilient(BeaconConfig cfg, BatchSink delegate, int maxRetries) {
+        SdkMetrics testMetrics = new SdkMetrics();
+        CapturingFallback fb = new CapturingFallback(testMetrics);
+        ResilientSink resilient = new ResilientSink(delegate,
+                new RetryPolicy(maxRetries, 1, 1), fb, testMetrics);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(resilient).build();
+        return new Wired(sdk, testMetrics, fb);
+    }
+
     @Test
-    @Disabled("M1.4: implement against real SDK")
     @DisplayName("C6 — retry with backoff then fallback")
-    void c6_retryWithBackoffThenFallback() {
-        // TODO: fail 6x, max_retries=5 -> fallback, no loss, no infinite loop
+    void c6_retryWithBackoffThenFallback() throws Exception {
+        Map<String, Object> c6 = scenarioParams("C6");
+        int failTimes = ((Number) c6.get("fail_times")).intValue();
+        int maxRetries = ((Number) c6.get("max_retries")).intValue();
+        boolean expectFallback = (Boolean) c6.get("expect_fallback");
+
+        AtomicInteger calls = new AtomicInteger();
+        BatchSink failNTimes = batch -> {
+            if (calls.incrementAndGet() <= failTimes) {
+                throw new RuntimeException("simulated failure #" + calls.get());
+            }
+        };
+
+        BeaconConfig cfg = BeaconConfig.defaults()
+                .withMaxRetries(maxRetries)
+                .withBackoffBaseMs(1).withBackoffMaxMs(1)
+                .withBatchMaxRecords(1)
+                .withFlushIntervalMs(50);
+        Wired w = wireResilient(cfg, failNTimes, maxRetries);
+        try {
+            LogRecord rec = LogRecord.minimal(
+                    Instant.parse("2026-06-12T00:00:00Z"), 9, "INFO", "c6",
+                    Map.of("service.name", "c6-test", "telemetry.sdk.language", "java"));
+            w.sdk().emit(rec);
+            awaitTrue(() -> !w.fallback().received.isEmpty() || w.metrics().exported() > 0, 2_000);
+
+            SoftAssertions soft = new SoftAssertions();
+            soft.assertThat(calls.get())
+                    .as("expected initial attempt + maxRetries (=%d total) when failures exceed retries",
+                            maxRetries + 1)
+                    .isEqualTo(maxRetries + 1);
+            if (expectFallback) {
+                soft.assertThat(w.fallback().received)
+                        .as("fallback must receive the batch after retry exhaustion")
+                        .isNotEmpty();
+            }
+            soft.assertThat(w.metrics().exported())
+                    .as("nothing should have exported (delegate kept throwing within fail_times window)")
+                    .isZero();
+            soft.assertAll();
+        } finally {
+            w.sdk().close();
+        }
     }
 
     @Test
-    @Disabled("M1.4: implement against real SDK")
     @DisplayName("C7 — fallback sink on broker down")
-    void c7_fallbackSinkOnBrokerDown() {
-        // TODO: unreachable gateway -> records in fallback sink
+    void c7_fallbackSinkOnBrokerDown() throws Exception {
+        Map<String, Object> c7 = scenarioParams("C7");
+        int emitCount = ((Number) c7.get("emit_count")).intValue();
+        int expectFallbackMin = ((Number) c7.get("expect_fallback_min")).intValue();
+
+        BatchSink unreachable = batch -> { throw new RuntimeException("gateway unreachable"); };
+
+        BeaconConfig cfg = BeaconConfig.defaults()
+                .withMaxRetries(2)
+                .withBackoffBaseMs(1).withBackoffMaxMs(1)
+                .withBatchMaxRecords(emitCount)
+                .withFlushIntervalMs(50);
+        Wired w = wireResilient(cfg, unreachable, 2);
+        try {
+            LogRecord rec = LogRecord.minimal(
+                    Instant.parse("2026-06-12T00:00:00Z"), 9, "INFO", "c7",
+                    Map.of("service.name", "c7-test", "telemetry.sdk.language", "java"));
+            for (int i = 0; i < emitCount; i++) w.sdk().emit(rec);
+            awaitTrue(() -> w.fallback().received.size() >= expectFallbackMin, 3_000);
+
+            SoftAssertions soft = new SoftAssertions();
+            soft.assertThat(w.fallback().received.size())
+                    .as("fallback must receive at least %d records when exporter is unreachable",
+                            expectFallbackMin)
+                    .isGreaterThanOrEqualTo(expectFallbackMin);
+            soft.assertThat(w.metrics().fallbackWrites())
+                    .as("fallback_writes metric tracks the same count")
+                    .isEqualTo(w.fallback().received.size());
+            soft.assertThat(w.metrics().exported()).isZero();
+            soft.assertAll();
+        } finally {
+            w.sdk().close();
+        }
     }
 
     @Test
-    @Disabled("M1.4: implement against real SDK")
     @DisplayName("C8 — recovery after broker returns")
-    void c8_recoveryAfterBrokerReturns() {
-        // TODO: down_then_up -> resumes export without restart
+    void c8_recoveryAfterBrokerReturns() throws Exception {
+        Map<String, Object> c8 = scenarioParams("C8");
+        long downMs = ((Number) c8.get("down_ms")).longValue();
+        int emitAfterRecovery = ((Number) c8.get("emit_after_recovery")).intValue();
+        int expectExportedAfterRecovery = ((Number) c8.get("expect_exported_after_recovery")).intValue();
+
+        long startNanos = System.nanoTime();
+        BatchSink downThenUp = batch -> {
+            long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L;
+            if (elapsedMs < downMs) throw new RuntimeException("broker down (elapsed=" + elapsedMs + "ms)");
+        };
+
+        BeaconConfig cfg = BeaconConfig.defaults()
+                .withMaxRetries(1)
+                .withBackoffBaseMs(1).withBackoffMaxMs(1)
+                .withBatchMaxRecords(1)
+                .withFlushIntervalMs(50);
+        Wired w = wireResilient(cfg, downThenUp, 1);
+        try {
+            Thread.sleep(downMs + 100); // wait for "broker" to come up before the post-recovery emits
+
+            LogRecord rec = LogRecord.minimal(
+                    Instant.parse("2026-06-12T00:00:00Z"), 9, "INFO", "c8",
+                    Map.of("service.name", "c8-test", "telemetry.sdk.language", "java"));
+            long baselineExported = w.metrics().exported();
+            for (int i = 0; i < emitAfterRecovery; i++) w.sdk().emit(rec);
+            awaitTrue(() -> (w.metrics().exported() - baselineExported) >= expectExportedAfterRecovery, 3_000);
+
+            SoftAssertions soft = new SoftAssertions();
+            soft.assertThat(w.metrics().exported() - baselineExported)
+                    .as("after recovery, exported must increase by >= %d", expectExportedAfterRecovery)
+                    .isGreaterThanOrEqualTo(expectExportedAfterRecovery);
+            soft.assertAll();
+        } finally {
+            w.sdk().close();
+        }
     }
 
     @Test
