@@ -34,5 +34,7 @@ Thumbs.db
 .env
 .env.local
 
-# Developer working journal (per-author, not version-controlled)
-.journal/
+# Developer journal — per-phase entries (M*.md) are versioned alongside
+# the codebase; TEMPLATE.md stays private (author's scaffold, may evolve).
+.journal/*
+!.journal/M*.md
