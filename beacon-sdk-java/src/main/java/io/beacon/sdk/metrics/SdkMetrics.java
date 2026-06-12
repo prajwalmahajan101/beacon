@@ -9,7 +9,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@code records_exported}, {@code export_failures}, {@code buffer_depth},
  * {@code fallback_writes}. M1.2 implements the three driven by the emit path;
  * M1.3 adds {@code batches_flushed} + {@code records_flushed} for the batch
- * flusher's observability; exporter/fallback metrics land in M1.4.</p>
+ * flusher's observability; M1.4 wires {@code exported} + {@code export_failures}
+ * + {@code fallback_writes} for the exporter/resilience layer.</p>
  */
 public final class SdkMetrics {
 
@@ -18,6 +19,9 @@ public final class SdkMetrics {
     private final AtomicLong bufferDepth = new AtomicLong();
     private final AtomicLong batchesFlushed = new AtomicLong();
     private final AtomicLong recordsFlushed = new AtomicLong();
+    private final AtomicLong exported = new AtomicLong();
+    private final AtomicLong exportFailures = new AtomicLong();
+    private final AtomicLong fallbackWrites = new AtomicLong();
 
     // ---- M1.2 surface ---------------------------------------------------
 
@@ -38,17 +42,14 @@ public final class SdkMetrics {
     public void incRecordsFlushed(int n) { recordsFlushed.addAndGet(n); }
     public long recordsFlushed() { return recordsFlushed.get(); }
 
-    // ---- M1.4 surface — stays unimplemented until the exporter wires in -
+    // ---- M1.4 surface — exporter + resilience ---------------------------
 
-    public void incExported() {
-        throw new UnsupportedOperationException("M1.4: exporter not wired yet");
-    }
+    public void incExported(int n) { exported.addAndGet(n); }
+    public long exported() { return exported.get(); }
 
-    public void incExportFailure() {
-        throw new UnsupportedOperationException("M1.4: exporter not wired yet");
-    }
+    public void incExportFailure() { exportFailures.incrementAndGet(); }
+    public long exportFailures() { return exportFailures.get(); }
 
-    public void incFallbackWrite() {
-        throw new UnsupportedOperationException("M1.4: fallback sink not wired yet");
-    }
+    public void incFallbackWrite(int n) { fallbackWrites.addAndGet(n); }
+    public long fallbackWrites() { return fallbackWrites.get(); }
 }
