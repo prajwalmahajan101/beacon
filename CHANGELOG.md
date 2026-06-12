@@ -2,6 +2,33 @@
 
 All notable changes to Beacon are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow milestone semver (`v<major>.<minor>-m<milestone>`).
 
+## [Unreleased] — M1.4: OTLP exporter + retry/backoff + fallback sink
+
+The resilience layer is live. Batches now flow through `ResilientSink` (retry + exponential backoff + full jitter) and, on exhaustion, into a `FallbackSink` (stderr or append-only file) — never silently dropped. The production OTLP transport wraps OTel Java's `OtlpGrpcLogRecordExporter` / `OtlpHttpLogRecordExporter` as a `BatchSink`. Conformance scenarios **C6** (fail 6× → fallback), **C7** (unreachable broker → 50 records in fallback) and **C8** (down-then-up → resumes export) are green; 3 scenarios remain `@Disabled` for M1.5–M1.6.
+
+### Added
+
+- **`RetryPolicy`** — `nextDelayMs(attempt)` returns a uniform-random delay in `[0, min(baseMs * 2^attempt, maxMs)]` (AWS full-jitter pattern). Overflow-safe shift, negative attempts collapse to zero. Constructor rejects negative retries, non-positive `baseMs`, or `maxMs < baseMs`.
+- **`FallbackSink`** — interface plus `StderrFallbackSink` (one canonical-JSON line per record to `System.err`) and `FileFallbackSink` (UTF-8 append-only file, parent dirs auto-created). `FallbackSink.fromConfig(BeaconConfig, SdkMetrics)` selects by `fallback_sink` (`"stderr"` or `"file:<path>"`). Both impls increment `SdkMetrics.fallback_writes` by batch size.
+- **`ResilientSink`** — `BatchSink` decorator implementing spec/02 §2.4–2.5. Retries up to `maxRetries+1` total attempts, sleeps `retryPolicy.nextDelayMs(attempt)` between, routes the batch to `FallbackSink` on exhaustion. Increments `exported` on first success, `export_failures` per failed attempt. On thread interrupt, abandons retries and routes to fallback so shutdown can't silently drop records. Static `ResilientSink.of(delegate, BeaconConfig, SdkMetrics)` factory for the production-recommended wiring.
+- **`OtlpExporter`** — production transport implementing `BatchSink` + `AutoCloseable`. Wraps `OtlpGrpcLogRecordExporter` / `OtlpHttpLogRecordExporter` behind an `SdkLoggerProvider`. `accept(batch)` translates each Beacon `LogRecord` to an OTel log record (timestamp ns, severity number via spec/01 §1.1 band mapping, severity text, body, flat attributes) and `forceFlush().join(5s)`; throws on flush failure so `ResilientSink` drives backoff/fallback. Trace context (M1.6) and full Resource detection (M1.7) deferred.
+- **`SdkMetrics`** — `exported` + `exportFailures` + `fallbackWrites` counters (replace the M1.4-pending stubs). `incExported(int)` / `incFallbackWrite(int)` take batch sizes to match the call sites.
+- **`BeaconConfig`** `with*` helpers — `withMaxRetries(int)`, `withBackoffBaseMs(long)`, `withBackoffMaxMs(long)`, `withFallbackSink(String)` (mirrors the M1.2/M1.3 `with*` pattern).
+- **SDK unit tests** — `RetryPolicyTest`, `FallbackSinkTest` (stderr + file impls + factory), `ResilientSinkTest` (first-success, N-failures-then-success, all-fail-to-fallback, zero-retries, sleep-actually-happens), `OtlpExporterTest` (construction + null-arg rejection). `SdkMetricsTest` augmented.
+- **Conformance C6** — `ResilientSink(FailNTimesSink, RetryPolicy)` asserts `maxRetries+1` total attempts and fallback receipt.
+- **Conformance C7** — `UnreachableSink` + `CapturingFallback`; asserts ≥ `expect_fallback_min` records in fallback and `fallback_writes` agrees.
+- **Conformance C8** — `DownThenUpSink` recovers after `down_ms`; asserts ≥ `expect_exported_after_recovery` records exported without SDK restart.
+
+### Changed
+
+- `ConformanceTest.C3` now uses a real `StalledSink` (blocks indefinitely inside `accept`) matching `scenarios.yaml`'s `exporter: stalled` semantics verbatim — replaces the M1.3 `sdk.close()` workaround. `batchMaxRecords=1` keeps the flusher from pre-draining ~512 records before the block so the buffer overflow + drop policy still fires as the scenario intends.
+
+### Verified
+
+- `./gradlew :beacon-sdk-java:test` → SDK unit suite passes (RetryPolicyTest + FallbackSinkTest + ResilientSinkTest + OtlpExporterTest added; SdkMetricsTest augmented).
+- `./gradlew :conformance-java:test` → `tests=12 skipped=3 failures=0 errors=0`. **C1, C2, C3, C4, C5, C6, C7, C8, C12 green**.
+- `git status` clean; no edits under `beacon-s0-contract/spec/`, `schema/`, `M0-FROZEN.md`, or `scenarios.yaml`.
+
 ## [Unreleased] — M1.3: Batch flusher (size + interval)
 
 Records now leave the buffer. A single daemon thread drains `BoundedBuffer` into batches triggered by either `batch_max_records` (size) or `flush_interval_ms` (interval) — whichever fires first — and hands each batch to a pluggable `BatchSink`. Conformance scenarios **C4** (one batch of 10 on size trigger) and **C5** (interval trigger fires within 400 ms) are green; 6 scenarios remain `@Disabled` for M1.4–M1.6.
