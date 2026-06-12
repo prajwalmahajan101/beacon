@@ -92,15 +92,18 @@ Every phase below ends when **all** of the following exist:
 1. **Code + tests** — feature + unit tests + any un-disabled conformance scenarios pass on the feature branch.
 2. **CHANGELOG entry** — an `[Unreleased]` section header for the phase with Added / Changed / Verified bullets.
 3. **ADR** — if the phase made a non-trivial architectural decision (most do), a numbered ADR under `docs/adr/`. M1.0–M1.5's ADRs are 0001–0006.
-4. **Journal entry** — a per-author working note at `.journal/M1.<N>.md` (gitignored, see `9bb8691`). One short markdown file per phase, written **as the phase closes** (not later), covering:
-   - **What I tried first that didn't work** — false starts, dead ends, abandoned designs.
-   - **What surprised me** — behaviour that contradicted my mental model, library quirks, spec ambiguities surfaced by the conformance gate.
-   - **What I'd revisit** — known trade-offs accepted to ship the phase, deferred work, profiler-bait.
-   - **Open questions for the next phase** — anything I want my future self (or the next milestone's plan-mode session) to remember.
+4. **Journal entry** — a per-author working note at `.journal/M1.<N>.md` (gitignored, see `9bb8691`). One markdown file per phase, written **as the phase happens** (not later — backfilled entries lose nuance). Follows the template at `.journal/TEMPLATE.md`:
+
+   - **What I did** — decisions ratified + atomic commits shipped. The "what got built" view.
+   - **Problems I faced** — bugs caught (by tests or self-review), false starts, dead ends, library quirks, spec ambiguities surfaced by the conformance gate. The honest "what fought back" view.
+   - **What could have been done better** — retrospective on choices made under time pressure or with incomplete info. Calibration, not blame.
+   - **Changes carried back to earlier phases** — refactors / fixes / rethinks of prior milestones that this phase forced. Helps a future contributor trace "why did M1.2's code change in M1.5?"
+   - **What's next** — split into (a) hand-off questions for the immediate next phase, (b) v2 carry-list (known deferrals, profiler-bait, accepted trade-offs to revisit after M1 closes).
+   - **Journal** — chronological free-form dev log; the messy thinking the structured sections above eventually distill.
 
    The journal is **for the author** (private, gitignored). The ADR is for the project (versioned). They're complementary: the journal is the messy thinking that gets distilled into the ADR's clean rationale. Skipping the journal means the next phase's plan mode has to re-derive context that was already in your head at the end of the previous phase.
 
-   `M1-COMPLETE.md` (the M1.8 retrospective) is much easier to write when 8 journal files exist than when one does.
+   `M1-COMPLETE.md` (the M1.8 retrospective) is dramatically easier to write when 8 journal files exist than when one does.
 
 5. **PR merged** — atomic commits, Conventional Commits, CI green, rebase-merged to keep `main` linear.
 
