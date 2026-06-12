@@ -95,7 +95,15 @@ The existing `beacon-s0-contract/conformance/java/ConformanceTest.java` is **the
 6. **M1.5** — shutdown drain → **C9 green**.
 7. **M1.6** — redactor + MDC trace propagation → **C10 + C11 green**.
 8. **M1.7** — Logback appender + Spring Boot starter + sample service wiring; CI publishes test report.
-9. **M1.8** — CHANGELOG `[v0.2-m1]`, M1-COMPLETE.md, tag.
+9. **M1.8** — CHANGELOG `[v0.2-m1]`, `docs/M1-COMPLETE.md`, tag.
+
+   `docs/M1-COMPLETE.md` is a 3–4 paragraph retrospective, not a release-note dump. It should cover:
+   - **What was harder than expected** — pieces that took more code, more tries, or more rethinking than the M1-ROADMAP estimate suggested (e.g. the OTel `LogRecord` → `LogRecordData` conversion path, the C3 stalled-sink semantics across M1.3 → M1.5).
+   - **What the conformance suite caught** — bugs or design drift that the C1–C12 gate surfaced before they could ship (e.g. metric routing in C6/C7/C8, the M1.3 flusher pre-draining the C3 buffer past the drop threshold).
+   - **What the resilience layer would benefit from in v2** — the carry-list of things that work but should be revisited: synchronous retry blocking the flusher thread, per-record allocation through OTel's `Logger` builder, `emit()` after `close()` going to a dead buffer, fallback file writes being sync-per-batch.
+   - **One forward link** — what M2 (Python SDK) inherits from M1's contract decisions and where the most likely cross-language drift will appear.
+
+   This document is the single most "thoughtful senior engineer" artefact in the whole milestone — it's where readers see how the author thinks about engineering trade-offs, not just how the author writes code.
 
 ---
 
