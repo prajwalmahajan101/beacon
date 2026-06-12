@@ -78,6 +78,35 @@ public final class BatchFlusher {
         }
     }
 
+    /**
+     * Graceful shutdown per spec/02 §2.6 (C9). Stops the flusher, joins with
+     * {@code timeoutMs}, then drains any records still sitting in the buffer
+     * through {@link #flush}. The flusher's in-flight batch is already handed
+     * to the sink by the loop's exit hook; this catches whatever the buffer
+     * still holds.
+     *
+     * <p>When the sink is a {@code ResilientSink}, retry + fallback apply
+     * automatically — failures during drain route to fallback per spec §2.6
+     * rather than being silently dropped.</p>
+     */
+    public synchronized void drainAndStop(long timeoutMs) {
+        if (running) {
+            running = false;
+            if (thread != null) {
+                thread.interrupt();
+                try {
+                    thread.join(Math.max(timeoutMs, 0L));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                thread = null;
+            }
+        }
+        List<LogRecord> remaining = new ArrayList<>();
+        buffer.drainTo(remaining, Integer.MAX_VALUE);
+        if (!remaining.isEmpty()) flush(remaining);
+    }
+
     private void runLoop() {
         List<LogRecord> batch = new ArrayList<>(batchMaxRecords);
         long batchStartNanos = 0L;
@@ -113,7 +142,9 @@ public final class BatchFlusher {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        // M1.5: drain remaining buffer to sink before stop (C9). For M1.3 we drop.
+        // Flush whatever the flusher still holds in-flight before returning.
+        // drainAndStop will pick up anything left in the buffer afterwards.
+        if (!batch.isEmpty()) flush(batch);
     }
 
     private void flush(List<LogRecord> batch) {
