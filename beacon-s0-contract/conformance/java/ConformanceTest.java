@@ -431,10 +431,48 @@ class ConformanceTest {
     }
 
     @Test
-    @Disabled("M1.5: implement against real SDK")
     @DisplayName("C9 — graceful shutdown drains buffer")
-    void c9_gracefulShutdownDrainsBuffer() {
-        // TODO: pending=200 -> flushed/fallback within drain timeout
+    void c9_gracefulShutdownDrainsBuffer() throws Exception {
+        Map<String, Object> c9 = scenarioParams("C9");
+        int pending = ((Number) c9.get("pending_records")).intValue();
+        long drainTimeoutMs = ((Number) c9.get("shutdown_drain_timeout_ms")).longValue();
+        int expectFlushedOrFallback = ((Number) c9.get("expect_flushed_or_fallback")).intValue();
+
+        // Tune the flusher so neither size nor interval fires during the test —
+        // the only thing that drains the buffer is sdk.close().
+        BeaconConfig cfg = BeaconConfig.defaults()
+                .withBufferCapacity(pending + 10)
+                .withBatchMaxRecords(pending + 1)
+                .withFlushIntervalMs(60_000)
+                .withShutdownDrainTimeoutMs(drainTimeoutMs);
+
+        CopyOnWriteArrayList<List<LogRecord>> batches = new CopyOnWriteArrayList<>();
+        BatchSink capturing = batches::add;
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(capturing).build();
+
+        LogRecord template = LogRecord.minimal(
+                Instant.parse("2026-06-12T00:00:00Z"), 9, "INFO", "c9",
+                Map.of("service.name", "c9-test", "telemetry.sdk.language", "java"));
+        for (int i = 0; i < pending; i++) sdk.emit(template);
+
+        long t0 = System.nanoTime();
+        sdk.close();
+        long elapsedMs = (System.nanoTime() - t0) / 1_000_000L;
+
+        int flushed = batches.stream().mapToInt(List::size).sum();
+        long fallbackWrites = sdk.metrics().fallbackWrites();
+
+        SoftAssertions soft = new SoftAssertions();
+        soft.assertThat(elapsedMs)
+                .as("drain must complete within shutdown_drain_timeout_ms (%dms)", drainTimeoutMs)
+                .isLessThanOrEqualTo(drainTimeoutMs);
+        soft.assertThat(flushed + (int) fallbackWrites)
+                .as("every pending record must reach the sink or fallback (no silent loss)")
+                .isEqualTo(expectFlushedOrFallback);
+        soft.assertThat(sdk.metrics().recordsFlushed())
+                .as("happy-path drain: all %d records flushed via the capturing sink", pending)
+                .isEqualTo(pending);
+        soft.assertAll();
     }
 
     // ---- Runtime: correctness -------------------------------------------
