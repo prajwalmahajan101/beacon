@@ -8,7 +8,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SdkMetricsTest {
 
@@ -20,6 +19,9 @@ class SdkMetricsTest {
         assertThat(m.bufferDepth()).isZero();
         assertThat(m.batchesFlushed()).isZero();
         assertThat(m.recordsFlushed()).isZero();
+        assertThat(m.exported()).isZero();
+        assertThat(m.exportFailures()).isZero();
+        assertThat(m.fallbackWrites()).isZero();
     }
 
     @Test
@@ -33,12 +35,19 @@ class SdkMetricsTest {
         m.incBatchesFlushed();
         m.incRecordsFlushed(10);
         m.incRecordsFlushed(3);
+        m.incExported(10);
+        m.incExported(3);
+        m.incExportFailure();
+        m.incFallbackWrite(5);
 
         assertThat(m.enqueued()).isEqualTo(2);
         assertThat(m.dropped()).isEqualTo(1);
         assertThat(m.bufferDepth()).isEqualTo(7);
         assertThat(m.batchesFlushed()).isEqualTo(2);
         assertThat(m.recordsFlushed()).isEqualTo(13);
+        assertThat(m.exported()).isEqualTo(13);
+        assertThat(m.exportFailures()).isEqualTo(1);
+        assertThat(m.fallbackWrites()).isEqualTo(5);
     }
 
     @Test
@@ -69,11 +78,4 @@ class SdkMetricsTest {
         assertThat(m.enqueued()).isEqualTo((long) threads * perThread);
     }
 
-    @Test
-    void m14_methods_remain_unimplemented_until_exporter_lands() {
-        SdkMetrics m = new SdkMetrics();
-        assertThatThrownBy(m::incExported).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(m::incExportFailure).isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(m::incFallbackWrite).isInstanceOf(UnsupportedOperationException.class);
-    }
 }
