@@ -89,4 +89,10 @@ public record BeaconConfig(
                 maxRetries, backoffBaseMs, backoffMaxMs, spec, shutdownDrainTimeoutMs,
                 redactKeys, samplingRatio);
     }
+
+    public BeaconConfig withShutdownDrainTimeoutMs(long ms) {
+        return new BeaconConfig(endpoint, apiKey, bufferCapacity, dropPolicy, batchMaxRecords, flushIntervalMs,
+                maxRetries, backoffBaseMs, backoffMaxMs, fallbackSink, ms,
+                redactKeys, samplingRatio);
+    }
 }
