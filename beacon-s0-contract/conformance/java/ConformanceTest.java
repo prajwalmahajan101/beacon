@@ -134,11 +134,16 @@ class ConformanceTest {
         // Scope note (M1.4): scenarios.yaml's `exporter: stalled` is implemented as
         // a sink that blocks indefinitely inside accept(), so the flusher's daemon
         // thread parks on the first drained record and the buffer fills + drops
-        // exactly as the scenario intends. Releases on test teardown.
+        // exactly as the scenario intends. Loops on a `released` flag (instead of
+        // a single wait/notify) so M1.5's close-drains-via-sink path also unblocks
+        // cleanly when the gate is released in the finally block.
         Object releaseGate = new Object();
+        java.util.concurrent.atomic.AtomicBoolean released = new java.util.concurrent.atomic.AtomicBoolean();
         BatchSink stalled = batch -> {
             synchronized (releaseGate) {
-                try { releaseGate.wait(); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                while (!released.get()) {
+                    try { releaseGate.wait(); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); return; }
+                }
             }
         };
 
@@ -171,7 +176,7 @@ class ConformanceTest {
                     .isEqualTo(emitCount);
             soft.assertAll();
         } finally {
-            synchronized (releaseGate) { releaseGate.notifyAll(); }
+            synchronized (releaseGate) { released.set(true); releaseGate.notifyAll(); }
             sdk.close();
         }
     }
