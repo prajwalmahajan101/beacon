@@ -82,6 +82,18 @@ beacon/
 - **Permission prompts are NOT plan approval.** Approving a tool invocation in the UI does not approve the underlying design.
 - **A plan described in chat is NOT a substitute for plan mode.** Approval must come through `ExitPlanMode`.
 
+### Per-phase "done" definition (applies to every milestone)
+
+Every phase across **every** milestone (`M0`, `M1.x`, `M2.x`, `M3.x`, …) is **not done** until all five exist:
+
+1. **Code + tests** — feature + unit tests + any un-disabled conformance scenarios green on the feature branch.
+2. **CHANGELOG entry** — `[Unreleased]` section header with Added / Changed / Verified bullets.
+3. **ADR** — if the phase made a non-trivial architectural call, a numbered file under `docs/adr/` following *Context / Decision / Consequences / Usage*.
+4. **Journal entry** — `.journal/<phase>.md` (e.g. `M1.5.md`, `M2.3.md`), **versioned**, written **as the phase happens** (backfilled entries lose nuance). Six canonical sections: *What I did / Problems I faced / What could have been done better / Changes carried back to earlier phases / What's next / Journal*. `.journal/TEMPLATE.md` stays gitignored. Full rule + template in [`CONTRIBUTING.md` § Per-phase "done" definition](CONTRIBUTING.md#per-phase-done-definition).
+5. **PR merged** — atomic commits, Conventional Commits, CI green, rebase-merged for linear `main`.
+
+Skipping the journal is the most common drift point. The journal is for the author first, the reader second; ADRs are the clean rationale, journals are the messy path. Both are public because the project is explicitly learning-in-public.
+
 ### Spec changes follow an ADR
 
 The M0 contract (`beacon-s0-contract/`) is frozen. Material changes to record shape, SDK behaviour, schema, or scenarios require:
