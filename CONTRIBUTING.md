@@ -58,6 +58,28 @@ touches schema or fixtures.
 - **No squash-merging a stack** — atomic commits are easier to revert and bisect.
 - **Don't auto-format files you didn't touch** — keep diffs reviewable.
 
+## Per-phase "done" definition
+
+Beacon ships in milestone-versioned phases (`M0`, `M1.0–M1.8`, `M2.x`, `M3.x`, …). A phase is **not done** until **all** of the following exist:
+
+1. **Code + tests** — feature + unit tests + any un-disabled conformance scenarios pass on the feature branch.
+2. **CHANGELOG entry** — an `[Unreleased]` section header for the phase with Added / Changed / Verified bullets.
+3. **ADR** — if the phase made a non-trivial architectural decision (most do), a numbered ADR under `docs/adr/` following the *Context / Decision / Consequences / Usage* template.
+4. **Journal entry** — a per-phase dev journal at `.journal/<phase>.md` (e.g. `.journal/M1.5.md`, `.journal/M2.3.md`), **versioned alongside the codebase**. Written **as the phase happens** — backfilled entries lose nuance. Six canonical sections:
+   - **What I did** — decisions ratified + atomic commits shipped. The "what got built" view.
+   - **Problems I faced** — bugs caught, false starts, dead ends, library quirks, spec ambiguities surfaced by the conformance gate. The honest "what fought back" view.
+   - **What could have been done better** — retrospective on choices made under time pressure or with incomplete info. Calibration, not blame.
+   - **Changes carried back to earlier phases** — refactors / fixes / rethinks of prior milestones that this phase forced. Helps a future contributor trace "why did X's code change in Y?"
+   - **What's next** — split into (a) hand-off questions for the immediate next phase, (b) v2 carry-list (deferrals, profiler-bait, accepted trade-offs to revisit after the milestone closes).
+   - **Journal** — chronological free-form dev log; the messy thinking the structured sections above eventually distil.
+
+   The journal is **for the author first, the reader second.** ADRs cover the clean rationale that survives review; journals show the messy path that got there. Both are public because the project is explicitly learning-in-public (see the README). Skipping the journal means the next phase's plan mode has to re-derive context that was already in the author's head at the end of the previous phase. The milestone retrospective (`docs/M<n>-COMPLETE.md`) is much easier to write when N journal files exist than when one does.
+
+   The `.journal/TEMPLATE.md` scaffold itself stays gitignored — it's the author's working file and may evolve freely without PR churn.
+5. **PR merged** — atomic commits, Conventional Commits, CI green, rebase-merged to keep `main` linear.
+
+This applies to **every milestone**, not just M1. M2 (Python SDK), M3 (Ingest pipeline), M4 (Console), M5 (Hardening) all inherit it.
+
 ## Working with AI assistants
 
 This repo expects AI coding assistants (Claude Code, Cursor, etc.) to use a **plan-before-code** workflow for any non-trivial change — new modules, cross-file refactors, spec/schema/scenario edits, CI changes, dependency bumps. Tooling-side, that is plan mode (`EnterPlanMode` → `ExitPlanMode` for explicit approval) in Claude Code; equivalents apply elsewhere. Trivial fixes (typos, one-line corrections, exact user-dictated edits) may skip. See `CLAUDE.md` for the full convention.

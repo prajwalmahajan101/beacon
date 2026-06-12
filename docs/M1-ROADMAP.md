@@ -87,25 +87,9 @@ The existing `beacon-s0-contract/conformance/java/ConformanceTest.java` is **the
 
 ## Per-phase "done" definition
 
-Every phase below ends when **all** of the following exist:
+Every M1 phase below ends when the project-wide **per-phase done definition** is satisfied: code + tests, CHANGELOG entry, ADR (when the phase made an architectural call), `.journal/M1.<N>.md` entry following the canonical six-section format, and a merged PR.
 
-1. **Code + tests** — feature + unit tests + any un-disabled conformance scenarios pass on the feature branch.
-2. **CHANGELOG entry** — an `[Unreleased]` section header for the phase with Added / Changed / Verified bullets.
-3. **ADR** — if the phase made a non-trivial architectural decision (most do), a numbered ADR under `docs/adr/`. M1.0–M1.5's ADRs are 0001–0006.
-4. **Journal entry** — a per-phase dev journal at `.journal/M1.<N>.md`, **versioned alongside the codebase**. One markdown file per phase, written **as the phase happens** (not later — backfilled entries lose nuance). Follows the canonical section template (`.journal/TEMPLATE.md` itself stays private as the author's scaffold; the structure is described below so contributors see it from the repo):
-
-   - **What I did** — decisions ratified + atomic commits shipped. The "what got built" view.
-   - **Problems I faced** — bugs caught (by tests or self-review), false starts, dead ends, library quirks, spec ambiguities surfaced by the conformance gate. The honest "what fought back" view.
-   - **What could have been done better** — retrospective on choices made under time pressure or with incomplete info. Calibration, not blame.
-   - **Changes carried back to earlier phases** — refactors / fixes / rethinks of prior milestones that this phase forced. Helps a future contributor trace "why did M1.2's code change in M1.5?"
-   - **What's next** — split into (a) hand-off questions for the immediate next phase, (b) v2 carry-list (known deferrals, profiler-bait, accepted trade-offs to revisit after M1 closes).
-   - **Journal** — chronological free-form dev log; the messy thinking the structured sections above eventually distill.
-
-   The journal is **for the author first, the reader second.** It's where the messy thinking lives — false starts, frustrations, dead ends, decisions you almost made but didn't. The ADR is the clean rationale that survives review; the journal is the path that got you there. Both are versioned because the project is explicitly learning-in-public (see the README). Skipping the journal means the next phase's plan mode has to re-derive context that was already in your head at the end of the previous phase.
-
-   `M1-COMPLETE.md` (the M1.8 retrospective) is dramatically easier to write when 8 journal files exist than when one does.
-
-5. **PR merged** — atomic commits, Conventional Commits, CI green, rebase-merged to keep `main` linear.
+The full rule and the journal section template live in [`CONTRIBUTING.md` § Per-phase "done" definition](../CONTRIBUTING.md#per-phase-done-definition) so M2/M3/M4/M5 inherit the same discipline. The M1.0–M1.5 ADRs are 0001–0006 under [`docs/adr/`](./adr/); M1.0–M1.5 journals are under [`.journal/`](../.journal/).
 
 ## Suggested M1 phase breakdown (each phase = atomic-commit-sized, contract-test-gated)
 
