@@ -2,6 +2,40 @@
 
 All notable changes to Beacon are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow milestone semver (`v<major>.<minor>-m<milestone>`).
 
+## [Unreleased] — M1.6: Redactor + MDC/Context enricher + async-context propagation
+
+The SDK emit pipeline is complete. `BeaconSdk.emit(LogRecord)` now runs `enricher.enrich → redactor.redact → buffer.offer`; on `RedactorTimeoutException` the original record routes to a dedicated direct fallback sink and never reaches the OTLP wire. `BeaconExecutors.wrap(...)` carries OTel Context + SLF4J MDC across executor boundaries (raw `ExecutorService`, `CompletableFuture`, Spring `@Async` via `TaskDecorator`). Conformance scenarios **C10** (redaction) and **C11** (trace-context propagation; sync OTel + sync MDC + async `CompletableFuture` + async Spring `@Async`) are green. The Java harness now reports **12 / 12** scenarios green — milestone-1 SDK closure.
+
+### Added
+
+- M1.6 — `io.beacon.sdk.pipeline.Redactor` redacts user-configured PII keys at SDK emit time: literal-key match (no user regex), `Locale.ROOT` ASCII case-insensitive, full recursion through maps + lists, replacement token `"[REDACTED]"`, per-record `redactor_timeout_ms` deadline (default 5 ms) with original-record route to a direct fallback sink on timeout. (ADR-0007)
+- M1.6 — `io.beacon.sdk.pipeline.Enricher` stamps `trace_id` / `span_id` from `Span.current()` (primary) and SLF4J MDC (fallback) on emitted records. Read-only with respect to OTel Context; never fabricates partial identifiers. (ADR-0008)
+- M1.6 — `io.beacon.sdk.context.BeaconExecutors` propagates OTel Context + MDC across executor boundaries: `wrap(Executor)`, `wrap(ExecutorService)`, `wrap(Runnable)`, `wrap(Callable<T>)`. (ADR-0008)
+- M1.6 — `BeaconConfigLoader` resolves `BEACON_REDACT_KEYS` / `BEACON_REDACTOR_TIMEOUT_MS` / `BEACON_REDACT_DEFAULTS` env vars + `-Dbeacon.*` system properties + builder values with `env > sysprop > builder > defaults` precedence.
+- M1.6 — `SdkMetrics.redactorTimeouts()` counter (9th SDK metric) tracks per-record redaction timeouts.
+- M1.6 — `BeaconLeakGuard` JUnit 5 extension fails any test that leaves a `beacon-*` daemon thread alive.
+- M1.6 — `BeaconSdk.Builder.enricher(Enricher)` and `BeaconSdk.Builder.redactor(Redactor)` test-injection overrides.
+- M1.6 — `BeaconSdk` direct `redactorFallbackSink` field constructed via `FallbackSink.fromConfig(config, metrics)`; receives the original unredacted record on `RedactorTimeoutException` (disk floor, never the wire).
+- ADR-0007 (ReDoS-resistant redaction) + ADR-0008 (async context propagation).
+- `slf4j-api` 2.0.16 as a Beacon SDK runtime dependency (Logback users already have it transitively).
+
+### Changed
+
+- `BeaconConfig` is now a 14-field record (`redactorTimeoutMs` is the 14th key; `redactDefaults` is a behavior flag attached to `redact_keys`, not a separate key).
+- `BeaconSdk.emit(LogRecord)` now runs `enricher.enrich → redactor.redact → buffer.offer`. On `RedactorTimeoutException`, the original record routes to the M1.4 fallback sink — never to the OTLP wire.
+- `BeaconSdk.Builder.build()` layers `BeaconConfigLoader.applyOverrides(...)` on top of the supplied config so env / sysprop precedence is honoured, and constructs production `Enricher` + `Redactor` from the computed effective redact-key set.
+- `ConformanceTest.c2_*` now closes the SDK in `finally` (fixes a pre-existing daemon-thread leak between scenarios — surfaced as soon as `BeaconLeakGuard` was registered).
+- `ConformanceTest` carries `@ExtendWith(BeaconLeakGuard.class)`; class Javadoc updated to reflect 12/12 active scenarios.
+- `:conformance-java` gains `testRuntimeOnly(libs.logback.classic)` (real `LogbackMDCAdapter` for C11(b)) and `testImplementation("org.springframework:spring-context:6.1.14")` (M1.6-only carry; canonical version-catalog entry lands in M1.7 with the Spring Boot starter).
+
+### Verified
+
+- `./gradlew :beacon-sdk-java:test` — SDK unit suite green (`BeaconExecutorsTest` 8/8 added; `RedactorTest` 9/9, `EnricherTest` 9/9, `BeaconConfigLoaderTest` already green from plans 01-01..03).
+- `./gradlew :conformance-java:test` — **12 / 12 scenarios green** (C1..C12). `C10` + `C11` newly un-disabled; `C11` async extension covers `CompletableFuture.runAsync(BeaconExecutors.wrap(...))` AND Spring `@Async` via `TaskDecorator`.
+- `BeaconLeakGuard` extension confirms no `beacon-*` daemon thread leaks between conformance scenarios.
+- `./gradlew build` green project-wide.
+- `git status` clean; no edits under `beacon-s0-contract/spec/`, `schema/`, `M0-FROZEN.md`, or `scenarios.yaml` (M0 freeze respected).
+
 ## [Unreleased] — M1.5: Graceful shutdown drain
 
 `BeaconSdk.close()` now drains the flusher's in-flight batch and the buffer remainder through the configured sink within `shutdown_drain_timeout_ms` per spec/02 §2.6. With a `ResilientSink` in front of the transport, drain-time failures route to the fallback sink automatically. Conformance scenario **C9** (200 pending records → flushed-or-fallback within 5 s) is green; 2 scenarios remain `@Disabled` for M1.6.
