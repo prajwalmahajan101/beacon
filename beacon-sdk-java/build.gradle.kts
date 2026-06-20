@@ -18,4 +18,8 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj)
     testRuntimeOnly(libs.junit.platform.launcher)
+    // SLF4J provider for tests so MDC is wired with a real adapter (LogbackMDCAdapter).
+    // slf4j-simple cannot be used here — its SimpleServiceProvider returns NOPMDCAdapter
+    // (see SLF4J 2.0.x source), which would silently break Enricher MDC-fallback tests.
+    testRuntimeOnly(libs.logback.classic)
 }
