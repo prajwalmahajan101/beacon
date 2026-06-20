@@ -22,4 +22,8 @@ dependencies {
     // slf4j-simple cannot be used here — its SimpleServiceProvider returns NOPMDCAdapter
     // (see SLF4J 2.0.x source), which would silently break Enricher MDC-fallback tests.
     testRuntimeOnly(libs.logback.classic)
+    // M1.6 only — proves the Spring @Async + TaskDecorator path in conformance C11.
+    // Kept out of the version catalog: the canonical catalog entry lands in M1.7 with
+    // the Spring Boot starter. Production SDK code does NOT depend on Spring.
+    testImplementation("org.springframework:spring-context:6.1.14")
 }
