@@ -37,11 +37,21 @@ public final class Redactor {
 
     /** Lowercased under {@link Locale#ROOT} by {@code BeaconConfigLoader.effectiveRedactKeys}. */
     private final Set<String> effectiveKeysLower;
+    /**
+     * Max length across {@link #effectiveKeysLower}; cheap length-based short-circuit before
+     * the O(n) {@code toLowerCase} call. Keeps the 1 MB-key adversarial path well under budget.
+     */
+    private final int maxKeyLen;
     private final long timeoutNanos;
     private final SdkMetrics metrics;
 
     public Redactor(Set<String> effectiveKeysLower, long timeoutMs, SdkMetrics metrics) {
         this.effectiveKeysLower = Set.copyOf(Objects.requireNonNull(effectiveKeysLower));
+        int max = 0;
+        for (String k : this.effectiveKeysLower) {
+            if (k.length() > max) max = k.length();
+        }
+        this.maxKeyLen = max;
         this.timeoutNanos = timeoutMs * 1_000_000L;
         this.metrics = Objects.requireNonNull(metrics);
     }
@@ -133,6 +143,9 @@ public final class Redactor {
     }
 
     private boolean matches(String key) {
+        // Length-based short-circuit: avoids the O(n) toLowerCase on adversarial long keys
+        // (e.g. a 1 MB attribute key) where no effective target key can match by length.
+        if (key.length() > maxKeyLen) return false;
         return effectiveKeysLower.contains(key.toLowerCase(Locale.ROOT));
     }
 
