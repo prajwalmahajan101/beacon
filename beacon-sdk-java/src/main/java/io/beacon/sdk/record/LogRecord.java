@@ -47,6 +47,29 @@ public record LogRecord(
     }
 
     public static final class Builder {
+
+        /**
+         * Copy every field of {@code r} into a fresh builder. Used by the M1.6 Redactor
+         * (attribute swap) and Enricher (traceId/spanId stamp) to produce a modified record
+         * without mutating the immutable input.
+         */
+        public static Builder from(LogRecord r) {
+            Builder b = new Builder();
+            b.schemaVersion = r.schemaVersion();
+            b.timestamp = r.timestamp();
+            b.observedTimestamp = r.observedTimestamp();
+            b.severityNumber = r.severityNumber();
+            b.severityText = r.severityText();
+            b.body = r.body();
+            b.traceId = r.traceId();
+            b.spanId = r.spanId();
+            b.traceFlags = r.traceFlags();
+            b.resource = r.resource();
+            b.scope = r.scope();
+            b.attributes = r.attributes();
+            return b;
+        }
+
         private int schemaVersion = SCHEMA_VERSION;
         private Instant timestamp;
         private Instant observedTimestamp;
