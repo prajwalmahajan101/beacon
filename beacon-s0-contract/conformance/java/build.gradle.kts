@@ -25,6 +25,13 @@ dependencies {
     testImplementation(libs.snakeyaml)
     testImplementation(libs.assertj)
     testRuntimeOnly(libs.junit.platform.launcher)
+    // M1.6: C11(b) reads MDC, and SLF4J 2.0 with no provider returns NOPMDCAdapter
+    // (silently dropping MDC.put). Logback ships a real LogbackMDCAdapter.
+    testRuntimeOnly(libs.logback.classic)
+    // M1.6: C11(d) exercises Spring @Async via a TaskDecorator that delegates to
+    // BeaconExecutors.wrap. spring-context is M1.6 test-only; the canonical
+    // catalog entry lands in M1.7 with the Spring Boot starter.
+    testImplementation("org.springframework:spring-context:6.1.14")
 }
 
 tasks.named<Test>("test") {
