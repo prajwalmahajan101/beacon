@@ -71,14 +71,8 @@ class FallbackSinkTest {
     @Test
     void fromConfig_selects_file_for_file_prefix(@TempDir Path tmp) {
         SdkMetrics m = new SdkMetrics();
-        BeaconConfig cfg = BeaconConfig.defaults();
-        // M1.4 commit 5 introduces withFallbackSink; for now mutate via the all-args ctor.
-        BeaconConfig fileCfg = new BeaconConfig(
-                cfg.endpoint(), cfg.apiKey(), cfg.bufferCapacity(), cfg.dropPolicy(),
-                cfg.batchMaxRecords(), cfg.flushIntervalMs(), cfg.maxRetries(),
-                cfg.backoffBaseMs(), cfg.backoffMaxMs(),
-                "file:" + tmp.resolve("out.log"),
-                cfg.shutdownDrainTimeoutMs(), cfg.redactKeys(), cfg.samplingRatio());
+        BeaconConfig fileCfg = BeaconConfig.defaults()
+                .withFallbackSink("file:" + tmp.resolve("out.log"));
 
         FallbackSink sink = FallbackSink.fromConfig(fileCfg, m);
         assertThat(sink).isInstanceOf(FallbackSink.FileFallbackSink.class);
@@ -87,13 +81,7 @@ class FallbackSinkTest {
     @Test
     void fromConfig_rejects_unknown_spec() {
         SdkMetrics m = new SdkMetrics();
-        BeaconConfig cfg = BeaconConfig.defaults();
-        BeaconConfig badCfg = new BeaconConfig(
-                cfg.endpoint(), cfg.apiKey(), cfg.bufferCapacity(), cfg.dropPolicy(),
-                cfg.batchMaxRecords(), cfg.flushIntervalMs(), cfg.maxRetries(),
-                cfg.backoffBaseMs(), cfg.backoffMaxMs(),
-                "kafka:foo",
-                cfg.shutdownDrainTimeoutMs(), cfg.redactKeys(), cfg.samplingRatio());
+        BeaconConfig badCfg = BeaconConfig.defaults().withFallbackSink("kafka:foo");
 
         assertThatThrownBy(() -> FallbackSink.fromConfig(badCfg, m))
                 .isInstanceOf(IllegalArgumentException.class)
