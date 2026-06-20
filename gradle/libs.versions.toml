@@ -5,6 +5,7 @@ jsonSchema = "1.5.0"
 snakeyaml = "2.3"
 assertj = "3.26.3"
 slf4j = "2.0.16"
+logback = "1.5.12"
 
 [libraries]
 otel-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "otel" }
@@ -20,3 +21,4 @@ json-schema-validator = { module = "com.networknt:json-schema-validator", versio
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
