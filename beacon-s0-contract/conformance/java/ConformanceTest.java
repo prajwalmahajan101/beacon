@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.beacon.sdk.BeaconSdk;
 import io.beacon.sdk.config.BeaconConfig;
 import io.beacon.sdk.config.BeaconConfig.DropPolicy;
+import io.beacon.sdk.context.BeaconExecutors;
 import io.beacon.sdk.exporter.FallbackSink;
 import io.beacon.sdk.exporter.ResilientSink;
 import io.beacon.sdk.exporter.RetryPolicy;
@@ -16,21 +17,42 @@ import io.beacon.sdk.metrics.SdkMetrics;
 import io.beacon.sdk.pipeline.BatchSink;
 import io.beacon.sdk.record.LogRecord;
 import io.beacon.sdk.severity.SeverityMapper;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
+import io.opentelemetry.context.Scope;
 import org.assertj.core.api.SoftAssertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.MDC;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.yaml.snakeyaml.Yaml;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -38,10 +60,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * One test per scenario (C1–C12) from spec/03-conformance-suite.md and
  * conformance/scenarios.yaml. Implemented against the real Java SDK incrementally
- * across M1.1–M1.7. Each unimplemented scenario stays @Disabled with an explicit
- * reason so CI never silently skips it.
+ * across M1.1–M1.6 (12/12 active as of M1.6). {@link BeaconLeakGuard} asserts no
+ * {@code beacon-*} daemon thread survives any scenario.
  */
 @DisplayName("Beacon SDK conformance")
+@ExtendWith(BeaconLeakGuard.class)
 class ConformanceTest {
 
     private static final Path SCENARIOS_DIR =
@@ -104,22 +127,27 @@ class ConformanceTest {
         // (in-memory, wait-free), so the architectural invariant "emit MUST NOT perform
         // network I/O on the caller's thread" is already what we measure here.
         BeaconSdk sdk = BeaconSdk.builder().build();
-        LogRecord template = LogRecord.minimal(
-                Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c2",
-                Map.of("service.name", "c2-test", "telemetry.sdk.language", "java"));
+        try {
+            LogRecord template = LogRecord.minimal(
+                    Instant.parse("2026-06-11T00:00:00Z"), 9, "INFO", "c2",
+                    Map.of("service.name", "c2-test", "telemetry.sdk.language", "java"));
 
-        long[] latencies = new long[emitCount];
-        for (int i = 0; i < emitCount; i++) {
-            long t0 = System.nanoTime();
-            sdk.emit(template);
-            latencies[i] = System.nanoTime() - t0;
+            long[] latencies = new long[emitCount];
+            for (int i = 0; i < emitCount; i++) {
+                long t0 = System.nanoTime();
+                sdk.emit(template);
+                latencies[i] = System.nanoTime() - t0;
+            }
+            Arrays.sort(latencies);
+            long p99 = latencies[(int) Math.ceil(latencies.length * 0.99) - 1];
+
+            assertThatLong(p99, "emit p99")
+                    .as("emit p99 must stay under %d ns (= %d ms)", maxP99Ns, maxP99Ns / 1_000_000L)
+                    .isLessThan(maxP99Ns);
+        } finally {
+            // M1.6: close in finally so BeaconLeakGuard sees no stray beacon-* daemon.
+            sdk.close();
         }
-        Arrays.sort(latencies);
-        long p99 = latencies[(int) Math.ceil(latencies.length * 0.99) - 1];
-
-        assertThatLong(p99, "emit p99")
-                .as("emit p99 must stay under %d ns (= %d ms)", maxP99Ns, maxP99Ns / 1_000_000L)
-                .isLessThan(maxP99Ns);
     }
 
     @Test
@@ -478,17 +506,240 @@ class ConformanceTest {
     // ---- Runtime: correctness -------------------------------------------
 
     @Test
-    @Disabled("M1.6: implement against real SDK")
     @DisplayName("C10 — PII redaction before export")
-    void c10_piiRedactionBeforeExport() {
-        // TODO: redact_keys removed/masked (top-level + nested); others untouched
+    void c10_piiRedactionBeforeExport() throws Exception {
+        Map<String, Object> c10 = scenarioParams("C10");
+        @SuppressWarnings("unchecked")
+        List<String> redactKeys = (List<String>) c10.get("redact_keys");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> recordAttrs = (Map<String, Object>) c10.get("record_attributes");
+        @SuppressWarnings("unchecked")
+        List<String> expectPresent = (List<String>) c10.get("expect_present");
+        @SuppressWarnings("unchecked")
+        List<String> expectAbsentOrMasked = (List<String>) c10.get("expect_absent_or_masked");
+
+        CopyOnWriteArrayList<List<LogRecord>> batches = new CopyOnWriteArrayList<>();
+        BatchSink capturing = batches::add;
+
+        // Disable the always-on default-keys baseline so the assertions stay tight to the
+        // scenario's own redact_keys list (otherwise an unrelated default key landing in
+        // recordAttrs would also redact). Defaults remain covered by RedactorTest.
+        BeaconConfig cfg = BeaconConfig.defaults()
+                .withRedactKeys(redactKeys)
+                .withRedactDefaults(false)
+                .withBatchMaxRecords(1)
+                .withFlushIntervalMs(50);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(capturing).build();
+        try {
+            // Build an attribute map mirroring the YAML fixture and add the required
+            // resource keys for schema compliance — order.id stays present, password and
+            // card.number must be either absent or "[REDACTED]".
+            Map<String, Object> attrs = new HashMap<>(recordAttrs);
+            LogRecord rec = new LogRecord(
+                    LogRecord.SCHEMA_VERSION,
+                    Instant.parse("2026-06-12T00:00:00Z"),
+                    null, 9, "INFO", "c10",
+                    null, null, null,
+                    Map.of("service.name", "c10-test", "telemetry.sdk.language", "java"),
+                    null,
+                    attrs);
+            sdk.emit(rec);
+            awaitTrue(() -> !batches.isEmpty(), 2_000);
+
+            assertThat(batches).isNotEmpty();
+            Map<String, Object> emitted = batches.get(0).get(0).attributes();
+
+            SoftAssertions soft = new SoftAssertions();
+            for (String key : expectPresent) {
+                soft.assertThat(emitted)
+                        .as("expect_present key %s must survive untouched with its original value", key)
+                        .containsEntry(key, recordAttrs.get(key));
+            }
+            for (String key : expectAbsentOrMasked) {
+                Object v = emitted.get(key);
+                soft.assertThat(v == null || "[REDACTED]".equals(v))
+                        .as("expect_absent_or_masked key %s must be absent or '[REDACTED]', got %s", key, v)
+                        .isTrue();
+            }
+            soft.assertAll();
+        } finally {
+            sdk.close();
+        }
     }
 
     @Test
-    @Disabled("M1.6: implement against real SDK")
-    @DisplayName("C11 — trace context propagation")
-    void c11_traceContextPropagation() {
-        // TODO: active MDC/OTel context -> trace_id/span_id attached
+    @DisplayName("C11 — trace context propagation (sync OTel + sync MDC + CompletableFuture + Spring @Async)")
+    void c11_traceContextPropagation() throws Exception {
+        Map<String, Object> c11 = scenarioParams("C11");
+        String traceId = (String) c11.get("trace_id");
+        String spanId = (String) c11.get("span_id");
+        boolean acrossAsync = Boolean.TRUE.equals(c11.get("across_async"));
+
+        // ── Sub-case (a): sync via OTel Span ────────────────────────────────────
+        c11_subcase_syncOtelSpan(traceId, spanId);
+
+        // ── Sub-case (b): sync via MDC fallback ─────────────────────────────────
+        c11_subcase_syncMdc(traceId, spanId);
+
+        // ── Sub-cases (c) + (d): async paths — only run when across_async is true.
+        if (acrossAsync) {
+            c11_subcase_asyncCompletableFuture(traceId, spanId);
+            c11_subcase_asyncSpringAsync(traceId, spanId);
+        }
+    }
+
+    private void c11_subcase_syncOtelSpan(String traceId, String spanId) throws Exception {
+        CopyOnWriteArrayList<List<LogRecord>> batches = new CopyOnWriteArrayList<>();
+        BatchSink capturing = batches::add;
+        BeaconConfig cfg = BeaconConfig.defaults().withBatchMaxRecords(1).withFlushIntervalMs(50);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(capturing).build();
+        try {
+            SpanContext sc = SpanContext.create(traceId, spanId, TraceFlags.getDefault(), TraceState.getDefault());
+            try (Scope ignored = Span.wrap(sc).makeCurrent()) {
+                sdk.emit(c11Template());
+            }
+            awaitTrue(() -> !batches.isEmpty(), 2_000);
+            LogRecord r = batches.get(0).get(0);
+            assertThat(r.traceId()).as("C11(a) sync OTel span traceId").isEqualTo(traceId);
+            assertThat(r.spanId()).as("C11(a) sync OTel span spanId").isEqualTo(spanId);
+        } finally {
+            sdk.close();
+        }
+    }
+
+    private void c11_subcase_syncMdc(String traceId, String spanId) throws Exception {
+        CopyOnWriteArrayList<List<LogRecord>> batches = new CopyOnWriteArrayList<>();
+        BatchSink capturing = batches::add;
+        BeaconConfig cfg = BeaconConfig.defaults().withBatchMaxRecords(1).withFlushIntervalMs(50);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(capturing).build();
+        try {
+            MDC.clear();
+            MDC.put("trace_id", traceId);
+            MDC.put("span_id", spanId);
+            try {
+                sdk.emit(c11Template());
+            } finally {
+                MDC.clear();
+            }
+            awaitTrue(() -> !batches.isEmpty(), 2_000);
+            LogRecord r = batches.get(0).get(0);
+            assertThat(r.traceId()).as("C11(b) sync MDC traceId").isEqualTo(traceId);
+            assertThat(r.spanId()).as("C11(b) sync MDC spanId").isEqualTo(spanId);
+        } finally {
+            sdk.close();
+        }
+    }
+
+    private void c11_subcase_asyncCompletableFuture(String traceId, String spanId) throws Exception {
+        CopyOnWriteArrayList<List<LogRecord>> batches = new CopyOnWriteArrayList<>();
+        BatchSink capturing = batches::add;
+        BeaconConfig cfg = BeaconConfig.defaults().withBatchMaxRecords(1).withFlushIntervalMs(50);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(capturing).build();
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            SpanContext sc = SpanContext.create(traceId, spanId, TraceFlags.getDefault(), TraceState.getDefault());
+            try (Scope ignored = Span.wrap(sc).makeCurrent()) {
+                // Wrap the callable so the OTel Context + MDC snapshot survives the executor hop.
+                LogRecord tmpl = c11Template();
+                CompletableFuture.runAsync(BeaconExecutors.wrap(() -> sdk.emit(tmpl)), pool)
+                        .get(2, TimeUnit.SECONDS);
+            }
+            awaitTrue(() -> !batches.isEmpty(), 2_000);
+            LogRecord r = batches.get(0).get(0);
+            assertThat(r.traceId()).as("C11(c) async CompletableFuture traceId").isEqualTo(traceId);
+            assertThat(r.spanId()).as("C11(c) async CompletableFuture spanId").isEqualTo(spanId);
+        } finally {
+            pool.shutdownNow();
+            pool.awaitTermination(2, TimeUnit.SECONDS);
+            sdk.close();
+        }
+    }
+
+    private void c11_subcase_asyncSpringAsync(String traceId, String spanId) throws Exception {
+        CopyOnWriteArrayList<List<LogRecord>> batches = new CopyOnWriteArrayList<>();
+        BatchSink capturing = batches::add;
+        BeaconConfig cfg = BeaconConfig.defaults().withBatchMaxRecords(1).withFlushIntervalMs(50);
+        BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(capturing).build();
+
+        // Spring AppContext: @EnableAsync + TaskDecorator that delegates to BeaconExecutors.wrap.
+        AnnotationConfigApplicationContext spring = new AnnotationConfigApplicationContext();
+        try {
+            spring.register(C11SpringConfig.class);
+            // Bind the per-call SDK into the Spring bean via a static slot so the @Async method
+            // can emit. This avoids context wiring of a non-singleton record.
+            C11SpringConfig.CURRENT_SDK.set(sdk);
+            spring.refresh();
+            C11AsyncEmitter emitter = spring.getBean(C11AsyncEmitter.class);
+
+            SpanContext sc = SpanContext.create(traceId, spanId, TraceFlags.getDefault(), TraceState.getDefault());
+            CompletableFuture<Void> future;
+            try (Scope ignored = Span.wrap(sc).makeCurrent()) {
+                future = emitter.emitAsync(c11Template());
+            }
+            future.get(2, TimeUnit.SECONDS);
+            awaitTrue(() -> !batches.isEmpty(), 2_000);
+            LogRecord r = batches.get(0).get(0);
+            assertThat(r.traceId()).as("C11(d) Spring @Async traceId").isEqualTo(traceId);
+            assertThat(r.spanId()).as("C11(d) Spring @Async spanId").isEqualTo(spanId);
+        } finally {
+            try { spring.close(); } catch (Exception ignored) { /* shutdown best-effort */ }
+            C11SpringConfig.CURRENT_SDK.remove();
+            sdk.close();
+        }
+    }
+
+    private static LogRecord c11Template() {
+        return LogRecord.minimal(
+                Instant.parse("2026-06-12T00:00:00Z"), 9, "INFO", "c11",
+                Map.of("service.name", "c11-test", "telemetry.sdk.language", "java"));
+    }
+
+    // ── Spring @Async wiring for C11(d) ────────────────────────────────────────
+
+    /**
+     * Spring {@code @Configuration} hosting a single {@code @Async} emitter bean +
+     * a {@link ThreadPoolTaskExecutor} configured with a {@link TaskDecorator} that
+     * delegates to {@link BeaconExecutors#wrap(Runnable)}. This is exactly the
+     * starter-side contract the M1.7 Spring Boot starter will codify.
+     */
+    @Configuration
+    @EnableAsync
+    static class C11SpringConfig {
+        /** Per-test slot so {@link C11AsyncEmitter} can reach the active SDK. */
+        static final ThreadLocal<BeaconSdk> CURRENT_SDK = new ThreadLocal<>();
+
+        @Bean
+        public C11AsyncEmitter c11AsyncEmitter() {
+            return new C11AsyncEmitter(CURRENT_SDK.get());
+        }
+
+        @Bean(name = "taskExecutor")
+        public Executor taskExecutor() {
+            ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+            exec.setCorePoolSize(1);
+            exec.setMaxPoolSize(1);
+            exec.setThreadNamePrefix("c11-spring-async-");
+            // The MDC/OTel propagation contract for @Async — delegate to BeaconExecutors.wrap.
+            exec.setTaskDecorator(new TaskDecorator() {
+                @Override public Runnable decorate(Runnable runnable) {
+                    return BeaconExecutors.wrap(runnable);
+                }
+            });
+            exec.initialize();
+            return exec;
+        }
+    }
+
+    /** {@code @Async}-annotated emitter; runs on the {@code taskExecutor} bean. */
+    static class C11AsyncEmitter {
+        private final BeaconSdk sdk;
+        C11AsyncEmitter(BeaconSdk sdk) { this.sdk = sdk; }
+
+        @Async
+        public CompletableFuture<Void> emitAsync(LogRecord rec) {
+            sdk.emit(rec);
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     @Test
