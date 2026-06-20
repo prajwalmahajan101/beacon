@@ -10,7 +10,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@code fallback_writes}. M1.2 implements the three driven by the emit path;
  * M1.3 adds {@code batches_flushed} + {@code records_flushed} for the batch
  * flusher's observability; M1.4 wires {@code exported} + {@code export_failures}
- * + {@code fallback_writes} for the exporter/resilience layer.</p>
+ * + {@code fallback_writes} for the exporter/resilience layer; M1.6 adds
+ * {@code redactor_timeouts} (9th counter) for redactor deadline-expiry events
+ * — see ADR-0007.</p>
  */
 public final class SdkMetrics {
 
@@ -22,6 +24,7 @@ public final class SdkMetrics {
     private final AtomicLong exported = new AtomicLong();
     private final AtomicLong exportFailures = new AtomicLong();
     private final AtomicLong fallbackWrites = new AtomicLong();
+    private final AtomicLong redactorTimeouts = new AtomicLong();
 
     // ---- M1.2 surface ---------------------------------------------------
 
@@ -52,4 +55,9 @@ public final class SdkMetrics {
 
     public void incFallbackWrite(int n) { fallbackWrites.addAndGet(n); }
     public long fallbackWrites() { return fallbackWrites.get(); }
+
+    // ---- M1.6 surface — redactor ----------------------------------------
+
+    public void incRedactorTimeout() { redactorTimeouts.incrementAndGet(); }
+    public long redactorTimeouts() { return redactorTimeouts.get(); }
 }
