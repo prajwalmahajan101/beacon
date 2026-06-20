@@ -4,6 +4,7 @@ junit = "5.11.0"
 jsonSchema = "1.5.0"
 snakeyaml = "2.3"
 assertj = "3.26.3"
+slf4j = "2.0.16"
 
 [libraries]
 otel-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "otel" }
@@ -18,3 +19,4 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "jsonSchema" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
