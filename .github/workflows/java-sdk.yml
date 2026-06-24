@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "beacon-sdk-java/**"
+      - "beacon-spring-boot-starter/**"
+      - "beacon-sdk-java-benchmark/**"
       - "beacon-s0-contract/conformance/java/**"
       - "settings.gradle.kts"
       - "build.gradle.kts"
@@ -16,6 +18,8 @@ on:
     branches: [main]
     paths:
       - "beacon-sdk-java/**"
+      - "beacon-spring-boot-starter/**"
+      - "beacon-sdk-java-benchmark/**"
       - "beacon-s0-contract/conformance/java/**"
       - "settings.gradle.kts"
       - "build.gradle.kts"
@@ -43,6 +47,9 @@ jobs:
       - name: Build (assemble + test)
         run: ./gradlew build --no-daemon
 
+      - name: Verify benchmark subproject compiles
+        run: ./gradlew :beacon-sdk-java-benchmark:compileJmhJava --no-daemon
+
       - name: Surface conformance test report
         if: always()
         run: |
@@ -63,10 +70,12 @@ jobs:
           path: beacon-s0-contract/conformance/java/build/reports/tests/test
           if-no-files-found: ignore
 
-      - name: Upload SDK unit test report
+      - name: Upload JUnit HTML test report (SDK + starter)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: beacon-sdk-java-test-report
-          path: beacon-sdk-java/build/reports/tests/test
+          name: junit-html-report
+          path: |
+            beacon-sdk-java/build/reports/tests/test
+            beacon-spring-boot-starter/build/reports/tests/test
           if-no-files-found: ignore
