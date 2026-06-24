@@ -47,6 +47,17 @@ jobs:
       - name: Build (assemble + test)
         run: ./gradlew build --no-daemon
 
+      - name: Set up Python (for contract-drift check)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pyyaml
+        run: pip install pyyaml==6.0.2
+
+      - name: Run cross-SDK contract-drift checker
+        run: python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk java
+
       - name: Verify benchmark subproject compiles
         run: ./gradlew :beacon-sdk-java-benchmark:compileJmhJava --no-daemon
 
