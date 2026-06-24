@@ -1,11 +1,18 @@
 [versions]
 otel = "1.42.0"
+otelInstrumentation = "2.10.0-alpha"
 junit = "5.11.0"
 jsonSchema = "1.5.0"
 snakeyaml = "2.3"
 assertj = "3.26.3"
 slf4j = "2.0.16"
 logback = "1.5.12"
+springContext = "6.1.14"
+jmh = "1.37"
+jmhPlugin = "0.7.2"
+
+[plugins]
+jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
 
 [libraries]
 otel-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "otel" }
@@ -22,3 +29,7 @@ snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+otel-logback-appender = { module = "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0", version.ref = "otelInstrumentation" }
+spring-context = { module = "org.springframework:spring-context", version.ref = "springContext" }
+jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }

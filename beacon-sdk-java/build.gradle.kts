@@ -11,6 +11,10 @@ dependencies {
     implementation(libs.otel.sdk)
     implementation(libs.otel.sdk.logs)
     implementation(libs.otel.exporter.otlp)
+    // M1.7 — official OTel Logback bridge artifact; BeaconLogbackAppender is a thin wrapper.
+    // Pulls Logback's API transitively; production SDK consumers wiring the appender will
+    // already have Logback on the classpath.
+    implementation(libs.otel.logback.appender)
     // MDC dual-read for the Enricher (M1.6); Logback users already have it transitively.
     implementation(libs.slf4j.api)
 
@@ -22,8 +26,10 @@ dependencies {
     // slf4j-simple cannot be used here — its SimpleServiceProvider returns NOPMDCAdapter
     // (see SLF4J 2.0.x source), which would silently break Enricher MDC-fallback tests.
     testRuntimeOnly(libs.logback.classic)
-    // M1.6 only — proves the Spring @Async + TaskDecorator path in conformance C11.
-    // Kept out of the version catalog: the canonical catalog entry lands in M1.7 with
-    // the Spring Boot starter. Production SDK code does NOT depend on Spring.
-    testImplementation("org.springframework:spring-context:6.1.14")
+    // M1.7 — appender unit tests need the LoggerContext / Logger API at compile time,
+    // not just runtime (programmatic appender attachment in LogbackAppenderTest).
+    testImplementation(libs.logback.classic)
+    // M1.7 — promoted from M1.6 testImplementation-only carry. Drives the @Async + TaskDecorator
+    // proof in conformance C11 and underpins the M1.7 Spring Boot starter.
+    testImplementation(libs.spring.context)
 }
