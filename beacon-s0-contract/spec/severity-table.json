@@ -1,0 +1,13 @@
+{
+  "$schema_version": 1,
+  "spec_reference": "beacon-s0-contract/spec/01-telemetry-record-spec.md#11-severity-number-mapping",
+  "description": "OTel severity number → band mapping. Each band spans four severity numbers; SDKs MUST collapse any number in [range_min..range_max] to the band anchor (lowest number in the band). The six band names below are the only legal severity_text enum values in log-record.schema.json.",
+  "bands": [
+    { "name": "TRACE", "anchor": 1,  "range_min": 1,  "range_max": 4,  "text": "TRACE" },
+    { "name": "DEBUG", "anchor": 5,  "range_min": 5,  "range_max": 8,  "text": "DEBUG" },
+    { "name": "INFO",  "anchor": 9,  "range_min": 9,  "range_max": 12, "text": "INFO"  },
+    { "name": "WARN",  "anchor": 13, "range_min": 13, "range_max": 16, "text": "WARN"  },
+    { "name": "ERROR", "anchor": 17, "range_min": 17, "range_max": 20, "text": "ERROR" },
+    { "name": "FATAL", "anchor": 21, "range_min": 21, "range_max": 24, "text": "FATAL" }
+  ]
+}
