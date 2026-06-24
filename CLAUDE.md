@@ -70,6 +70,7 @@ beacon/
 - [ADR-0004](docs/adr/0004-batch-flusher-concurrency-model.md) — Batch flusher concurrency model (M1.3).
 - [ADR-0005](docs/adr/0005-resilience-layer-retry-backoff-fallback.md) — Resilience layer: retry, backoff + jitter, and fallback sink (M1.4).
 - [ADR-0006](docs/adr/0006-graceful-shutdown-drain.md) — Graceful shutdown drain (M1.5).
+- [ADR-0009](docs/adr/0009-spring-boot-starter-design.md) — Spring Boot starter design (opt-in auto-config, no `logback-spring.xml` mutation, programmatic appender, 13 canonical surfaces with composite `beacon.redact`, TaskDecorator opt-in) (M1.7).
 
 ## Workflow conventions (READ before editing)
 
