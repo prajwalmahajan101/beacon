@@ -93,3 +93,24 @@ jobs:
           assert data, 'scenarios.yaml is empty'
           print(f'scenarios.yaml OK ({len(data) if isinstance(data, list) else len(data.keys())} top-level entries)')
           "
+
+  contract-drift:
+    name: Cross-SDK contract-drift check
+    needs: validate-schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pyyaml
+        run: pip install pyyaml==6.0.2
+
+      - name: Run contract-drift checker (Java SDK)
+        run: python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk java
+
+      - name: Run contract-drift checker (all present SDKs)
+        run: python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk all
