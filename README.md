@@ -5,7 +5,7 @@
 
 > Self-hosted, OpenTelemetry-native observability platform — logs, traces, and metrics from polyglot services, correlated by W3C trace context, queryable from a single console.
 
-**Status: M0 frozen ([2026-06-05](./beacon-s0-contract/M0-FROZEN.md)) · M1 (Java SDK) in progress — 6/9 phases complete, 10/12 conformance scenarios green through [M1.5](./docs/adr/0006-graceful-shutdown-drain.md).**
+**Status: M0 frozen ([2026-06-05](./beacon-s0-contract/M0-FROZEN.md)) · M1 (Java SDK) in progress — 8/9 phases complete, **12/12 conformance scenarios green** through [M1.7](./docs/adr/0009-spring-boot-starter-design.md). Spring Boot starter + Logback appender + sample app + JMH overhead benchmark shipped (p99 `BeaconSdk.emit` = 6,360 ns, ~157× under the 1 ms PRD NFR-6 budget). M1.8 (`v0.2-m1` cut) next.**
 
 Beacon is a vendor-neutral alternative to CloudWatch / Datadog / Loki-style stacks for teams that want OpenTelemetry from day one and prefer a stack they can run themselves. Services integrate via lightweight Java and Python SDKs that never block or crash the host application; telemetry flows through Kafka into purpose-built storage (Elasticsearch search + a write-optimized wide-column system-of-record + a metrics TSDB), and a React console gives operators fast search, cross-signal correlation, and live tail.
 
@@ -83,7 +83,7 @@ Expected: `valid OK`, `invalid rejected`, 20 pytest items collected.
 | Layer | Choice |
 |---|---|
 | Data model | OpenTelemetry (logs, traces, metrics) |
-| SDKs | Java, Python — wrap the OTel SDK with resilient transport |
+| SDKs | Java (incl. Logback appender + Spring Boot starter), Python — wrap the OTel SDK with resilient transport |
 | Ingest buffer | Kafka |
 | Search | Elasticsearch |
 | System-of-record | Wide-column NoSQL (durable, write-optimised) |
@@ -99,7 +99,7 @@ Full design rationale and alternatives considered are in [`PRD.md`](./PRD.md).
 | Milestone | Scope | Status |
 |---|---|---|
 | **M0** | Telemetry contract (spec + schema + conformance suite, no SDK code) | ✅ Frozen 2026-06-05 |
-| **M1** | Java SDK — implements the contract, passes C1–C12 against the suite | 🚧 6 / 9 phases done · C1–C9 + C12 green (10/12) |
+| **M1** | Java SDK — implements the contract, passes C1–C12 against the suite | 🚧 8 / 9 phases done · **C1–C12 green (12/12)** — M1.8 release cut next |
 | **M2** | Python SDK — same suite, same scenarios | Planned |
 | **M3** | Ingest pipeline (Kafka → indexer → storage) | Planned |
 | **M4** | Query API + live tail + Beacon Console | Planned |
