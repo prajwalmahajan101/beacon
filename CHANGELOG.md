@@ -25,6 +25,7 @@ M1.7 lands the public observability proof points. `BeaconLogbackAppender` bridge
 
 ### Changed
 
+- M1.8: OTel SDK pin reviewed at `1.42.0` per ADR-0011 (milestone-cadence version review, drafted in Plan 03-05); bump deferred to M2. Latest stable on Maven Central is `1.63.0` (21 minor versions ahead) and the cross-cut would force re-verification of `OtlpExporter` + `BeaconLogbackAppender` against post-1.42 API/SPI shifts — scope outside the M1.8 release-cut window. Rationale captured inline in `gradle/libs.versions.toml` above the `otel` line and lifted into ADR-0011 by Plan 03-05.
 - M1.8: `contract.yml` adds a `contract-drift` job (Python checker, runs after `validate-schema`). `java-sdk.yml` adds a post-build step that runs the same checker. Either path catches cross-SDK drift; M2's Python SDK will plug into the same gate. CONT-03.
 - `java-sdk.yml` consolidates SDK + starter JUnit HTML reports into a single `junit-html-report` workflow artifact (preserving the separate `conformance-test-report`). Path filters extended to `beacon-spring-boot-starter/**` and `beacon-sdk-java-benchmark/**`; the benchmark subproject's `:compileJmhJava` is verified on every push (full `:jmh` task is out-of-band by design). (JSDK-09)
 - `:beacon-sdk-java/build.gradle.kts` swapped its inline `"org.springframework:spring-context:6.1.14"` testImplementation string for the `libs.spring.context` catalog reference (M1.6 carry resolved).

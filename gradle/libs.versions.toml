@@ -1,4 +1,13 @@
 [versions]
+# otel: pinned at 1.42.0 — reviewed at M1.8 per ADR-0011 (drafted in Plan 03-05);
+# latest stable on Maven Central is 1.63.0 (21 minor versions ahead). Bump deferred
+# to M2 — outside the M1.8 release-cut window. The cross-cut spans
+# opentelemetry-api / sdk / sdk-logs / exporter-otlp AND the instrumentation BOM
+# (today 2.10.0-alpha; latest 2.29.0-alpha), and would force re-verification of
+# OtlpExporter + BeaconLogbackAppender against post-1.42 API/SPI shifts —
+# scope that does not fit a milestone-cut plan. See
+# docs/adr/0011-otel-sdk-version-policy.md for the policy
+# (review at every milestone; bump-or-justify).
 otel = "1.42.0"
 otelInstrumentation = "2.10.0-alpha"
 junit = "5.11.0"
