@@ -135,10 +135,11 @@ in the sampling histogram. These align temporally with the known issue below and
 were not investigated for this baseline — they represent ≤ 13 samples out of
 284 110 (~0.0046 %).
 
-## Known issue carried forward to M1.8 — FallbackSink NPE on warmup
+## Known issue (fixed in M1.8) — FallbackSink NPE on warmup
 
-During warmup iterations of both `avgt` and `sample` modes, JMH captured a
-recurring NullPointerException from the SDK's `FallbackSink` path:
+During warmup iterations of both `avgt` and `sample` modes of the M1.7 first
+measured run, JMH captured a recurring NullPointerException from the SDK's
+`FallbackSink` path:
 
 ```
 java.lang.NullPointerException: Cannot invoke "java.util.Map.entrySet()" because "map" is null
@@ -149,15 +150,21 @@ java.lang.NullPointerException: Cannot invoke "java.util.Map.entrySet()" because
 ```
 
 The benchmark builds a `LogRecord` with `attributes(Map.<String,Object>of(…))`
-(non-null, 4 entries), so the NPE is on a *different* nullable map inside
-`LogRecord` (likely `resource` or `severityAttributes`) that `CanonicalJson.writeMap`
-fails to guard. This fires only when `BatchSink.NOOP` returns false → fallback
-path activates → `CanonicalJson.serialize` crashes.
+(non-null, 4 entries), so the NPE was on a *different* nullable map inside
+`LogRecord` — confirmed at M1.8 to be `resource` (and equivalently `scope`),
+both of which the M1.6 `LogRecord` record contract permits to be null and the
+benchmark's floor workload leaves unset. The pre-fix `CanonicalJson.writeMap`
+called `map.entrySet()` without a null guard, so the live emit path via
+`BatchSink` (always called with `Resource.getDefault()` or similar) was safe
+but the FallbackSink path crashed on the same record.
 
-**Scope:** out-of-scope for M1.7. Filed for M1.8 (fix in `CanonicalJson.writeMap`
-to treat null sub-maps as empty objects, or in `LogRecord` to always initialise
-`resource`/`severityAttributes` to empty maps). Conformance C1–C12 are
-unaffected (the live emit path uses `BatchSink`, not fallback).
+**Fixed in M1.8** (Plan 03-04) by adding a null/empty short-circuit at the top
+of `writeMap` (returns `{}`) and a four-test regression suite
+(`CanonicalJsonNullMapTest`) pinning the fix at: (a) null map, (b) empty map,
+(c) nested null value inside a non-null map, (d) full `LogRecord` with
+`resource` + `scope` + `attributes` all null serialises cleanly via
+`CanonicalJson.serialize`. Conformance C1–C12 were unaffected throughout
+(documented during M1.7) and remain so post-fix.
 
 ## Result file (machine-readable)
 

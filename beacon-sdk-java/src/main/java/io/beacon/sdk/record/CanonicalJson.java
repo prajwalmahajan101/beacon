@@ -92,7 +92,24 @@ public final class CanonicalJson {
         }
     }
 
+    /**
+     * Serialize {@code map} as a canonical JSON object into {@code sb}.
+     *
+     * <p>Tolerates {@code null} (writes {@code {}}) — callers downstream of {@link LogRecord}
+     * may pass through nullable record components ({@code resource}, {@code scope},
+     * {@code attributes}). M1.8 fix: the M1.7 JMH warmup NPE traced to this entry point
+     * receiving a null nested map via the FallbackSink path (see
+     * docs/benchmarks/sdk-overhead.md § Known issue).
+     *
+     * <p>Nested {@code Map<String, Object>} values are recursively serialised; nested
+     * null values render as the JSON literal {@code null} (per
+     * {@link #writeValue(StringBuilder, Object)}, which already handles {@code null}).
+     */
     private static void writeMap(StringBuilder sb, Map<String, Object> map) {
+        if (map == null || map.isEmpty()) {
+            sb.append("{}");
+            return;
+        }
         sb.append('{');
         boolean first = true;
         for (Map.Entry<String, Object> e : map.entrySet()) {
