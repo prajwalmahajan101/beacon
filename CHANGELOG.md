@@ -31,6 +31,10 @@ M1.7 lands the public observability proof points. `BeaconLogbackAppender` bridge
 - M1.0 placeholder file `LogbackAppender.java` renamed to `BeaconLogbackAppender.java` to match the documented consumer class name; package path (`io.beacon.sdk.appender`) unchanged.
 - `CLAUDE.md` ADR index updated for ADR-0009.
 
+### Fixed
+
+- M1.8: `CanonicalJson.writeMap` no longer throws `NullPointerException` when its `map` argument is null — emits `{}` instead. Regression test `CanonicalJsonNullMapTest` covers null map / empty map / nested null value / full-record null-maps paths. (Carry-fix from M1.7 — see `docs/benchmarks/sdk-overhead.md` § Known issue.)
+
 ### Verified
 
 - `./gradlew build` green project-wide; `:conformance-java:test` reports 12/12 (no regression from Phase 1).
