@@ -79,12 +79,25 @@ class ConformanceTest {
      */
     private static Map<String, Object> CONFIG_KEYS_CONTRACT;
 
+    /**
+     * Cross-SDK severity-table contract artifact (M1.8 Plan 03-02). Loaded once before
+     * any scenario runs; M2's Python harness will mirror the load. The Java SDK-side
+     * pin lives in {@code SeverityMapperContractTest} inside {@code :beacon-sdk-java}.
+     */
+    private static JsonNode SEVERITY_TABLE_CONTRACT;
+
     @BeforeAll
-    static void loadConfigKeysContract() throws Exception {
-        Path contract = SCENARIOS_DIR.resolve("config-keys.yaml").normalize();
-        try (var in = Files.newInputStream(contract)) {
+    static void loadCrossSdkContracts() throws Exception {
+        Path configKeys = SCENARIOS_DIR.resolve("config-keys.yaml").normalize();
+        try (var in = Files.newInputStream(configKeys)) {
             CONFIG_KEYS_CONTRACT = new Yaml().load(in);
         }
+
+        // severity-table.json lives under spec/ (additive carve-out within the M0
+        // freeze per Plan 03-02 / ADR-0010 draft). SCENARIOS_DIR points at
+        // beacon-s0-contract/conformance/, so step up one level to reach spec/.
+        Path severityTable = SCENARIOS_DIR.resolve("../spec/severity-table.json").normalize();
+        SEVERITY_TABLE_CONTRACT = new ObjectMapper().readTree(severityTable.toFile());
     }
 
     // ---- Contract artifact load (M1.8) ----------------------------------
@@ -109,6 +122,32 @@ class ConformanceTest {
         assertThat(keys)
                 .as("16 list entries: 12 leaf + 1 composite parent + 3 nested redact children")
                 .hasSize(16);
+    }
+
+    /**
+     * Harness-only sanity assertion that the {@code severity-table.json} artifact
+     * (M1.8 Plan 03-02) loaded cleanly with the spec/01 §1.1 band anchors. As with
+     * {@code c0_configKeysContractLoads}, the {@code c0_} prefix marks this as
+     * harness-internal — it does NOT extend the M0-frozen C1–C12 scenario set in
+     * {@code scenarios.yaml}.
+     */
+    @Test
+    @DisplayName("c0 — severity-table contract artifact loads (harness-only, not a C-scenario)")
+    void c0_severityTableContractLoads() {
+        assertThat(SEVERITY_TABLE_CONTRACT)
+                .as("severity-table.json must be loaded by @BeforeAll")
+                .isNotNull();
+        JsonNode bands = SEVERITY_TABLE_CONTRACT.get("bands");
+        assertThat(bands).as("bands array must be present").isNotNull();
+        assertThat(bands.size())
+                .as("severity-table.json must define exactly 6 bands")
+                .isEqualTo(6);
+        int[] expectedAnchors = {1, 5, 9, 13, 17, 21};
+        for (int i = 0; i < 6; i++) {
+            assertThat(bands.get(i).get("anchor").asInt())
+                    .as("band[%d].anchor (spec/01 §1.1)", i)
+                    .isEqualTo(expectedAnchors[i]);
+        }
     }
 
     // ---- Schema ----------------------------------------------------------

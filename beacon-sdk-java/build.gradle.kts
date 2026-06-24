@@ -8,6 +8,9 @@ val libs = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
 dependencies {
     api(libs.otel.api)
+    // M1.8 — SeverityMapper loads beacon-s0-contract/spec/severity-table.json at class init
+    // (cross-SDK contract artifact, Plan 03-02). Jackson is required on the SDK main classpath.
+    implementation(libs.jackson.databind)
     implementation(libs.otel.sdk)
     implementation(libs.otel.sdk.logs)
     implementation(libs.otel.exporter.otlp)
