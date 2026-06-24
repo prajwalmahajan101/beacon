@@ -2,6 +2,25 @@
 
 All notable changes to Beacon are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow milestone semver (`v<major>.<minor>-m<milestone>`).
 
+## [Unreleased] — M1.7: Logback appender + Spring Boot starter + benchmark + CI consolidation
+
+Phase 2 of M1.7 lands the public observability proof points. The new `:beacon-sdk-java-benchmark` JMH subproject pins the `BeaconSdk.emit` budget against PRD NFR-6 (< 1 ms p99); the published baseline lives at `docs/benchmarks/sdk-overhead.md` with workload + hardware + reproduction command. The CI workflow `java-sdk.yml` now consolidates the SDK + Spring Boot starter JUnit HTML reports into a single `junit-html-report` artifact (preserving the separate conformance report) and verifies the benchmark subproject's `:compileJmhJava` on every push.
+
+### Added
+
+- M1.7: `:beacon-sdk-java-benchmark` JMH benchmark subproject + `docs/benchmarks/sdk-overhead.md` — proves `BeaconSdk.emit` p99 < 1ms on the documented workload (PRD NFR-6 / JSDK-10). Not shipped as a runtime artifact; sibling of `:beacon-sdk-java` so JMH tooling never enters the published SDK. `me.champeau.jmh` 0.7.2 plugin + JMH 1.37 added to `gradle/libs.versions.toml`.
+- M1.7: `EmitOverheadBenchmark` covers `BeaconSdk.emit` against a documented 4-attribute workload (`redactDefaults=false`, no MDC, no Span, `BatchSink.NOOP`) in AverageTime + SampleTime modes.
+
+### Changed
+
+- M1.7: `java-sdk.yml` consolidates SDK + starter JUnit HTML reports into a single `junit-html-report` workflow artifact (preserving the separate `conformance-test-report`). Path filters now include `beacon-spring-boot-starter/**` and `beacon-sdk-java-benchmark/**`; the benchmark subproject's `:compileJmhJava` is verified on every push (full `:jmh` task is out-of-band by design). (JSDK-09)
+
+### Verified
+
+- `./gradlew :beacon-sdk-java-benchmark:compileJmhJava` exits 0.
+- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/java-sdk.yml'))"` exits 0.
+- Emit overhead p99 baseline: **placeholder — first measured run deferred to post-Plan-02-01 land** (see `docs/benchmarks/sdk-overhead.md` § Run failure (executor host)).
+
 ## [Unreleased] — M1.6: Redactor + MDC/Context enricher + async-context propagation
 
 The SDK emit pipeline is complete. `BeaconSdk.emit(LogRecord)` now runs `enricher.enrich → redactor.redact → buffer.offer`; on `RedactorTimeoutException` the original record routes to a dedicated direct fallback sink and never reaches the OTLP wire. `BeaconExecutors.wrap(...)` carries OTel Context + SLF4J MDC across executor boundaries (raw `ExecutorService`, `CompletableFuture`, Spring `@Async` via `TaskDecorator`). Conformance scenarios **C10** (redaction) and **C11** (trace-context propagation; sync OTel + sync MDC + async `CompletableFuture` + async Spring `@Async`) are green. The Java harness now reports **12 / 12** scenarios green — milestone-1 SDK closure.
