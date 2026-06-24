@@ -1,0 +1,58 @@
+name: jmh-nightly
+
+on:
+  schedule:
+    # 03:00 UTC daily — quiet hour for GitHub-hosted runners; avoids the
+    # 00:00 UTC scheduling spike where Actions queues are heaviest.
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  jmh:
+    name: JMH benchmark suite (SDK overhead)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run JMH (CI profile — 3 warmup × 5 iter × 1 fork)
+        run: ./gradlew :beacon-sdk-java-benchmark:jmh -PbenchmarkCI --no-daemon
+
+      - name: Capture run metadata (commit + date)
+        if: always()
+        run: |
+          mkdir -p beacon-sdk-java-benchmark/build/results/jmh
+          cat > beacon-sdk-java-benchmark/build/results/jmh/run-metadata.json <<EOF
+          {
+            "commit": "${{ github.sha }}",
+            "ref": "${{ github.ref }}",
+            "run_id": "${{ github.run_id }}",
+            "run_started_at": "${{ github.event.repository.updated_at }}",
+            "runner_os": "ubuntu-latest",
+            "java_version": "17-temurin",
+            "trigger": "${{ github.event_name }}"
+          }
+          EOF
+
+      - name: Upload JMH results (JSON + HTML + metadata)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmh-results-${{ github.run_id }}
+          path: |
+            beacon-sdk-java-benchmark/build/results/jmh
+            beacon-sdk-java-benchmark/build/reports/jmh
+          retention-days: 30
+          if-no-files-found: error
