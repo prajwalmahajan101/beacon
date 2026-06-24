@@ -14,6 +14,9 @@ Phase 2 of M1.7 lands the public observability proof points. Plan 02-01 ships `B
 - M1.7: `logback-classic` added as `compileOnly` on `:beacon-sdk-java` so `BeaconLogbackAppender` can extend `AppenderBase<ILoggingEvent>` without pulling Logback into the SDK's runtime closure (users opt in).
 - M1.7: `:beacon-sdk-java-benchmark` JMH benchmark subproject + `docs/benchmarks/sdk-overhead.md` — proves `BeaconSdk.emit` p99 < 1ms on the documented workload (PRD NFR-6 / JSDK-10). Not shipped as a runtime artifact; sibling of `:beacon-sdk-java` so JMH tooling never enters the published SDK. `me.champeau.jmh` 0.7.2 plugin + JMH 1.37 added to `gradle/libs.versions.toml`.
 - M1.7: `EmitOverheadBenchmark` covers `BeaconSdk.emit` against a documented 4-attribute workload (`redactDefaults=false`, no MDC, no Span, `BatchSink.NOOP`) in AverageTime + SampleTime modes.
+- M1.7: `beacon-spring-boot-starter` Gradle subproject — `@AutoConfiguration` wires `BeaconSdk` (with `destroyMethod = "close"` for C9 drain), programmatically attaches `BeaconLogbackAppender` to the root Logback Logger (no `logback-spring.xml` mutation per Pitfall #18; defensive WARN if SLF4J binding is not Logback), and exposes `BeaconTaskDecorator` as a named bean (delegates to `BeaconExecutors.wrap` per ADR-0008). 13 canonical `beacon.*` surfaces (12 leaf + composite `beacon.redact` with `keys` / `defaults` / `timeout-ms` nested); opt-out via `beacon.enabled=false`. (JSDK-07)
+- M1.7: Spring Boot 3.3.5 added to the version catalog (`springBoot` version + `spring-boot-autoconfigure` + `spring-boot-starter` + `spring-boot-starter-test` + `spring-boot-configuration-processor` library entries).
+- M1.7: Hand-written `spring-configuration-metadata.json` enumerates the 13 canonical surfaces (12 leaf + 3 nested under composite `beacon.redact`) plus the `beacon.enabled` starter gate for IDE autocompletion. No top-level `beacon.redactor-timeout-ms` key — folded under `beacon.redact.timeout-ms` per ADR-0009 §3 Option-A.
 
 ### Changed
 
@@ -28,6 +31,8 @@ Phase 2 of M1.7 lands the public observability proof points. Plan 02-01 ships `B
 - `./gradlew :beacon-sdk-java-benchmark:compileJmhJava` exits 0.
 - `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/java-sdk.yml'))"` exits 0.
 - Emit overhead p99 baseline: **placeholder — first measured run deferred to post-Plan-02-01 land** (see `docs/benchmarks/sdk-overhead.md` § Run failure (executor host)).
+- `beacon-spring-boot-starter` test suite green (9 tests: 3 properties-binding incl. `beacon.redact.timeout-ms` → internal `redactorTimeoutMs` mapping + regression guard rejecting the deprecated top-level `beacon.redactor-timeout-ms` key + defaults parity; 6 auto-config wiring incl. SDK + appender attach to Logback root + TaskDecorator + `beacon.enabled=false` opt-out gate + `@ConditionalOnMissingBean` user override for both `BeaconSdk` and named `beaconTaskDecorator`).
+- Full `./gradlew build` green incl. `:conformance-java:test` 12/12 (no regression from Phase 1 or Plan 02-01).
 
 ## [Unreleased] — M1.6: Redactor + MDC/Context enricher + async-context propagation
 
