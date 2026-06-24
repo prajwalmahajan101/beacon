@@ -1,0 +1,92 @@
+name: pr-title-lint
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  lint-pr-title:
+    name: Conventional Commits on PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title (Conventional Commits)
+        id: lint
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            refactor
+            docs
+            test
+            chore
+            ci
+            build
+          # Subject must NOT end with a period.
+          subjectPattern: '^(?![A-Z]).+[^.]$'
+          subjectPatternError: |
+            The subject "{subject}" must:
+              - start with a lowercase letter
+              - not end with a period
+          # ≤72 chars total title length, per CLAUDE.md project rule.
+          headerPattern: '^(\w+)(?:\(([\w\-\.\/]+)\))?(!)?: (.+)$'
+          headerPatternCorrespondence: 'type, scope, breaking, subject'
+          validateSingleCommit: false
+          # NOTE: amannn/action-semantic-pull-request does NOT enforce a
+          # max-length flag directly. We rely on subjectPattern + a follow-up
+          # length check below for explicit ≤72 enforcement.
+
+      - name: Enforce ≤72-char title length
+        if: always() && steps.lint.outcome == 'success'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          len=${#PR_TITLE}
+          echo "PR title length: $len"
+          if [ "$len" -gt 72 ]; then
+            echo "::error::PR title is $len chars; must be ≤72 (Conventional Commits, per CLAUDE.md)."
+            exit 1
+          fi
+
+      - name: Post sticky comment on lint failure
+        if: failure()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-title-lint
+          message: |
+            ### ❌ PR title does not follow Conventional Commits
+
+            Beacon enforces [Conventional Commits](https://www.conventionalcommits.org/) on PR titles (per [`CLAUDE.md`](../blob/main/CLAUDE.md#git)).
+
+            **Format:** `<type>(<optional-scope>): <subject>`
+
+            **Accepted types:** `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`, `build`
+
+            **Rules:**
+            - Subject ≤72 chars (the whole title)
+            - No trailing period
+            - Lowercase first letter of subject
+
+            **Examples:**
+            - `feat(03.1-04): add PR-title lint workflow`
+            - `fix(java-sdk): close NPE in CanonicalJson.writeMap when value is null`
+            - `docs: clarify M1.9 CI floor in ADR-0012`
+
+            Edit the PR title above to fix it — this comment will auto-clear once the lint passes.
+
+      - name: Clear sticky comment on lint pass
+        if: success()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-title-lint
+          delete: true
