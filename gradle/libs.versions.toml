@@ -21,11 +21,13 @@ jmh = "1.37"
 jmhPlugin = "0.7.2"
 springBoot = "3.3.5"
 jacksonDatabind = "2.18.0"
+spotless = "7.0.2"
 
 [plugins]
 jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version = "1.1.6" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 
 [libraries]
 otel-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "otel" }
