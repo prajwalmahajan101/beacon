@@ -136,7 +136,7 @@ class LogbackAppenderTest {
             appender.start();
             logger.addAppender(appender);
 
-            MDC.put("password", "p@ssword!");
+            MDC.put("password", "sentinel-value-to-redact");
             logger.info("redact me");
 
             awaitTrue(() -> !sink.records().isEmpty(), 2_000);
