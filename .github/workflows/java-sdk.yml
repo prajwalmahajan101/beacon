@@ -87,6 +87,18 @@ jobs:
           path: beacon-s0-contract/conformance/java/build/reports/tests/test
           if-no-files-found: ignore
 
+      - name: Upload JaCoCo HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: |
+            beacon-sdk-java/build/reports/jacoco/test/html
+            beacon-spring-boot-starter/build/reports/jacoco/test/html
+            beacon-sdk-java-benchmark/build/reports/jacoco/test/html
+            beacon-s0-contract/conformance/java/build/reports/jacoco/test/html
+          if-no-files-found: ignore
+
       - name: Upload JUnit HTML test report (SDK + starter)
         if: always()
         uses: actions/upload-artifact@v4
