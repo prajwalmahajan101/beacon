@@ -4,19 +4,27 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ## [Unreleased] — M1.7: Logback appender + Spring Boot starter + benchmark + CI consolidation
 
-Phase 2 of M1.7 lands the public observability proof points. The new `:beacon-sdk-java-benchmark` JMH subproject pins the `BeaconSdk.emit` budget against PRD NFR-6 (< 1 ms p99); the published baseline lives at `docs/benchmarks/sdk-overhead.md` with workload + hardware + reproduction command. The CI workflow `java-sdk.yml` now consolidates the SDK + Spring Boot starter JUnit HTML reports into a single `junit-html-report` artifact (preserving the separate conformance report) and verifies the benchmark subproject's `:compileJmhJava` on every push.
+Phase 2 of M1.7 lands the public observability proof points. Plan 02-01 ships `BeaconLogbackAppender` — a production Logback bridge that feeds the M1.6 emit pipeline (Enricher → Redactor → BoundedBuffer → BatchFlusher → ResilientSink → OTLP). Manual wiring is documented in `beacon-sdk-java/README.md`; the Spring Boot starter (Plan 02-02) attaches the appender programmatically without mutating `logback-spring.xml` (Pitfall #18). The `:beacon-sdk-java-benchmark` JMH subproject pins the `BeaconSdk.emit` budget against PRD NFR-6 (< 1 ms p99); the published baseline lives at `docs/benchmarks/sdk-overhead.md` with workload + hardware + reproduction command. The CI workflow `java-sdk.yml` consolidates the SDK + Spring Boot starter JUnit HTML reports into a single `junit-html-report` artifact (preserving the separate conformance report) and verifies the benchmark subproject's `:compileJmhJava` on every push.
 
 ### Added
 
+- M1.7: `BeaconLogbackAppender` (thin wrapper over `opentelemetry-logback-appender-1.0`) — production Logback bridge into the M1.6 emit pipeline (Enricher → Redactor → BoundedBuffer → BatchFlusher → ResilientSink → OTLP). Null-SDK and post-stop appends are silent no-ops per the Logback appender contract (JSDK-06).
+- M1.7: SDK consumer README at `beacon-sdk-java/README.md` documenting manual Logback wiring + the `TaskDecorator` requirement for Spring `@Async` users (Pitfall #2 docs surface). Documents the 13 canonical Beacon config keys (composite `redact` surface).
+- M1.7: Version catalog entries `otel-logback-appender` (instrumentation `2.10.0-alpha`, the only published track for the `opentelemetry-logback-appender-1.0` artifact; aligned with otel `1.42.0`) and `spring-context` (promoted from M1.6 testImplementation-only carry).
+- M1.7: `logback-classic` added as `compileOnly` on `:beacon-sdk-java` so `BeaconLogbackAppender` can extend `AppenderBase<ILoggingEvent>` without pulling Logback into the SDK's runtime closure (users opt in).
 - M1.7: `:beacon-sdk-java-benchmark` JMH benchmark subproject + `docs/benchmarks/sdk-overhead.md` — proves `BeaconSdk.emit` p99 < 1ms on the documented workload (PRD NFR-6 / JSDK-10). Not shipped as a runtime artifact; sibling of `:beacon-sdk-java` so JMH tooling never enters the published SDK. `me.champeau.jmh` 0.7.2 plugin + JMH 1.37 added to `gradle/libs.versions.toml`.
 - M1.7: `EmitOverheadBenchmark` covers `BeaconSdk.emit` against a documented 4-attribute workload (`redactDefaults=false`, no MDC, no Span, `BatchSink.NOOP`) in AverageTime + SampleTime modes.
 
 ### Changed
 
 - M1.7: `java-sdk.yml` consolidates SDK + starter JUnit HTML reports into a single `junit-html-report` workflow artifact (preserving the separate `conformance-test-report`). Path filters now include `beacon-spring-boot-starter/**` and `beacon-sdk-java-benchmark/**`; the benchmark subproject's `:compileJmhJava` is verified on every push (full `:jmh` task is out-of-band by design). (JSDK-09)
+- M1.7: M1.0 placeholder file `LogbackAppender.java` renamed to `BeaconLogbackAppender.java` to match the documented consumer class name; package path (`io.beacon.sdk.appender`) unchanged.
 
 ### Verified
 
+- `BeaconLogbackAppender` unit suite (5 tests) green: INFO event → enqueued record; MDC keys flow through Enricher to attributes; redact key scrubbed by Redactor; null-SDK reference drops silently; stopped appender is a no-op.
+- `./gradlew build` green project-wide; `:conformance-java:test` reports 12/12 (no regression from Phase 1).
+- `grep -r UnsupportedOperationException beacon-sdk-java/src/main` returns zero matches — every M1.0 placeholder under the SDK main source is now real.
 - `./gradlew :beacon-sdk-java-benchmark:compileJmhJava` exits 0.
 - `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/java-sdk.yml'))"` exits 0.
 - Emit overhead p99 baseline: **placeholder — first measured run deferred to post-Plan-02-01 land** (see `docs/benchmarks/sdk-overhead.md` § Run failure (executor host)).
