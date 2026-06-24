@@ -17,3 +17,7 @@ include(":beacon-sdk-java-benchmark")
 // We include it as a Gradle subproject so it compiles against the real SDK without copying.
 include(":conformance-java")
 project(":conformance-java").projectDir = file("beacon-s0-contract/conformance/java")
+
+// M1.7 Plan 02-02 — Spring Boot starter (auto-config wires BeaconSdk +
+// BeaconLogbackAppender + BeaconTaskDecorator). See docs/adr/0009 (anticipated).
+include(":beacon-spring-boot-starter")
