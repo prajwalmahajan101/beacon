@@ -1,0 +1,109 @@
+{
+  "groups": [
+    {
+      "name": "beacon",
+      "type": "io.beacon.spring.BeaconProperties",
+      "description": "Beacon SDK configuration — 13 canonical surfaces. See docs/adr/0009 (anticipated) and beacon-s0-contract/spec/02-sdk-behavior-spec.md §4."
+    },
+    {
+      "name": "beacon.redact",
+      "type": "io.beacon.spring.BeaconProperties$Redact",
+      "description": "Composite redact key (canonical surface 13). Nested: keys, defaults, timeout-ms."
+    }
+  ],
+  "properties": [
+    {
+      "name": "beacon.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Starter-only opt-out gate (NOT one of the 13 canonical keys). Set false to disable all Beacon wiring without removing the dependency. (Pitfall #18.)"
+    },
+    {
+      "name": "beacon.endpoint",
+      "type": "java.lang.String",
+      "description": "OTLP gRPC endpoint, e.g. http://localhost:4317. (Canonical key 1.)"
+    },
+    {
+      "name": "beacon.api-key",
+      "type": "java.lang.String",
+      "description": "Bearer/API key. (Canonical key 2.)"
+    },
+    {
+      "name": "beacon.buffer-capacity",
+      "type": "java.lang.Integer",
+      "defaultValue": 10000,
+      "description": "Bounded buffer capacity. (Canonical key 3.)"
+    },
+    {
+      "name": "beacon.drop-policy",
+      "type": "io.beacon.sdk.config.BeaconConfig$DropPolicy",
+      "defaultValue": "DROP_OLDEST",
+      "description": "DROP_OLDEST | DROP_NEWEST | SPILL_FALLBACK. (Canonical key 4.)"
+    },
+    {
+      "name": "beacon.batch-max-records",
+      "type": "java.lang.Integer",
+      "defaultValue": 512,
+      "description": "Max records per OTLP batch. (Canonical key 5.)"
+    },
+    {
+      "name": "beacon.flush-interval-ms",
+      "type": "java.lang.Long",
+      "defaultValue": 1000,
+      "description": "Time-based flush trigger. (Canonical key 6.)"
+    },
+    {
+      "name": "beacon.max-retries",
+      "type": "java.lang.Integer",
+      "defaultValue": 5,
+      "description": "Retry attempts on retriable OTLP failures. (Canonical key 7.)"
+    },
+    {
+      "name": "beacon.backoff-base-ms",
+      "type": "java.lang.Long",
+      "defaultValue": 100,
+      "description": "Exponential-backoff base. (Canonical key 8.)"
+    },
+    {
+      "name": "beacon.backoff-max-ms",
+      "type": "java.lang.Long",
+      "defaultValue": 5000,
+      "description": "Exponential-backoff cap. (Canonical key 9.)"
+    },
+    {
+      "name": "beacon.fallback-sink",
+      "type": "java.lang.String",
+      "defaultValue": "stderr",
+      "description": "stderr | file:/path. (Canonical key 10.)"
+    },
+    {
+      "name": "beacon.shutdown-drain-timeout-ms",
+      "type": "java.lang.Long",
+      "defaultValue": 5000,
+      "description": "C9 drain timeout. (Canonical key 11.)"
+    },
+    {
+      "name": "beacon.sampling-ratio",
+      "type": "java.lang.Double",
+      "defaultValue": 1.0,
+      "description": "Head sampling ratio 0.0-1.0. (Canonical key 12.)"
+    },
+    {
+      "name": "beacon.redact.keys",
+      "type": "java.util.List<java.lang.String>",
+      "description": "User-configured PII keys to scrub. (Nested under canonical key 13 `redact`.)"
+    },
+    {
+      "name": "beacon.redact.defaults",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "If true, union user keys with the always-on baseline password|authorization|api_key|secret|token. (Nested under canonical key 13 `redact`.)"
+    },
+    {
+      "name": "beacon.redact.timeout-ms",
+      "type": "java.lang.Long",
+      "defaultValue": 5,
+      "description": "Per-record redaction budget on the caller thread. (Nested under canonical key 13 `redact`; folded from M1.6's redactorTimeoutMs per ADR-0009 §3.)"
+    }
+  ]
+}
