@@ -11,6 +11,7 @@ springContext = "6.1.14"
 jmh = "1.37"
 jmhPlugin = "0.7.2"
 springBoot = "3.3.5"
+jacksonDatabind = "2.18.0"
 
 [plugins]
 jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
@@ -34,6 +35,9 @@ slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 otel-logback-appender = { module = "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0", version.ref = "otelInstrumentation" }
 spring-context = { module = "org.springframework:spring-context", version.ref = "springContext" }
+# M1.8 — SeverityMapper loads beacon-s0-contract/spec/severity-table.json at class init
+# (Jackson required on the SDK main classpath). Aligned with Spring Boot 3.3.5 jackson-bom.
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jacksonDatabind" }
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 
