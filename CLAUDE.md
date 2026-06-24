@@ -73,6 +73,7 @@ beacon/
 - [ADR-0009](docs/adr/0009-spring-boot-starter-design.md) — Spring Boot starter design (opt-in auto-config, no `logback-spring.xml` mutation, programmatic appender, 13 canonical surfaces with composite `beacon.redact`, TaskDecorator opt-in) (M1.7).
 - [ADR-0010](docs/adr/0010-contract-artifacts-cross-sdk-source-of-truth.md) — Contract artifacts (`config-keys.yaml` + `severity-table.json`) as cross-SDK single source of truth; additive carve-out from M0 freeze; CI drift gate via `check_contract_drift.py` (M1.8).
 - [ADR-0011](docs/adr/0011-otel-sdk-version-policy.md) — OTel SDK version policy: milestone-cadence review, bump-or-justify (M1.8).
+- [ADR-0012](docs/adr/0012-ci-hardening-floor-for-java-sdk.md) — CI hardening floor for the Java SDK: Spotless + JaCoCo (report-only) + Javadoc -Werror + PR-title lint + JMH nightly (report-only); gates vs report-only rationale; deferred items list (M1.9).
 
 ## Workflow conventions (READ before editing)
 

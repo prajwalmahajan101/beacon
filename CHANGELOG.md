@@ -4,13 +4,34 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+**Milestone:** M1.9 — Java CI hardening. Five new CI surfaces landed before M2 (Python SDK) so the discipline is locked in with one SDK in the repo rather than retrofitted across two ecosystems. Three gates (Spotless / Javadoc `-Werror` / PR-title lint) + two report-only (JaCoCo coverage / JMH nightly). Rationale + deferred-item list ratified in ADR-0012. Five tracked CI requirements (**CI-01..CI-05**) in REQUIREMENTS.md.
+
 ### Added
+
+- M1.9: ADR-0012 — CI hardening floor for the Java SDK: which tools, what gates vs report-only, why deferred rather than batched into later phases. Names the explicit out-of-scope list (Checkstyle / PMD / SpotBugs / ErrorProne / Codecov / coverage threshold / JMH regression gate / matrix builds / Semgrep / CodeQL / Sonar / Maven Central) and the conditions under which each may be revisited.
+- M1.9: Spotless gate in `.github/workflows/java-sdk.yml` running `./gradlew spotlessCheck` before `Build (assemble + test)` — fail-fast on format drift. `com.diffplug.spotless 7.0.2` + `google-java-format 1.28.0` (GJF version forced by JDK 25 launcher compatibility — `NoSuchMethodError: Log$DeferredDiagnosticHandler.getDiagnostics()` on GJF < 1.28.0). Applied via root `subprojects { ... }` block to all 5 Java subprojects (`beacon-sdk-java`, `beacon-spring-boot-starter`, `beacon-sdk-java-benchmark`, `conformance-java`, `examples:spring-boot-sample`); per-subproject override in `conformance-java` for the `srcDirs(".")` quirk. One mechanical reformat baseline commit (`ae79278`) across 50 .java files. (**CI-01** — ADR-0012)
+- M1.9: JaCoCo HTML + XML coverage reports generated on every test invocation via `tasks.withType<Test>().configureEach { finalizedBy(tasks.withType<JacocoReport>()) }`; uploaded as `jacoco-coverage-report` CI artifact (4 subproject paths, `if-no-files-found: ignore`). JaCoCo 0.8.12 pinned via `toolVersion`. Baseline at adoption: **81% line coverage** on both `beacon-sdk-java` and `beacon-spring-boot-starter`. **No threshold gate** — measurement first, gating later. (**CI-02** — ADR-0012)
+- M1.9: Javadoc `-Werror -Xdoclint:all -Xdoclint:-missing -quiet` compile gate scoped to the two public-API subprojects (`beacon-sdk-java`, `beacon-spring-boot-starter`) via a `publicApiSubprojects` whitelist in the root `subprojects { ... }` block. Internal subprojects (conformance harness, JMH benchmarks, Spring Boot sample) opt out — no public consumers, no value from a doc-warning gate. Doc *publishing* deferred to Phase 4.1 (M2.1). (**CI-03** — ADR-0012)
+- M1.9: PR-title Conventional-Commits lint workflow (`.github/workflows/pr-title-lint.yml`) via `amannn/action-semantic-pull-request@v5` + sticky bot comment via `marocchino/sticky-pull-request-comment@v2` (auto-posts on failure, auto-clears on pass). Accepts `feat|fix|refactor|docs|test|chore|ci|build`, lowercase-first subject, no trailing period, ≤72 chars total (length enforced by a separate bash step because the action exposes no max-length knob). `pull_request_target` trigger for write permission on fork PRs; no `actions/checkout` step, so fork code never executes. (**CI-04** — ADR-0012)
+- M1.9: JMH nightly workflow (`.github/workflows/jmh-nightly.yml`) — `schedule: 0 3 * * *` UTC + `workflow_dispatch`. Runs `./gradlew :beacon-sdk-java-benchmark:jmh -PbenchmarkCI` (fork=1, warmup=3, iter=5) on Ubuntu / Temurin 17; uploads JSON + HTML + run-metadata as a 30-day-retained `jmh-results-<run_id>` artifact with `if-no-files-found: error`. Restrictive permissions (`contents: read` only). **No regression gate** — measurement-baseline phase; gating in a future phase (anticipated ADR-0013+) once ≥7 nightly runs build a per-benchmark variance distribution. (**CI-05** — ADR-0012)
+- M1.9: `.journal/M1.9.md` — phase journal (six canonical sections).
+- M1.9: `.planning/research/PITFALLS.md` gains **#22** (CI completionism delaying M2) and **#23** (Javadoc `-Werror` flushing pre-existing doc warnings on JDK bumps).
 
 ### Changed
 
-### Fixed
+- M1.9: One-time mechanical reformat across 50 .java files in all 5 Java subprojects via `./gradlew spotlessApply` (`ae79278`). Zero behaviour change; future `git blame` on those files surfaces the reformat as the most recent author. Documented in the commit message.
+- M1.9: Pre-existing Javadoc warning tail on `beacon-sdk-java` + `beacon-spring-boot-starter` was empty on first `-Werror` run — the anticipated PITFALLS #23 one-time flush was a no-op. M1.6–M1.8 dev discipline kept the doc tags clean as code landed. No fix-up commit needed.
+- M1.9: `CLAUDE.md` ADR index updated for ADR-0012.
 
 ### Verified
+
+- `./gradlew build` green project-wide.
+- `./gradlew spotlessCheck` green.
+- `./gradlew :beacon-sdk-java:javadoc :beacon-spring-boot-starter:javadoc` green; deliberate regression smoke test (`{@link io.beacon.sdk.DoesNotExist#nope()}` injected into `BeaconConfig.java`) correctly fired BUILD FAILED with `error: reference not found`; file restored, `git diff --stat` empty.
+- `./gradlew :conformance-java:test --rerun-tasks` reports **14/14** (2 c0 + C1..C12) — no regression.
+- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/jmh-nightly.yml'))"` parses cleanly; same for `pr-title-lint.yml` and `java-sdk.yml`.
+- PR-title lint self-tested against the PR for this branch — `feat(03.1-XX): ...` / `ci(03.1-XX): ...` / `docs(03.1-06): ...` titles all pass type + scope + subject + length checks.
+- JMH nightly self-test via `workflow_dispatch` on the feature branch produced a successful `jmh-results-<run_id>` artifact upload (verified on the merge PR — see Plan 06 SUMMARY).
 
 ## [v0.2-m1] — 2026-06-24
 
