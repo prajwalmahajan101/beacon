@@ -36,7 +36,8 @@ M1.7 lands the public observability proof points. `BeaconLogbackAppender` bridge
 - `:examples:spring-boot-sample:bootJar` exits 0 (runnable fat jar produced).
 - `grep -r UnsupportedOperationException beacon-sdk-java/src/main` returns zero matches — every M1.0 placeholder under the SDK main source is now real.
 - `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/java-sdk.yml'))"` exits 0.
-- Emit overhead p99 baseline: **placeholder — first measured run deferred** to post-Plan-02-01 land (see `docs/benchmarks/sdk-overhead.md` § Run failure (executor host); now unblocked).
+- Emit overhead baseline measured on Temurin 17.0.19 / i7-1355U, 2 forks × 5 warmup × 10 measurement × 1 s, both `avgt` + `sample` modes (N=284 110 sampling ops). **p99 = 6 360 ns (~157× under the 1 ms PRD NFR-6 budget)**; p50 = 363 ns; avg = 679.510 ± 31.712 ns/op. Full breakdown in `docs/benchmarks/sdk-overhead.md` § First measured run. (JSDK-10 ✅)
+- Known issue carried to M1.8: warmup-iteration NPE in `CanonicalJson.writeMap` via the `FallbackSink` path (null sub-map; live emit path via `BatchSink` is unaffected; conformance C1–C12 unchanged). See `docs/benchmarks/sdk-overhead.md` § Known issue.
 - Sample app: clone-to-emit < 30 minutes (JSDK-08) — manually verified per the README's 10-step quick start.
 
 ## [Unreleased] — M1.6: Redactor + MDC/Context enricher + async-context propagation
