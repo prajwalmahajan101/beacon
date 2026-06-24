@@ -12,9 +12,12 @@ dependencies {
     implementation(libs.otel.sdk.logs)
     implementation(libs.otel.exporter.otlp)
     // M1.7 — official OTel Logback bridge artifact; BeaconLogbackAppender is a thin wrapper.
-    // Pulls Logback's API transitively; production SDK consumers wiring the appender will
-    // already have Logback on the classpath.
+    // Production SDK consumers wiring the appender will already have Logback on the classpath.
     implementation(libs.otel.logback.appender)
+    // M1.7 — BeaconLogbackAppender extends AppenderBase<ILoggingEvent>, so Logback's API
+    // must be on the main compile classpath. `compileOnly` keeps it out of the SDK's
+    // runtime closure — users bring their own Logback (the appender is opt-in).
+    compileOnly(libs.logback.classic)
     // MDC dual-read for the Enricher (M1.6); Logback users already have it transitively.
     implementation(libs.slf4j.api)
 
