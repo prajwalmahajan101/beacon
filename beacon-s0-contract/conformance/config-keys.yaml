@@ -1,0 +1,135 @@
+# SDK config keys — single source of truth across Java + Python SDKs.
+# Locks the 13 canonical surfaces from spec/02 §4 + ADR-0009 §3.
+#
+# Each entry below maps a canonical name (kebab-case) to:
+#   type       : string | int | long | double | boolean | enum | list<string> | composite
+#   default    : the literal default value (or null if unset)
+#   env        : the canonical environment variable spelling (BEACON_*)
+#   sysprop    : the canonical Java system property spelling (beacon.*)
+#   nested_of  : (only for composite children) the parent composite key name
+#   nested     : (only for composite parents) list of child key names
+#   notes      : free-form spec / ADR cross-reference
+#
+# `beacon.enabled` is the Spring Boot starter opt-out gate (ADR-0009 §3.1) and
+# is NOT one of the 13 canonical SDK config keys — it lives in the starter, not
+# the SDK contract. It is intentionally absent below.
+
+schema_version: 1
+spec_reference: "beacon-s0-contract/spec/02-sdk-behavior-spec.md#4"
+adr_reference: "docs/adr/0009-spring-boot-starter-design.md#decision"
+canonical_surface_count: 13   # 12 leaf + 1 composite
+
+keys:
+    - name: endpoint
+      type: string
+      default: null
+      env: BEACON_ENDPOINT
+      sysprop: beacon.endpoint
+      notes: "OTLP gRPC/HTTP endpoint. Null = no OTLP exporter wired (records go to fallback)."
+
+    - name: api-key
+      type: string
+      default: null
+      env: BEACON_API_KEY
+      sysprop: beacon.api-key
+      notes: "Bearer token sent as OTLP auth header."
+
+    - name: buffer-capacity
+      type: int
+      default: 10000
+      env: BEACON_BUFFER_CAPACITY
+      sysprop: beacon.buffer-capacity
+      notes: "Bounded buffer record count. C2 / C3."
+
+    - name: drop-policy
+      type: enum
+      enum_values: [DROP_OLDEST, DROP_NEWEST, SPILL_FALLBACK]
+      default: DROP_OLDEST
+      env: BEACON_DROP_POLICY
+      sysprop: beacon.drop-policy
+      notes: "What to do when buffer is full. C3."
+
+    - name: batch-max-records
+      type: int
+      default: 512
+      env: BEACON_BATCH_MAX_RECORDS
+      sysprop: beacon.batch-max-records
+      notes: "Max records per OTLP batch. C4."
+
+    - name: flush-interval-ms
+      type: long
+      default: 1000
+      env: BEACON_FLUSH_INTERVAL_MS
+      sysprop: beacon.flush-interval-ms
+      notes: "Time-based flush trigger (ms). C5."
+
+    - name: max-retries
+      type: int
+      default: 5
+      env: BEACON_MAX_RETRIES
+      sysprop: beacon.max-retries
+      notes: "OTLP export retry attempts. C7."
+
+    - name: backoff-base-ms
+      type: long
+      default: 100
+      env: BEACON_BACKOFF_BASE_MS
+      sysprop: beacon.backoff-base-ms
+      notes: "Exponential-backoff base interval. C7."
+
+    - name: backoff-max-ms
+      type: long
+      default: 5000
+      env: BEACON_BACKOFF_MAX_MS
+      sysprop: beacon.backoff-max-ms
+      notes: "Exponential-backoff ceiling. C7."
+
+    - name: fallback-sink
+      type: string
+      default: stderr
+      env: BEACON_FALLBACK_SINK
+      sysprop: beacon.fallback-sink
+      notes: "Spec: stderr | file:/path. C8."
+
+    - name: shutdown-drain-timeout-ms
+      type: long
+      default: 5000
+      env: BEACON_SHUTDOWN_DRAIN_TIMEOUT_MS
+      sysprop: beacon.shutdown-drain-timeout-ms
+      notes: "Graceful-drain budget on JVM/SDK shutdown. C9."
+
+    - name: sampling-ratio
+      type: double
+      default: 1.0
+      env: BEACON_SAMPLING_RATIO
+      sysprop: beacon.sampling-ratio
+      notes: "0.0..1.0 — head-based sampling on emit."
+
+    - name: redact
+      type: composite
+      nested: [keys, defaults, timeout-ms]
+      notes: "Composite key (ADR-0009 §3). The three children below are part of canonical surface count #13, not separate surfaces."
+
+    - name: keys
+      nested_of: redact
+      type: list<string>
+      default: []
+      env: BEACON_REDACT_KEYS
+      sysprop: beacon.redact_keys
+      notes: "Comma-separated literal-match key list. C10. ADR-0007."
+
+    - name: defaults
+      nested_of: redact
+      type: boolean
+      default: true
+      env: BEACON_REDACT_DEFAULTS
+      sysprop: beacon.redact_defaults
+      notes: "Union with the always-on baseline (password|authorization|api_key|secret|token) when true. ADR-0007."
+
+    - name: timeout-ms
+      nested_of: redact
+      type: long
+      default: 5
+      env: BEACON_REDACTOR_TIMEOUT_MS
+      sysprop: beacon.redactor_timeout_ms
+      notes: "Per-record redaction budget. ADR-0007 / Pitfall #1."
