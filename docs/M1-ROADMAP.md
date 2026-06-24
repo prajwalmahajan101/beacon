@@ -1,6 +1,6 @@
 # M1 — Java SDK: Roadmap
 
-**Status:** Drafted 2026-06-10 · last updated 2026-06-24 · M1.0–M1.7 shipped (**12/12 conformance green**), M1.8 release cut next · **Predecessor:** [M0 frozen 2026-06-05](../beacon-s0-contract/M0-FROZEN.md) · **Acceptance bar:** all 12 conformance scenarios green against the Java SDK.
+**Status:** Drafted 2026-06-10 · last updated 2026-06-24 · M1.0–M1.8 shipped (**12/12 conformance green**), `v0.2-m1` cut · **Predecessor:** [M0 frozen 2026-06-05](../beacon-s0-contract/M0-FROZEN.md) · **Acceptance bar:** all 12 conformance scenarios green against the Java SDK.
 
 ---
 
@@ -101,7 +101,7 @@ The full rule and the journal section template live in [`CONTRIBUTING.md` § Per
 6. **M1.5** ✅ — shutdown drain → **C9 green**.
 7. **M1.6** ✅ — redactor (ADR-0007) + MDC/OTel Context enricher + async-context propagation (ADR-0008) → **C10 + C11 green**; pipeline now `enrich → redact → buffer` with direct-sink fallback on `RedactorTimeoutException`.
 8. **M1.7** ✅ — `BeaconLogbackAppender` + `beacon-spring-boot-starter` (13 canonical surfaces, composite `beacon.redact`, `BeaconTaskDecorator` opt-in named bean) + `examples/spring-boot-sample/` + `:beacon-sdk-java-benchmark` JMH overhead baseline (p99 = 6,360 ns, ~157× under PRD NFR-6); CI publishes consolidated JUnit HTML; **12/12 conformance preserved**. (ADR-0009)
-9. **M1.8** ⬜ — `v0.2-m1` release cut, contract artifacts, OTel SDK version review (currently pinned `1.42.0`), `CanonicalJson.writeMap` NPE cleanup, CHANGELOG roll-up, `docs/M1-COMPLETE.md` retrospective, tag.
+9. **M1.8** ✅ — `v0.2-m1` release cut, contract artifacts (`config-keys.yaml` + `severity-table.json`, ADR-0010), OTel SDK version policy (ADR-0011), `CanonicalJson.writeMap` NPE closed, CHANGELOG roll-up + `docs/M1-COMPLETE.md` retrospective, tag `v0.2-m1`.
 
    `docs/M1-COMPLETE.md` is a 3–4 paragraph retrospective, not a release-note dump. It should cover:
    - **What was harder than expected** — pieces that took more code, more tries, or more rethinking than the M1-ROADMAP estimate suggested (e.g. the OTel `LogRecord` → `LogRecordData` conversion path, the C3 stalled-sink semantics across M1.3 → M1.5).
