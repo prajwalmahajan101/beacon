@@ -21,3 +21,8 @@ project(":conformance-java").projectDir = file("beacon-s0-contract/conformance/j
 // M1.7 Plan 02-02 — Spring Boot starter (auto-config wires BeaconSdk +
 // BeaconLogbackAppender + BeaconTaskDecorator). See docs/adr/0009 (anticipated).
 include(":beacon-spring-boot-starter")
+
+// M1.7 Plan 02-04 — sample Spring Boot 3.x service that consumes the starter
+// end-to-end (JSDK-08). See examples/spring-boot-sample/README.md.
+include(":examples:spring-boot-sample")
+project(":examples:spring-boot-sample").projectDir = file("examples/spring-boot-sample")
