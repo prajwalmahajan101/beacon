@@ -34,6 +34,23 @@ dependencies {
     testImplementation("org.springframework:spring-context:6.1.14")
 }
 
+// Spotless override: the M0 conformance harness uses srcDirs("."), so the default
+// target("src/**/*.java") from the root build matches nothing here. Re-target to the
+// two harness files at the project root (excluding build/ and bin/ output dirs).
+spotless {
+    java {
+        target("*.java")
+        targetExclude("build/**", "bin/**")
+    }
+}
+
+// Because srcDirs("."), Gradle treats *.gradle.kts and *.java at the project root as
+// both inputs to compileTestJava AND outputs of spotless tasks — flagging an implicit
+// dependency. Declare it explicitly so the validator stays quiet and ordering is correct.
+tasks.named("compileTestJava") {
+    mustRunAfter("spotlessJava", "spotlessKotlinGradle")
+}
+
 tasks.named<Test>("test") {
     // Surface @Disabled reasons so CI never silently skips a conformance scenario
     // (matches spec/03 Pass criteria).

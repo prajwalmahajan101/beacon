@@ -5,7 +5,7 @@ plugins {
 }
 
 description = "Beacon Spring Boot starter sample — one-import integration demo. " +
-        "See examples/spring-boot-sample/README.md."
+    "See examples/spring-boot-sample/README.md."
 
 // This sample is intentionally NOT published (no `maven-publish` plugin). It exists
 // purely as an executable proof of the M1.7 starter integration contract (JSDK-08).
