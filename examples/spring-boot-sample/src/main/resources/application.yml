@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+# Beacon SDK configuration — all 13 canonical surfaces from ADR-0009 §3
+# (mirrored in beacon-s0-contract/spec/02-sdk-behavior-spec.md §4). The
+# `beacon.enabled` key below is the starter-only opt-out gate (Pitfall #18)
+# and is NOT counted in the 13 canonical surfaces.
+#
+# Set `beacon.enabled: false` to opt out of all Beacon wiring without
+# removing the Gradle dependency. Surface count = 12 leaf + 1 composite
+# (`beacon.redact` with three nested fields) = 13.
+beacon:
+  enabled: true                          # starter-only opt-out gate (NOT canonical)
+  endpoint: http://localhost:4317        # canonical 1: OTLP gRPC endpoint
+  # api-key: your-key                    # canonical 2 (commented — prefer BEACON_API_KEY env in prod)
+  buffer-capacity: 10000                 # canonical 3
+  drop-policy: DROP_OLDEST                # canonical 4: DROP_OLDEST | DROP_NEWEST | SPILL_FALLBACK
+  batch-max-records: 512                  # canonical 5
+  flush-interval-ms: 1000                 # canonical 6
+  max-retries: 5                          # canonical 7
+  backoff-base-ms: 100                    # canonical 8
+  backoff-max-ms: 5000                    # canonical 9
+  fallback-sink: stderr                   # canonical 10: stderr | file:/path/to/sink.log
+  shutdown-drain-timeout-ms: 5000         # canonical 11
+  sampling-ratio: 1.0                     # canonical 12
+  redact:                                 # canonical 13: composite key
+    keys: [password, ssn, authorization]
+    defaults: true                        # union user keys with baseline password|authorization|api_key|secret|token
+    timeout-ms: 5                         # per-record redaction budget (folded from M1.6 redactorTimeoutMs per ADR-0009 §3)
+
+logging:
+  level:
+    io.beacon.example: INFO
+    io.beacon.sdk: INFO
