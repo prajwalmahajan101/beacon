@@ -1,6 +1,6 @@
 # M1 — Java SDK: Roadmap
 
-**Status:** Drafted 2026-06-10 · **Predecessor:** [M0 frozen 2026-06-05](../beacon-s0-contract/M0-FROZEN.md) · **Acceptance bar:** all 12 conformance scenarios green against the Java SDK.
+**Status:** Drafted 2026-06-10 · last updated 2026-06-24 · M1.0–M1.7 shipped (**12/12 conformance green**), M1.8 release cut next · **Predecessor:** [M0 frozen 2026-06-05](../beacon-s0-contract/M0-FROZEN.md) · **Acceptance bar:** all 12 conformance scenarios green against the Java SDK.
 
 ---
 
@@ -89,19 +89,19 @@ The existing `beacon-s0-contract/conformance/java/ConformanceTest.java` is **the
 
 Every M1 phase below ends when the project-wide **per-phase done definition** is satisfied: code + tests, CHANGELOG entry, ADR (when the phase made an architectural call), `.journal/M1.<N>.md` entry following the canonical six-section format, and a merged PR.
 
-The full rule and the journal section template live in [`CONTRIBUTING.md` § Per-phase "done" definition](../CONTRIBUTING.md#per-phase-done-definition) so M2/M3/M4/M5 inherit the same discipline. The M1.0–M1.5 ADRs are 0001–0006 under [`docs/adr/`](./adr/); M1.0–M1.5 journals are under [`.journal/`](../.journal/).
+The full rule and the journal section template live in [`CONTRIBUTING.md` § Per-phase "done" definition](../CONTRIBUTING.md#per-phase-done-definition) so M2/M3/M4/M5 inherit the same discipline. The M1.0–M1.7 ADRs are 0001–0009 under [`docs/adr/`](./adr/); M1.2–M1.7 journals are under [`.journal/`](../.journal/) (M1.6: redactor + async-context propagation; M1.7: Spring Boot starter + JMH overhead baseline).
 
 ## Suggested M1 phase breakdown (each phase = atomic-commit-sized, contract-test-gated)
 
-1. **M1.0** — module scaffold, Gradle, ADR-0001, conformance harness wired (all 12 still `@Disabled`, but compiling against the new SDK API surface).
-2. **M1.1** — record model + serializer + severity mapping → **C1 + C12 green**.
-3. **M1.2** — bounded buffer + non-blocking enqueue + drop policy → **C2 + C3 green**.
-4. **M1.3** — batch flusher (size + interval) → **C4 + C5 green**.
-5. **M1.4** — OTLP exporter + retry/backoff + fallback sink → **C6 + C7 + C8 green**.
-6. **M1.5** — shutdown drain → **C9 green**.
-7. **M1.6** — redactor + MDC trace propagation → **C10 + C11 green**.
-8. **M1.7** — Logback appender + Spring Boot starter + sample service wiring; CI publishes test report.
-9. **M1.8** — CHANGELOG `[v0.2-m1]`, `docs/M1-COMPLETE.md`, tag.
+1. **M1.0** ✅ — module scaffold, Gradle, ADR-0001, conformance harness wired (all 12 still `@Disabled`, but compiling against the new SDK API surface).
+2. **M1.1** ✅ — record model + serializer + severity mapping → **C1 + C12 green**.
+3. **M1.2** ✅ — bounded buffer + non-blocking enqueue + drop policy → **C2 + C3 green**.
+4. **M1.3** ✅ — batch flusher (size + interval) → **C4 + C5 green**.
+5. **M1.4** ✅ — OTLP exporter + retry/backoff + fallback sink → **C6 + C7 + C8 green**.
+6. **M1.5** ✅ — shutdown drain → **C9 green**.
+7. **M1.6** ✅ — redactor (ADR-0007) + MDC/OTel Context enricher + async-context propagation (ADR-0008) → **C10 + C11 green**; pipeline now `enrich → redact → buffer` with direct-sink fallback on `RedactorTimeoutException`.
+8. **M1.7** ✅ — `BeaconLogbackAppender` + `beacon-spring-boot-starter` (13 canonical surfaces, composite `beacon.redact`, `BeaconTaskDecorator` opt-in named bean) + `examples/spring-boot-sample/` + `:beacon-sdk-java-benchmark` JMH overhead baseline (p99 = 6,360 ns, ~157× under PRD NFR-6); CI publishes consolidated JUnit HTML; **12/12 conformance preserved**. (ADR-0009)
+9. **M1.8** ⬜ — `v0.2-m1` release cut, contract artifacts, OTel SDK version review (currently pinned `1.42.0`), `CanonicalJson.writeMap` NPE cleanup, CHANGELOG roll-up, `docs/M1-COMPLETE.md` retrospective, tag.
 
    `docs/M1-COMPLETE.md` is a 3–4 paragraph retrospective, not a release-note dump. It should cover:
    - **What was harder than expected** — pieces that took more code, more tries, or more rethinking than the M1-ROADMAP estimate suggested (e.g. the OTel `LogRecord` → `LogRecordData` conversion path, the C3 stalled-sink semantics across M1.3 → M1.5).
