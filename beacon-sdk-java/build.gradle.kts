@@ -24,6 +24,9 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj)
+    // M1.8 — ConfigKeysContractTest loads beacon-s0-contract/conformance/config-keys.yaml
+    // (cross-SDK single-source-of-truth) to pin the SDK's 13-surface key set (Pitfall #3).
+    testImplementation(libs.snakeyaml)
     testRuntimeOnly(libs.junit.platform.launcher)
     // SLF4J provider for tests so MDC is wired with a real adapter (LogbackMDCAdapter).
     // slf4j-simple cannot be used here — its SimpleServiceProvider returns NOPMDCAdapter

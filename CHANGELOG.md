@@ -8,6 +8,7 @@ M1.7 lands the public observability proof points. `BeaconLogbackAppender` bridge
 
 ### Added
 
+- M1.8: `beacon-s0-contract/conformance/config-keys.yaml` — single-source-of-truth for the 13 canonical SDK config keys (12 leaf + composite `redact` with three nested children). Loaded by the Java conformance harness and pinned by `ConfigKeysContractTest` (Pitfall #3 cross-SDK drift guard, Java side). CONT-01 / CONT-02.
 - `BeaconLogbackAppender` (thin wrapper over `opentelemetry-logback-appender-1.0`) — production Logback bridge into the M1.6 emit pipeline. Null-SDK and post-stop appends are silent no-ops per the Logback appender contract. (JSDK-06)
 - `beacon-sdk-java/README.md` — SDK consumer quick start: manual Logback wiring + `TaskDecorator` callout (Pitfall #2 docs surface) + 13-canonical-surface enumeration.
 - `beacon-spring-boot-starter` Gradle subproject — `@AutoConfiguration` wires `BeaconSdk` (with `destroyMethod = "close"` for C9 drain), programmatically attaches `BeaconLogbackAppender` to the root Logback `LoggerContext` (no `logback-spring.xml` mutation per Pitfall #18; defensive WARN + un-attached bean if the SLF4J binding is not Logback), and exposes `BeaconTaskDecorator` as a named bean (`beaconTaskDecorator`) delegating to `BeaconExecutors.wrap` per ADR-0008. 13 canonical `beacon.*` surfaces (12 leaf + composite `beacon.redact` with `keys` / `defaults` / `timeout-ms` nested); opt-out via `beacon.enabled=false` (Pitfall #18 escape hatch). (JSDK-07)

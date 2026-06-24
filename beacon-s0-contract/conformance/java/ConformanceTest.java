@@ -23,6 +23,7 @@ import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Scope;
 import org.assertj.core.api.SoftAssertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -69,6 +70,46 @@ class ConformanceTest {
 
     private static final Path SCENARIOS_DIR =
             Paths.get("..").toAbsolutePath().normalize(); // .../beacon-s0-contract/conformance/
+
+    /**
+     * Cross-SDK config-key contract artifact (M1.8 Plan 03-01). Loaded once before any
+     * scenario runs; M2's Python harness will mirror the load and add Python-side
+     * assertions. The Java SDK-side pin lives in {@code ConfigKeysContractTest} inside
+     * {@code :beacon-sdk-java}.
+     */
+    private static Map<String, Object> CONFIG_KEYS_CONTRACT;
+
+    @BeforeAll
+    static void loadConfigKeysContract() throws Exception {
+        Path contract = SCENARIOS_DIR.resolve("config-keys.yaml").normalize();
+        try (var in = Files.newInputStream(contract)) {
+            CONFIG_KEYS_CONTRACT = new Yaml().load(in);
+        }
+    }
+
+    // ---- Contract artifact load (M1.8) ----------------------------------
+
+    /**
+     * Harness-only sanity assertion that the {@code config-keys.yaml} artifact loaded
+     * cleanly with the expected shape. The {@code c0_} prefix is a harness-internal
+     * convention (load-before-scenarios) and does NOT extend the M0-frozen C1–C12
+     * scenario set in {@code scenarios.yaml}.
+     */
+    @Test
+    @DisplayName("c0 — config-keys contract artifact loads (harness-only, not a C-scenario)")
+    @SuppressWarnings("unchecked")
+    void c0_configKeysContractLoads() {
+        assertThat(CONFIG_KEYS_CONTRACT)
+                .as("config-keys.yaml must be loaded by @BeforeAll")
+                .isNotNull();
+        assertThat(CONFIG_KEYS_CONTRACT)
+                .as("canonical_surface_count must be 13 (12 leaf + 1 composite)")
+                .containsEntry("canonical_surface_count", 13);
+        List<Map<String, Object>> keys = (List<Map<String, Object>>) CONFIG_KEYS_CONTRACT.get("keys");
+        assertThat(keys)
+                .as("16 list entries: 12 leaf + 1 composite parent + 3 nested redact children")
+                .hasSize(16);
+    }
 
     // ---- Schema ----------------------------------------------------------
 

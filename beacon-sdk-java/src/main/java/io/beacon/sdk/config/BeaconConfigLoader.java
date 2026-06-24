@@ -43,6 +43,38 @@ public final class BeaconConfigLoader {
     static final String SYSPROP_REDACTOR_TIMEOUT_MS = "beacon.redactor_timeout_ms";
     static final String SYSPROP_REDACT_DEFAULTS = "beacon.redact_defaults";
 
+    // ─── Reserved canonical env/sysprop spellings (M1.8 Plan 03-01) ──────────
+    // These constants exist so the M1.8 cross-SDK contract test (ConfigKeysContractTest)
+    // can assert every canonical spelling in beacon-s0-contract/conformance/config-keys.yaml
+    // appears verbatim in SDK source — even for keys whose builder wiring (env > sysprop >
+    // builder resolver) is deferred to M2 hygiene work. The names below match
+    // config-keys.yaml exactly. Do NOT remove without updating the contract artifact.
+
+    static final String ENV_ENDPOINT = "BEACON_ENDPOINT";
+    static final String SYSPROP_ENDPOINT = "beacon.endpoint";
+    static final String ENV_API_KEY = "BEACON_API_KEY";
+    static final String SYSPROP_API_KEY = "beacon.api-key";
+    static final String ENV_BUFFER_CAPACITY = "BEACON_BUFFER_CAPACITY";
+    static final String SYSPROP_BUFFER_CAPACITY = "beacon.buffer-capacity";
+    static final String ENV_DROP_POLICY = "BEACON_DROP_POLICY";
+    static final String SYSPROP_DROP_POLICY = "beacon.drop-policy";
+    static final String ENV_BATCH_MAX_RECORDS = "BEACON_BATCH_MAX_RECORDS";
+    static final String SYSPROP_BATCH_MAX_RECORDS = "beacon.batch-max-records";
+    static final String ENV_FLUSH_INTERVAL_MS = "BEACON_FLUSH_INTERVAL_MS";
+    static final String SYSPROP_FLUSH_INTERVAL_MS = "beacon.flush-interval-ms";
+    static final String ENV_MAX_RETRIES = "BEACON_MAX_RETRIES";
+    static final String SYSPROP_MAX_RETRIES = "beacon.max-retries";
+    static final String ENV_BACKOFF_BASE_MS = "BEACON_BACKOFF_BASE_MS";
+    static final String SYSPROP_BACKOFF_BASE_MS = "beacon.backoff-base-ms";
+    static final String ENV_BACKOFF_MAX_MS = "BEACON_BACKOFF_MAX_MS";
+    static final String SYSPROP_BACKOFF_MAX_MS = "beacon.backoff-max-ms";
+    static final String ENV_FALLBACK_SINK = "BEACON_FALLBACK_SINK";
+    static final String SYSPROP_FALLBACK_SINK = "beacon.fallback-sink";
+    static final String ENV_SHUTDOWN_DRAIN_TIMEOUT_MS = "BEACON_SHUTDOWN_DRAIN_TIMEOUT_MS";
+    static final String SYSPROP_SHUTDOWN_DRAIN_TIMEOUT_MS = "beacon.shutdown-drain-timeout-ms";
+    static final String ENV_SAMPLING_RATIO = "BEACON_SAMPLING_RATIO";
+    static final String SYSPROP_SAMPLING_RATIO = "beacon.sampling-ratio";
+
     private BeaconConfigLoader() {
         // utility class
     }
