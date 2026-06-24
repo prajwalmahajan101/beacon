@@ -8,6 +8,11 @@ rootProject.name = "beacon"
 
 include(":beacon-sdk-java")
 
+// M1.7 — public SDK overhead benchmark (JMH). NOT shipped; lives as a sibling
+// of :beacon-sdk-java so JMH tooling never enters the published SDK artifact.
+// See docs/benchmarks/sdk-overhead.md.
+include(":beacon-sdk-java-benchmark")
+
 // Conformance harness lives inside the M0 contract module — the contract owns the suite.
 // We include it as a Gradle subproject so it compiles against the real SDK without copying.
 include(":conformance-java")
