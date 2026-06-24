@@ -64,6 +64,9 @@ jobs:
       - name: Verify benchmark subproject compiles
         run: ./gradlew :beacon-sdk-java-benchmark:compileJmhJava --no-daemon
 
+      - name: Javadoc compile gate (-Werror)
+        run: ./gradlew :beacon-sdk-java:javadoc :beacon-spring-boot-starter:javadoc --no-daemon
+
       - name: Surface conformance test report
         if: always()
         run: |
