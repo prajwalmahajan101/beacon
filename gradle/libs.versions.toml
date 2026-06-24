@@ -10,6 +10,7 @@ logback = "1.5.12"
 springContext = "6.1.14"
 jmh = "1.37"
 jmhPlugin = "0.7.2"
+springBoot = "3.3.5"
 
 [plugins]
 jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
@@ -33,3 +34,10 @@ otel-logback-appender = { module = "io.opentelemetry.instrumentation:opentelemet
 spring-context = { module = "org.springframework:spring-context", version.ref = "springContext" }
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+
+# Spring Boot 3.x — consumed by :beacon-spring-boot-starter (M1.7 Plan 02-02).
+# Runs on Java 17; aligns with our JavaLanguageVersion.of(17) toolchain.
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure", version.ref = "springBoot" }
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "springBoot" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
+spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "springBoot" }
