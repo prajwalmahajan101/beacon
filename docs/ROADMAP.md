@@ -1,6 +1,6 @@
 # Beacon — Project Roadmap (M0 → M5)
 
-> **Status:** Drafted 2026-06-12 · last updated 2026-06-24 · M0 frozen · M1.0–M1.7 shipped (12/12 conformance green) · M1.8 (release cut) next · M2–M5 planned.
+> **Status:** Drafted 2026-06-12 · last updated 2026-06-24 · M0 frozen · M1.0–M1.8 shipped (12/12 conformance green) · `v0.2-m1` cut · M2–M5 planned.
 > **Authority:** This document is the **execution** roadmap. The PRD ([`../PRD.md`](../PRD.md)) is the **product/design** authority; PRD §26 is the original milestones sketch and is superseded by this document for numbering and scope. The README table at [`../README.md#roadmap`](../README.md#roadmap) is the at-a-glance summary and links here for detail.
 
 ---
@@ -10,7 +10,7 @@
 | Milestone | Scope | Status | Acceptance gate | Estimated effort |
 |---|---|---|---|---|
 | **M0** | Telemetry contract (spec + schema + conformance suite, no SDK code) | ✅ Frozen 2026-06-05 (`v0.1-m0`) | Schema validates fixtures; harnesses collect cleanly in both languages | ≈1 wk |
-| **M1** | Java SDK — implements the contract, passes C1–C12 against the harness | 🚧 8 / 9 phases done (M1.0–M1.7); **12/12 conformance green**; M1.8 release cut next | All 12 conformance scenarios green on the Java harness | ≈2–3 wk (PRD est.); on pace for tighter |
+| **M1** | Java SDK — implements the contract, passes C1–C12 against the harness | ✅ 9 / 9 phases done (M1.0–M1.8); **12/12 conformance green**; **`v0.2-m1` tagged** | All 12 conformance scenarios green on the Java harness | shipped |
 | **M2** | Python SDK — same contract, same scenarios, identical config-key surface | ⬜ Planned | All 12 conformance scenarios green on the Python harness | ≈2 wk |
 | **M3** | Ingest pipeline — Gateway → Kafka → log indexer → Elasticsearch | ⬜ Planned | End-to-end log emit → searchable via API; DLQ + ILM | ≈2 wk |
 | **M4** | Query API + live tail + Beacon Console (React) | ⬜ Planned | Logs explorable via Console with full-text search + histogram | ≈2 wk |
@@ -53,7 +53,7 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 
 ---
 
-## M1 — Java SDK 🚧 IN PROGRESS
+## M1 — Java SDK ✅ COMPLETE (`v0.2-m1`)
 
 **Goal:** Ship a Java SDK that turns all 12 `@Disabled` scenarios in `ConformanceTest.java` green, with the JSON Schema validation passing on emitted records.
 
@@ -71,7 +71,7 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 | M1.5 | Graceful shutdown drain | **C9** | ✅ |
 | M1.6 | Redactor + MDC/Context enricher + async-context propagation | **C10, C11** | ✅ |
 | M1.7 | `BeaconLogbackAppender` + `beacon-spring-boot-starter` + `examples/spring-boot-sample/` + `:beacon-sdk-java-benchmark` JMH overhead baseline; CI publishes consolidated JUnit HTML | (no new scenarios; 12/12 preserved) | ✅ |
-| M1.8 | `v0.2-m1` release cut + contract artifacts + OTel SDK version review + `docs/M1-COMPLETE.md` retrospective | (release) | ⬜ |
+| M1.8 | `v0.2-m1` release cut + contract artifacts (`config-keys.yaml` + `severity-table.json`, ADR-0010) + OTel SDK version policy (ADR-0011) + `docs/M1-COMPLETE.md` retrospective | (release; 12/12 preserved) | ✅ |
 
 **Conformance progress:** **12 / 12 green** (C1–C12). All scenarios un-`@Disabled`.
 
@@ -81,7 +81,7 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 
 **Journals:** [`../.journal/M1.2.md`](../.journal/M1.2.md) … [`M1.7.md`](../.journal/M1.7.md). M1.8 gets written as the phase happens.
 
-**Carry to M1.8:** `CanonicalJson.writeMap` warmup-iteration NPE via the `FallbackSink` path (live emit via `BatchSink` is unaffected; conformance C1–C12 unchanged). See `docs/benchmarks/sdk-overhead.md` § Known issue.
+**Carried into M1.8 (now closed):** `CanonicalJson.writeMap` warmup-iteration NPE via the `FallbackSink` path (live emit via `BatchSink` is unaffected; conformance C1–C12 unchanged). See `docs/benchmarks/sdk-overhead.md` § Known issue.
 
 ---
 

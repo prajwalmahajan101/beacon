@@ -71,6 +71,8 @@ beacon/
 - [ADR-0005](docs/adr/0005-resilience-layer-retry-backoff-fallback.md) — Resilience layer: retry, backoff + jitter, and fallback sink (M1.4).
 - [ADR-0006](docs/adr/0006-graceful-shutdown-drain.md) — Graceful shutdown drain (M1.5).
 - [ADR-0009](docs/adr/0009-spring-boot-starter-design.md) — Spring Boot starter design (opt-in auto-config, no `logback-spring.xml` mutation, programmatic appender, 13 canonical surfaces with composite `beacon.redact`, TaskDecorator opt-in) (M1.7).
+- [ADR-0010](docs/adr/0010-contract-artifacts-cross-sdk-source-of-truth.md) — Contract artifacts (`config-keys.yaml` + `severity-table.json`) as cross-SDK single source of truth; additive carve-out from M0 freeze; CI drift gate via `check_contract_drift.py` (M1.8).
+- [ADR-0011](docs/adr/0011-otel-sdk-version-policy.md) — OTel SDK version policy: milestone-cadence review, bump-or-justify (M1.8).
 
 ## Workflow conventions (READ before editing)
 
@@ -118,7 +120,6 @@ See `CONTRIBUTING.md` for the full flow.
 - **M0 is frozen.** Files under `beacon-s0-contract/spec/`, `beacon-s0-contract/schema/`, and `beacon-s0-contract/M0-FROZEN.md` are immutable without an ADR. The Java conformance harness file (`beacon-s0-contract/conformance/java/ConformanceTest.java`) is part of that freeze — `@Disabled` reasons may be updated as tests get implemented in M1.1+, but the scenario list (C1–C12) and class structure do not change without an ADR amendment.
 - **Default branch is `main`.** Older docs may reference `master`; that was renamed on 2026-06-10. The contract.yml workflow now triggers on `main` (commit `c63b477`).
 - **`gradle/wrapper/gradle-wrapper.jar` is committed** as a binary (standard Gradle practice). `.gitattributes` marks it as such.
-- **OTel SDK pin is currently `1.42.0`** — revisit at M1.4 when the OTLP exporter is wired in earnest.
 - **Conformance harness sourceSet quirk:** `:conformance-java`'s `test` sourceSet has `srcDirs = ["."]` so the harness file stays at the M0-documented path. Javac doesn't require the on-disk path to match the package declaration for compilation; the output `.class` lands in the correct package directory regardless.
 
 ## Pointers

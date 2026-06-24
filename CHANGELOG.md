@@ -2,12 +2,30 @@
 
 All notable changes to Beacon are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow milestone semver (`v<major>.<minor>-m<milestone>`).
 
-## [Unreleased] — M1.7: Logback appender + Spring Boot starter + sample service + SDK overhead benchmark
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+### Verified
+
+## [v0.2-m1] — 2026-06-24
+
+**Milestone:** M1 complete — Java SDK ships with conformance 12/12 green, contract artifacts as cross-SDK SoT (ADR-0010), and OTel SDK version policy (ADR-0011).
+
+M1.8 closes the milestone with the cross-SDK contract artefacts (`config-keys.yaml` + `severity-table.json`), the CI drift gate that enforces them, the `CanonicalJson.writeMap` warmup-iteration NPE carry-fix from M1.7, the milestone-cadence OTel SDK version-review policy (deferring the 1.42 → 1.63 bump to M2), ADR-0010 + ADR-0011, the M1 retrospective at `docs/M1-COMPLETE.md`, and this consolidated release section.
 
 M1.7 lands the public observability proof points. `BeaconLogbackAppender` bridges Logback into the M1.6 emit pipeline (`Enricher → Redactor → BoundedBuffer → BatchFlusher → ResilientSink → OTLP`); `beacon-spring-boot-starter` attaches the appender programmatically without mutating `logback-spring.xml` (Pitfall #18) and exposes the 13 canonical `beacon.*` configuration surfaces — 12 leaf + composite `beacon.redact` with `keys` / `defaults` / `timeout-ms` nested (ADR-0009 §3 Option-A fold). `BeaconTaskDecorator` is exposed as a named bean so users can opt into MDC + OTel Context propagation across `@Async` / `CompletableFuture` hops (Pitfall #2; ADR-0008 sibling). `examples/spring-boot-sample/` proves the integration story end-to-end in under 30 minutes (JSDK-08). The `:beacon-sdk-java-benchmark` JMH subproject pins the `BeaconSdk.emit` budget against PRD NFR-6 (< 1 ms p99) with the baseline at `docs/benchmarks/sdk-overhead.md`. CI workflow `java-sdk.yml` consolidates SDK + starter JUnit HTML into a single `junit-html-report` artifact and gates the benchmark's `:compileJmhJava` on every push.
 
 ### Added
 
+- M1.8: ADR-0010 — Contract artifacts (`config-keys.yaml` + `severity-table.json`) as cross-SDK single source of truth; additive carve-out from the M0 freeze; CI drift-gate enforcement via `check_contract_drift.py`.
+- M1.8: ADR-0011 — OTel SDK version policy: milestone-cadence review, bump-or-justify; records the M1.8 Path B (DEFER) call.
+- M1.8: `docs/M1-COMPLETE.md` — M1 retrospective (harder-than-expected / conformance-caught / v2-benefits / M2-forward-link).
+- M1.8: `.journal/M1.8.md` — phase journal (six canonical sections).
 - M1.8: `beacon-s0-contract/conformance/config-keys.yaml` — single-source-of-truth for the 13 canonical SDK config keys (12 leaf + composite `redact` with three nested children). Loaded by the Java conformance harness and pinned by `ConfigKeysContractTest` (Pitfall #3 cross-SDK drift guard, Java side). CONT-01 / CONT-02.
 - M1.8: `beacon-s0-contract/spec/severity-table.json` — single-source-of-truth for the OTel severity-number bands (6 bands, anchors `[1, 5, 9, 13, 17, 21]`, contiguous 1..24 coverage). `SeverityMapper` now loads the artifact at class init (classpath + filesystem fallback); `SeverityMapperContractTest` pins the SDK's resolution to the artifact (Pitfall #4 cross-SDK severity divergence guard, Java side). Conformance harness `@BeforeAll` loads the artifact alongside `config-keys.yaml`; new harness-only `c0_severityTableContractLoads` asserts the load shape. Jackson 2.18.0 added to `:beacon-sdk-java` runtime (`jackson-databind` catalog entry) — required by the loader. CONT-01 / CONT-02.
 - M1.8: `beacon-s0-contract/conformance/tools/check_contract_drift.py` — cross-SDK contract-drift checker. Compares `config-keys.yaml` + `severity-table.json` against the Java SDK's effective surfaces (BeaconConfig record components, BeaconConfigLoader env/sysprop literals, SeverityMapper artifact reference); exits non-zero on divergence with an actionable diff report. `--sdk {java,python,all}`; Python path is a no-op stub until M2. CONT-03.
