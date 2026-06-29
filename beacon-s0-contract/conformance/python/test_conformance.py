@@ -14,6 +14,7 @@ so CI never silently skips it.
 
 import json
 import pathlib
+import time
 
 import pytest
 
@@ -21,6 +22,19 @@ try:
     from jsonschema import Draft202012Validator
 except ImportError:  # keep the skeleton importable before deps are installed
     Draft202012Validator = None
+
+# Guarded SDK import (mirrors the Draft202012Validator try/except above) so the
+# harness stays importable when the beacon SDK is not on the path. Under the
+# python-sdk.yml harness step (`uv run` from beacon-sdk-python/) the SDK IS
+# importable, so the skipif on C2/C3 is belt-and-suspenders parity with C1's
+# jsonschema guard.
+try:
+    from beacon.config import DropPolicy
+    from beacon.metrics import SdkMetrics
+    from beacon.pipeline import BoundedBuffer
+    from beacon.record import LogRecord
+except ImportError:  # keep the harness importable without the SDK on the path
+    BoundedBuffer = None
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent.parent  # beacon-m0-contract/
@@ -61,14 +75,76 @@ def test_c1_invalid_record_fails_schema(path):
 
 # ---- C2-C12: Runtime scenarios (stubbed; implement in M1+) ---------------
 
-@pytest.mark.skip(reason="M1: implement against real SDK — non-blocking emit < 1ms p99")
+def _rec(body: str = "hello") -> "LogRecord":
+    """Minimal LogRecord helper for the runtime buffer scenarios (C2/C3)."""
+    return LogRecord.minimal(
+        timestamp_ns=1_700_000_000_000_000_000,
+        severity_number=9,
+        severity_text="INFO",
+        body=body,
+        resource={"service.name": "svc", "telemetry.sdk.language": "python"},
+    )
+
+
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c2_emit_is_non_blocking():
-    ...
+    """C2 — emit is non-blocking even under worst-case back-pressure.
+
+    Per scenarios.yaml C2 (exporter=blocking, emit_count=1000,
+    max_emit_latency_ms_p99=1). There is no full SDK emit() path yet (the
+    flusher + handler arrive in M2.2 / M2.6), so at M2.1 this is driven by
+    calling ``BoundedBuffer.offer`` directly. A "blocking exporter" is modeled
+    by NEVER draining the buffer — no consumer is the worst-case back-pressure,
+    so the buffer is full for the bulk of the run and every offer still returns
+    without blocking. Revisit this modeling when the real flusher lands in M2.2.
+    """
+    emit_count = 1000
+    metrics = SdkMetrics()
+    buf = BoundedBuffer(100, DropPolicy.DROP_OLDEST, metrics)  # never drained
+
+    latencies_ns: list[int] = []
+    for i in range(emit_count):
+        rec = _rec(f"r{i}")
+        start = time.perf_counter_ns()
+        accepted = buf.offer(rec)
+        latencies_ns.append(time.perf_counter_ns() - start)
+        # DROP_OLDEST always accepts (evicts head when full) and never blocks.
+        assert accepted is True
+
+    latencies_ns.sort()
+    p99_ns = latencies_ns[int(0.99 * emit_count) - 1]
+    assert p99_ns < 1_000_000, (  # max_emit_latency_ms_p99 = 1 ms
+        f"p99 offer latency {p99_ns} ns exceeds the 1 ms (1_000_000 ns) budget"
+    )
 
 
-@pytest.mark.skip(reason="M1: capacity=100, stalled exporter, emit 1000 -> ~900 dropped, never blocks")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c3_buffer_overflow_drop_policy():
-    ...
+    """C3 — a full buffer applies DROP_OLDEST and never blocks.
+
+    Per scenarios.yaml C3 (buffer_capacity=100, exporter=stalled,
+    emit_count=1000, expect_dropped_min=850, drop_policy=DROP_OLDEST). A
+    "stalled exporter" is modeled by NEVER draining the buffer. With capacity
+    100 and 1000 offers under DROP_OLDEST, exactly 900 records are evicted; the
+    buffer saturates at 100 and every offer returns without blocking.
+    """
+    emit_count = 1000
+    capacity = 100
+    metrics = SdkMetrics()
+    buf = BoundedBuffer(capacity, DropPolicy.DROP_OLDEST, metrics)  # never drained
+
+    for i in range(emit_count):
+        assert buf.offer(_rec(f"r{i}")) is True  # DROP_OLDEST never blocks/rejects
+
+    assert metrics.dropped >= 850, (  # expect_dropped_min gate
+        f"expected >= 850 dropped, got {metrics.dropped}"
+    )
+    # Tighter sanity check: capacity 100 + 1000 offers under DROP_OLDEST drops
+    # exactly emit_count - capacity = 900.
+    assert metrics.dropped == emit_count - capacity
+    assert buf.size == capacity, (  # buffer saturated, never grew unbounded
+        f"expected buffer saturated at {capacity}, got {buf.size}"
+    )
 
 
 @pytest.mark.skip(reason="M1: batch_max_records=10 -> exactly one batch of 10")
