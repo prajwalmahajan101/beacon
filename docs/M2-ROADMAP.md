@@ -106,7 +106,7 @@ The full rule and the journal-section template live in [`CONTRIBUTING.md` § Per
 ## Suggested M2 phase breakdown (each phase = atomic-commit-sized, contract-test-gated)
 
 1. **M2.0** — module scaffold (`uv` + `pyproject.toml` + tox/nox runner), record model (`LogRecord` frozen dataclass) + `canonical_json.py` Python port + severity-table loader (`severity-table.json`) → **C1 + C12 green** on Python harness. [ADR-0013](./adr/0013-otel-python-sdk-version-pin-m2.md) (OTel Python pin `== 1.43.0`) lands in the same PR.
-2. **M2.1** — bounded `queue.Queue` + non-blocking `put_nowait` + drop policy (`DROP_OLDEST | DROP_NEWEST | SPILL_FALLBACK`) → **C2 + C3 green**.
+2. **M2.1** — bounded `queue.Queue` + non-blocking `put_nowait` + drop policy (`DROP_OLDEST | DROP_NEWEST | SPILL_FALLBACK`) → **C2 + C3 green**. [ADR-0014](./adr/0014-python-bounded-buffer-drop-policy.md) (Python bounded buffer + drop policy, the Python idiom of ADR-0003) lands in the same PR.
 3. **M2.2** — batch flusher background `Thread` (size + interval) → **C4 + C5 green**.
 4. **M2.3** — OTLP exporter (`opentelemetry-exporter-otlp` gRPC + HTTP) + retry/backoff + jitter + file/stderr fallback sink → **C6 + C7 + C8 green**.
 5. **M2.4** — graceful drain on `atexit` + SIGTERM `signal` handler (drain within `shutdown_drain_timeout_ms`) → **C9 green**.
@@ -132,6 +132,7 @@ The cross-SDK publishing milestone is **M2.9** — tracked as **Phase 4.9** in `
   - [ADR-0011](./adr/0011-otel-sdk-version-policy.md) — OTel SDK version policy (Java's; ADR-0013 mirrors for Python)
 - M2 ADRs:
   - [ADR-0013](./adr/0013-otel-python-sdk-version-pin-m2.md) — OTel Python SDK version pin for M2 (`== 1.43.0`); landed in the M2.0 PR.
+  - [ADR-0014](./adr/0014-python-bounded-buffer-drop-policy.md) — Python bounded buffer + drop policy (`queue.Queue(maxsize)` idiom of ADR-0003; `threading.Lock` for the non-atomic evict+put); landed in the M2.1 PR.
 - Contract specs: [`beacon-s0-contract/spec/`](../beacon-s0-contract/spec/)
 - Conformance scenarios: [`beacon-s0-contract/conformance/scenarios.yaml`](../beacon-s0-contract/conformance/scenarios.yaml)
 - PRD/RFC: [`PRD.md`](../PRD.md) §19 (SDK design), §26 (milestones)
