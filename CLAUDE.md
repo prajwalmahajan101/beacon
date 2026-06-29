@@ -77,6 +77,7 @@ beacon/
 - [ADR-0011](docs/adr/0011-otel-sdk-version-policy.md) — OTel SDK version policy: milestone-cadence review, bump-or-justify (M1.8).
 - [ADR-0012](docs/adr/0012-ci-hardening-floor-for-java-sdk.md) — CI hardening floor for the Java SDK: Spotless + JaCoCo (report-only) + Javadoc -Werror + PR-title lint + JMH nightly (report-only); gates vs report-only rationale; deferred items list (M1.9).
 - [ADR-0013](docs/adr/0013-otel-python-sdk-version-pin-m2.md) — OTel Python SDK version pin for M2 (`opentelemetry-{api,sdk,exporter-otlp} == 1.43.0`); mirrors ADR-0011 milestone-cadence "bump or justify" pattern (M2.0).
+- [ADR-0014](docs/adr/0014-python-bounded-buffer-drop-policy.md) — Python bounded buffer + drop policy (`queue.Queue(maxsize)` idiom of Java ADR-0003; `threading.Lock` for the DROP_OLDEST evict+put critical section since `queue.Queue` has no atomic evict-then-put, and as the `AtomicLong` idiom for `SdkMetrics` counters; `SPILL_FALLBACK` raises `NotImplementedError` until M2.3) (M2.1).
 
 ## Workflow conventions (READ before editing)
 
