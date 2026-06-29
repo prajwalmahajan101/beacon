@@ -4,6 +4,28 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+**Milestone:** M2.1 — Python bounded buffer + drop policy. The second phase of M2 (Python SDK) lands the non-blocking emit buffer: `beacon.pipeline.BoundedBuffer` over `queue.Queue(maxsize)` with a selectable drop policy, the `beacon.config.DropPolicy` enum + `BufferConfig` carrier, and the first three real `beacon.metrics.SdkMetrics` counters. The Python conformance harness now reports **C2** (non-blocking emit) + **C3** (buffer overflow drop policy) green, alongside the M2.0 **C1** + **C12**. Decisions ratified in **ADR-0014** (the Python idiom of Java ADR-0003). Flusher (C4/C5), exporter (C6–C8), drain (C9), redactor/enricher (C10/C11), and the `BeaconLoggingHandler` remain explicit non-goals here — each maps to its own M2.2..M2.6 sub-phase.
+
+### Added
+
+- M2.1: `beacon.pipeline.BoundedBuffer` — non-blocking `offer()` over `queue.Queue(maxsize)` with a selectable drop policy (`DROP_OLDEST` default / `DROP_NEWEST` / `SPILL_FALLBACK`) dispatched via `match`, plus `drain_to(sink, max)` / `get(timeout_ms)` flusher seams for M2.2. The Python idiom of Java `BoundedBuffer`: DROP_OLDEST's evict+put critical section is guarded by a single `threading.Lock` because `queue.Queue` exposes no atomic evict-then-put (unlike `ArrayBlockingQueue.offer`); DROP_NEWEST is a lone `put_nowait` and needs no lock. `SPILL_FALLBACK` raises `NotImplementedError("M2.3: ...")` (the Python idiom of Java's `UnsupportedOperationException`) until the M2.3 fallback sink lands. **ADR-0014.**
+- M2.1: `beacon.config.DropPolicy` enum (`DROP_OLDEST` default / `DROP_NEWEST` / `SPILL_FALLBACK`, canonical string values matching `BEACON_DROP_POLICY`) + minimal frozen `BufferConfig(buffer_capacity=10_000, drop_policy=DROP_OLDEST)` carrier with capacity-positive validation — Java `BeaconConfig.defaults()` parity for exactly these two slots; the seam the full env > sysprop > builder loader grows into later.
+- M2.1: `beacon.metrics.SdkMetrics` first three real counters (`records_enqueued`, `records_dropped`, `buffer_depth`), each guarded by a single `threading.Lock` over plain `int`s — the Python idiom of Java `AtomicLong` (`itertools.count` rejected: unsafe for the read-the-gauge pattern). The remaining three spec/02 §3 counters fill in across M2.2 / M2.3 / M2.5, mirroring the Java staged surface.
+- M2.1: **ADR-0014** — Python bounded buffer + drop policy; the Python idiom of Java ADR-0003, naming the `queue.Queue`-vs-`ArrayBlockingQueue` non-atomic-evict gap and the lock-vs-`AtomicLong` counter choice.
+- M2.1: `.journal/M2.1.md` — phase journal (six canonical sections).
+
+### Changed
+
+- M2.1: `beacon-s0-contract/conformance/python/test_conformance.py` — un-skipped `test_c2_emit_is_non_blocking` (times 1000 `offer()` calls against a never-drained buffer modeling a stalled exporter; asserts p99 < 1 ms) + `test_c3_buffer_overflow_drop_policy` (capacity 100 + 1000 offers under DROP_OLDEST; asserts `metrics.dropped >= 850`, observed exactly 900, and `buf.size == 100`) against the real `BoundedBuffer`. Followed the M2.0 C12 un-skip precedent: only the `@pytest.mark.skip` decorators + bodies moved (+ a guarded SDK import + a `_rec` helper); the M0-frozen C1–C12 scenario list and class structure are unchanged.
+- M2.1: `CLAUDE.md` ADR index updated for ADR-0014; `docs/M2-ROADMAP.md` M2.1 row + M2-ADR list cross-link ADR-0014.
+- M2.1: `.planning/REQUIREMENTS.md` PSDK-04 reworded from the `logging.QueueHandler` / `QueueListener` clause to the custom bounded buffer + `put_nowait()` + selectable drop policy (the `QueueHandler` integration clause migrated to PSDK-06 / M2.6 `BeaconLoggingHandler`; `QueueHandler` has no per-policy drop semantics). `.planning/research/PITFALLS.md` gains **#24** (queue.Queue Full-vs-blocking put + non-atomic evict-then-put; the roadmap's stale "#20" label reconciled to the assigned #24). _(Both files live under the gitignored `.planning/` planning tracker — recorded for the audit trail.)_
+
+### Verified
+
+- C1 + **C2** + **C3** + C12 green on the Python conformance harness — `uv run python -m pytest ../beacon-s0-contract/conformance/python` reports **12 passed / 8 skipped** (C4–C11 remain skipped per the locked M2 phase plan, each opening in its own M2.2..M2.5 sub-phase).
+- Full `beacon-sdk-python/tests/` unit suite green (39 tests: 26 prior M2.0 + 8 `BoundedBuffer` + 5 `SdkMetrics`, incl. an 8×1000 concurrent-increment safety test). Observed `offer` latency p99 ~5.3 µs in-process / ~28 µs standalone — three orders of magnitude under the 1 ms budget; C3 dropped exactly 900 records.
+- `check_contract_drift.py --sdk all` exits 0 (the additive `DropPolicy` enum did not break the source-grep gate; Java + Python both green).
+
 **Milestone:** M2.0 — Python SDK scaffold + record + canonical JSON + severity mapping. First phase of M2 (Python SDK). The `beacon-sdk-python/` package exists (src-layout, `uv`-managed), the **record** + **canonical-JSON** + **severity-mapping** layers are implemented, and the Python conformance harness reports **C1** (schema validation) + **C12** (severity mapping) green. Everything else from the Java SDK feature surface (buffer, flusher, exporter, drain, redactor, enricher, handler, sample app, benchmark, CI hardening floor, publishing) is an explicit non-goal here — each maps to its own M2.1..M2.9 sub-phase (see `docs/M2-ROADMAP.md`). OTel Python pinned `== 1.43.0` via ADR-0013.
 
 ### Added
