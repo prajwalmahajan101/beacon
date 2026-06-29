@@ -1,5 +1,6 @@
-"""Pipeline layer — BoundedBuffer implemented M2.1; flusher M2.2."""
+"""Pipeline layer — BoundedBuffer (M2.1) + BatchFlusher (M2.2)."""
 
 from .buffer import BoundedBuffer
+from .flusher import NOOP, BatchFlusher, BatchSink
 
-__all__ = ["BoundedBuffer"]
+__all__ = ["BoundedBuffer", "BatchFlusher", "BatchSink", "NOOP"]
