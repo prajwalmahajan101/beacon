@@ -4,6 +4,31 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+**Milestone:** M2.0 — Python SDK scaffold + record + canonical JSON + severity mapping. First phase of M2 (Python SDK). The `beacon-sdk-python/` package exists (src-layout, `uv`-managed), the **record** + **canonical-JSON** + **severity-mapping** layers are implemented, and the Python conformance harness reports **C1** (schema validation) + **C12** (severity mapping) green. Everything else from the Java SDK feature surface (buffer, flusher, exporter, drain, redactor, enricher, handler, sample app, benchmark, CI hardening floor, publishing) is an explicit non-goal here — each maps to its own M2.1..M2.9 sub-phase (see `docs/M2-ROADMAP.md`). OTel Python pinned `== 1.43.0` via ADR-0013.
+
+### Added
+
+- M2.0: `beacon-sdk-python/` package (src-layout) — `uv`-managed `pyproject.toml` (PEP 621 metadata + PEP 735 `[dependency-groups]` dev deps + hatchling build backend), Python 3.10 floor, committed `uv.lock` (31-package OTel 1.43.0 closure). Eight layer modules pre-stubbed (`record` / `severity` / `config` / `pipeline` / `exporter` / `handler` / `metrics` / `lifecycle`) mirroring the Java SDK's layer split so M2.1..M2.6 fill them without re-debating layout.
+- M2.0: `beacon.record.LogRecord` — frozen `dataclass(slots=True)`, 12 components in `spec/01` §1 order, ns-precision integer timestamps (`time.time_ns()`, never `datetime`/`float`). `beacon.record.serialize()` — hand-rolled canonical JSON in spec field order (never `json.dumps(sort_keys=True)`), byte-equivalent to Java `CanonicalJson` for `ns % 1000 != 0` records; `bool`-before-`int` encoding, NaN/Inf → `ValueError`, unsupported types → `TypeError`. `beacon.record.format_rfc3339_nano()` — integer-`divmod` + `gmtime` RFC3339 formatter, always 9 fractional digits.
+- M2.0: `beacon.severity` — `number_for` / `text_for` / `band_for` / `from_python_logging_level`, loading the 6 bands from `beacon-s0-contract/spec/severity-table.json` at import via an fs-walk loader (no re-encode per ADR-0010; Java `SeverityMapper` fs-fallback parity). Python `logging`-level → OTel anchor mapping (DEBUG=10→5, INFO=20→9, WARNING=30→13, ERROR=40→17, CRITICAL=50→21).
+- M2.0: `beacon.config._keys` — loads the 13 canonical config-key surfaces from `beacon-s0-contract/conformance/config-keys.yaml` at import; exposes `CANONICAL_ENV_VARS` (15) + `CANONICAL_SYSPROPS` (15) + `CANONICAL_SURFACE_COUNT == 13`. In-source `BEACON_*` / `beacon.*` literal anchors pinned set-equal to the YAML at import (Python equivalent of Java `ConfigKeysContractTest`; YAML stays source of truth).
+- M2.0: **ADR-0013** — OTel Python SDK version pin for M2 (`opentelemetry-{api,sdk,exporter-otlp} == 1.43.0`); mirrors M1.8 ADR-0011's milestone-cadence "bump or justify" pattern and closes the M2 carve-out ADR-0011 §4 left open. 12-month CVE survey found no Python-specific OTel SDK CVE.
+- M2.0: `.github/workflows/python-sdk.yml` — `astral-sh/setup-uv` + `uv sync --frozen` + unit tests + conformance harness + cross-SDK drift check on every PR/push touching `beacon-sdk-python/` or the relevant contract artifacts (`permissions: contents: read`; workflow inventory now 5).
+- M2.0: `.journal/M2.0.md` — phase journal (six canonical sections).
+
+### Changed
+
+- M2.0: `beacon-s0-contract/conformance/tools/check_contract_drift.py` `--sdk python` now performs real source-text introspection (replacing the M1.8 no-op stub): asserts the `severity-table.json` reference, all 6 band names present in `mapper.py`, and every `config-keys.yaml` `BEACON_*` env literal appears in `beacon-sdk-python/src/beacon/`. `--sdk python | java | all` all exit 0 — the `python-sdk.yml` drift step (red on the 04-01 wave by design) goes green within this same PR.
+- M2.0: `beacon-s0-contract/conformance/python/test_conformance.py` — un-skipped `test_c12_severity_mapping` (per the Java precedent that un-disables C-scenarios per phase; the M0-frozen scenario list C1–C12 and class structure are unchanged).
+- M2.0: `CLAUDE.md` ADR index updated for ADR-0013; `docs/M2-ROADMAP.md` M2.0 row cross-links ADR-0013.
+
+### Verified
+
+- C1 (schema validation) + C12 (severity mapping) green on the Python conformance harness (`uv run python -m pytest ../beacon-s0-contract/conformance/python`); C2..C11 remain skipped per the locked M2 phase plan (each opens in its own sub-phase M2.1..M2.5).
+- `check_contract_drift.py --sdk all` exits 0 (Java + Python both green). Negative smoke tests confirmed: renaming `severity-table.json` trips the top-level artifact-load fatal (exit 2); stripping `WARN` from `mapper.py` fires `[python/severity] band name 'WARN' not found` (exit 1).
+- Unit-test counts: 5 `LogRecord` cases, 11 `canonical_json` cases (including the ns-precision regression for `ns % 1000 != 0`), 6 `SeverityMapper` cases, 4 config-keys cases — all green in the `uv` venv on Python 3.10.
+- **Open verification item (carried to M2.6):** the canonical-JSON byte-for-byte regression literal was computed by the executor from `spec/01` §1 + the `format_rfc3339_nano` contract, **not** diffed against a live Java `CanonicalJsonTest` run. Byte-parity holds for `ns % 1000 != 0`; `format_rfc3339_nano` always emits 9 fractional digits whereas Java `Instant.toString()` trims trailing zeros (0/3/6/9 digits), so the two diverge for ms-aligned / whole-second timestamps. The M0 schema permits any fractional precision; cross-check against a real Java run is a carried item.
+
 **Milestone:** M1.9 — Java CI hardening. Five new CI surfaces landed before M2 (Python SDK) so the discipline is locked in with one SDK in the repo rather than retrofitted across two ecosystems. Three gates (Spotless / Javadoc `-Werror` / PR-title lint) + two report-only (JaCoCo coverage / JMH nightly). Rationale + deferred-item list ratified in ADR-0012. Five tracked CI requirements (**CI-01..CI-05**) in REQUIREMENTS.md.
 
 ### Added
