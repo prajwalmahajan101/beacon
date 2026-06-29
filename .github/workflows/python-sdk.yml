@@ -1,0 +1,56 @@
+name: python-sdk
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "beacon-sdk-python/**"
+      - "beacon-s0-contract/conformance/python/**"
+      - "beacon-s0-contract/spec/severity-table.json"
+      - "beacon-s0-contract/conformance/config-keys.yaml"
+      - "beacon-s0-contract/schema/**"
+      - ".github/workflows/python-sdk.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "beacon-sdk-python/**"
+      - "beacon-s0-contract/conformance/python/**"
+      - "beacon-s0-contract/spec/severity-table.json"
+      - "beacon-s0-contract/conformance/config-keys.yaml"
+      - "beacon-s0-contract/schema/**"
+      - ".github/workflows/python-sdk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Python SDK build + conformance harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10 (floor)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: uv sync (locked)
+        working-directory: beacon-sdk-python
+        run: uv sync --frozen
+
+      - name: Unit tests
+        working-directory: beacon-sdk-python
+        run: uv run pytest tests/ -v
+
+      - name: Conformance harness (C1 + C12 expected green; C2..C11 expected skipped)
+        working-directory: beacon-sdk-python
+        run: uv run python -m pytest ../beacon-s0-contract/conformance/python -v
+
+      - name: Cross-SDK contract-drift check (Python introspection)
+        run: python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk python
