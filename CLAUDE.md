@@ -78,6 +78,7 @@ beacon/
 - [ADR-0012](docs/adr/0012-ci-hardening-floor-for-java-sdk.md) — CI hardening floor for the Java SDK: Spotless + JaCoCo (report-only) + Javadoc -Werror + PR-title lint + JMH nightly (report-only); gates vs report-only rationale; deferred items list (M1.9).
 - [ADR-0013](docs/adr/0013-otel-python-sdk-version-pin-m2.md) — OTel Python SDK version pin for M2 (`opentelemetry-{api,sdk,exporter-otlp} == 1.43.0`); mirrors ADR-0011 milestone-cadence "bump or justify" pattern (M2.0).
 - [ADR-0014](docs/adr/0014-python-bounded-buffer-drop-policy.md) — Python bounded buffer + drop policy (`queue.Queue(maxsize)` idiom of Java ADR-0003; `threading.Lock` for the DROP_OLDEST evict+put critical section since `queue.Queue` has no atomic evict-then-put, and as the `AtomicLong` idiom for `SdkMetrics` counters; `SPILL_FALLBACK` raises `NotImplementedError` until M2.3) (M2.1).
+- [ADR-0015](docs/adr/0015-python-batch-flusher-concurrency-model.md) — Python batch flusher concurrency model (single daemon `threading.Thread` + `buffer.get(timeout)` idiom of Java ADR-0004; chunked poll at `_POLL_CHUNK_MS=50` rechecking a `threading.Event` because `queue.Queue.get` is NOT interruptible by `Event.set`, keeping `stop()` bounded for any interval; `time.monotonic_ns` interval clock; empty intervals don't flush; `BatchSink` Protocol + `NOOP` seam; sink failures swallowed until M2.3; `drain_and_stop` is the M2.4 seam) (M2.2).
 
 ## Workflow conventions (READ before editing)
 
