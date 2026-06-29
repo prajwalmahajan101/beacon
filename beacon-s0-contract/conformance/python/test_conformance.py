@@ -111,6 +111,26 @@ def test_c11_trace_context_propagation():
     ...
 
 
-@pytest.mark.skip(reason="M1: WARN->13, ERROR->17, INFO->9 per record spec §1.1")
 def test_c12_severity_mapping():
-    ...
+    """C12 — Python logging levels + OTel numbers map to band anchors per spec/01 §1.1."""
+    import logging
+
+    from beacon.severity import from_python_logging_level, number_for, text_for
+
+    # Anchor assertions per spec/01 §1.1 band table.
+    assert number_for("TRACE") == 1
+    assert number_for("DEBUG") == 5
+    assert number_for("INFO") == 9
+    assert number_for("WARN") == 13
+    assert number_for("ERROR") == 17
+    assert number_for("FATAL") == 21
+    # text_for collapses off-anchor inputs to the band at or below.
+    assert text_for(13) == "WARN"
+    assert text_for(17) == "ERROR"
+    assert text_for(9) == "INFO"
+    # Python stdlib logging level mapping.
+    assert from_python_logging_level(logging.DEBUG) == 5
+    assert from_python_logging_level(logging.INFO) == 9
+    assert from_python_logging_level(logging.WARNING) == 13
+    assert from_python_logging_level(logging.ERROR) == 17
+    assert from_python_logging_level(logging.CRITICAL) == 21
