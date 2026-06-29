@@ -38,6 +38,47 @@ def test_set_buffer_depth_is_a_gauge():
     assert m.buffer_depth == 1
 
 
+def test_inc_batches_flushed_increments():
+    m = SdkMetrics()
+    assert m.batches_flushed == 0
+    m.inc_batches_flushed()
+    m.inc_batches_flushed()
+    m.inc_batches_flushed()
+    assert m.batches_flushed == 3
+
+
+def test_inc_records_flushed_adds_n():
+    m = SdkMetrics()
+    assert m.records_flushed == 0
+    m.inc_records_flushed(10)
+    m.inc_records_flushed(7)
+    assert m.records_flushed == 17
+
+
+def test_flusher_counters_concurrent_increment():
+    # Mirror the emit-path concurrent test: the flusher counters must also be
+    # lock-guarded. 8 threads x 1000 iterations, each iteration bumps
+    # batches_flushed by 1 and records_flushed by 1 — both must total exactly
+    # 8000 with no lost updates.
+    m = SdkMetrics()
+    threads_n = 8
+    per_thread = 1000
+
+    def worker() -> None:
+        for _ in range(per_thread):
+            m.inc_batches_flushed()
+            m.inc_records_flushed(1)
+
+    threads = [threading.Thread(target=worker) for _ in range(threads_n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert m.batches_flushed == threads_n * per_thread
+    assert m.records_flushed == threads_n * per_thread
+
+
 def test_concurrent_increments_lose_no_updates():
     # The itertools.count / non-locked-int failure mode would lose increments
     # under contention. 8 threads x 1000 increments must total exactly 8000.
