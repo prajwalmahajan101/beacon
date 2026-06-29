@@ -31,7 +31,7 @@ except ImportError:  # keep the skeleton importable before deps are installed
 try:
     from beacon.config import DropPolicy
     from beacon.metrics import SdkMetrics
-    from beacon.pipeline import BoundedBuffer
+    from beacon.pipeline import BatchFlusher, BoundedBuffer
     from beacon.record import LogRecord
 except ImportError:  # keep the harness importable without the SDK on the path
     BoundedBuffer = None
@@ -76,7 +76,7 @@ def test_c1_invalid_record_fails_schema(path):
 # ---- C2-C12: Runtime scenarios (stubbed; implement in M1+) ---------------
 
 def _rec(body: str = "hello") -> "LogRecord":
-    """Minimal LogRecord helper for the runtime buffer scenarios (C2/C3)."""
+    """Minimal LogRecord helper for the runtime buffer scenarios (C2/C3/C4/C5)."""
     return LogRecord.minimal(
         timestamp_ns=1_700_000_000_000_000_000,
         severity_number=9,
@@ -84,6 +84,35 @@ def _rec(body: str = "hello") -> "LogRecord":
         body=body,
         resource={"service.name": "svc", "telemetry.sdk.language": "python"},
     )
+
+
+class _CollectingSink:
+    """List-collecting BatchSink so C4/C5 can OBSERVE the batches the flusher
+    produces — the default NOOP sink discards them. Each ``accept`` appends a
+    snapshot ``list(batch)`` so a later mutation of the flusher's buffer cannot
+    perturb what was observed.
+    """
+
+    def __init__(self) -> None:
+        self.batches: list[list["LogRecord"]] = []
+
+    def accept(self, batch: list["LogRecord"]) -> None:
+        self.batches.append(list(batch))
+
+
+def _wait_until(predicate, timeout: float = 2.0, step: float = 0.005) -> bool:
+    """Poll ``predicate`` until true or ``timeout`` (s) elapses. Returns the
+    final predicate value. Poll-until-condition (NOT a tight fixed sleep) keeps
+    the timing-driven C4/C5 deterministic under CI scheduling jitter — the bound
+    is generous (2s) so a slow runner still passes, while a fast one returns
+    almost immediately.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(step)
+    return predicate()
 
 
 @pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
@@ -147,14 +176,96 @@ def test_c3_buffer_overflow_drop_policy():
     )
 
 
-@pytest.mark.skip(reason="M1: batch_max_records=10 -> exactly one batch of 10")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c4_flush_by_batch_size():
-    ...
+    """C4 — the SIZE trigger fires: a full batch flushes regardless of interval.
+
+    Per scenarios.yaml C4 (batch_max_records=10, flush_interval_ms=60000,
+    emit_count=10, expect_batches=1, expect_batch_size=10). The interval is set
+    to 60s so it CANNOT fire within the test — any flush observed is therefore
+    the SIZE trigger. A list-collecting sink is injected so the batch the flusher
+    produces is observable (the default NOOP discards it). The flusher is stopped
+    in a try/finally so a failed assert still tears down the daemon thread — the
+    SDK leak-guard conftest does NOT cover this directory.
+    """
+    metrics = SdkMetrics()
+    buf = BoundedBuffer(64, DropPolicy.DROP_OLDEST, metrics)  # capacity >= 10
+    sink = _CollectingSink()
+    flusher = BatchFlusher(
+        buf,
+        sink,
+        batch_max_records=10,
+        flush_interval_ms=60000,  # interval cannot fire -> SIZE trigger only
+        metrics=metrics,
+    )
+
+    for i in range(10):
+        assert buf.offer(_rec(f"r{i}")) is True
+
+    flusher.start()
+    try:
+        flushed = _wait_until(lambda: len(sink.batches) >= 1, timeout=2.0)
+    finally:
+        flusher.stop()
+
+    assert flushed, "no batch was flushed within the timeout (SIZE trigger never fired)"
+    assert len(sink.batches) == 1, (  # expect_batches = 1
+        f"expected exactly one batch, got {len(sink.batches)}"
+    )
+    assert len(sink.batches[0]) == 10, (  # expect_batch_size = 10
+        f"expected a batch of 10, got {len(sink.batches[0])}"
+    )
+    assert metrics.batches_flushed == 1
+    assert metrics.records_flushed == 10
 
 
-@pytest.mark.skip(reason="M1: flush_interval_ms=200 -> batch of 3 within ~interval")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c5_flush_by_interval():
-    ...
+    """C5 — the INTERVAL trigger fires: a partial batch flushes on the timer.
+
+    Per scenarios.yaml C5 (batch_max_records=10000, flush_interval_ms=200,
+    emit_count=3, expect_flush_within_ms=400). The size cap is 10000 so it CANNOT
+    fire on 3 records — any flush observed is therefore the INTERVAL trigger. We
+    assert the flush happens within a GENEROUS 2s bound (>> the 200ms interval),
+    NOT in a tight ~200ms window: asserting tight timing flakes under CI scheduling
+    jitter, and the contract point is that the interval trigger fires AT ALL without
+    a size cap, not its precise latency. The flusher is stopped in a try/finally so
+    a failed assert still tears down the daemon thread (no leak-guard conftest here).
+    """
+    metrics = SdkMetrics()
+    buf = BoundedBuffer(64, DropPolicy.DROP_OLDEST, metrics)  # capacity >= 3
+    sink = _CollectingSink()
+    flusher = BatchFlusher(
+        buf,
+        sink,
+        batch_max_records=10000,  # size cap cannot fire -> INTERVAL trigger only
+        flush_interval_ms=200,
+        metrics=metrics,
+    )
+
+    for i in range(3):
+        assert buf.offer(_rec(f"r{i}")) is True
+
+    start = time.monotonic()
+    flusher.start()
+    try:
+        flushed = _wait_until(lambda: len(sink.batches) >= 1, timeout=2.0)
+        observed_ms = (time.monotonic() - start) * 1000.0
+    finally:
+        flusher.stop()
+
+    assert flushed, "no batch was flushed within the timeout (INTERVAL trigger never fired)"
+    assert len(sink.batches) == 1, (  # one interval-driven batch
+        f"expected exactly one batch, got {len(sink.batches)}"
+    )
+    assert len(sink.batches[0]) == 3, (  # all 3 buffered records in one batch
+        f"expected a batch of 3, got {len(sink.batches[0])}"
+    )
+    assert metrics.batches_flushed == 1
+    assert metrics.records_flushed == 3
+    # Generous outer bound (the wait_until timeout already enforces this); the
+    # observed latency is recorded for the audit trail, not tightly asserted.
+    assert observed_ms < 2000.0, f"interval flush took {observed_ms:.1f}ms"
 
 
 @pytest.mark.skip(reason="M1: fail 6x, max_retries=5 -> fallback, no loss")
