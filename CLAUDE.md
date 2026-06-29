@@ -70,6 +70,8 @@ beacon/
 - [ADR-0004](docs/adr/0004-batch-flusher-concurrency-model.md) — Batch flusher concurrency model (M1.3).
 - [ADR-0005](docs/adr/0005-resilience-layer-retry-backoff-fallback.md) — Resilience layer: retry, backoff + jitter, and fallback sink (M1.4).
 - [ADR-0006](docs/adr/0006-graceful-shutdown-drain.md) — Graceful shutdown drain (M1.5).
+- [ADR-0007](docs/adr/0007-redos-resistant-redaction.md) — ReDoS-resistant redaction: literal-key walker + `nanoTime` deadline, no user regexes on the emit path; protects the `p99 < 1ms` NFR (M1.6).
+- [ADR-0008](docs/adr/0008-async-context-propagation.md) — Async context propagation (`BeaconExecutors`): wrap factories carry OTel `Span` + SLF4J `MDC` across `CompletableFuture` / `@Async` / `ExecutorService` boundaries, enricher precedence preserved (M1.6).
 - [ADR-0009](docs/adr/0009-spring-boot-starter-design.md) — Spring Boot starter design (opt-in auto-config, no `logback-spring.xml` mutation, programmatic appender, 13 canonical surfaces with composite `beacon.redact`, TaskDecorator opt-in) (M1.7).
 - [ADR-0010](docs/adr/0010-contract-artifacts-cross-sdk-source-of-truth.md) — Contract artifacts (`config-keys.yaml` + `severity-table.json`) as cross-SDK single source of truth; additive carve-out from M0 freeze; CI drift gate via `check_contract_drift.py` (M1.8).
 - [ADR-0011](docs/adr/0011-otel-sdk-version-policy.md) — OTel SDK version policy: milestone-cadence review, bump-or-justify (M1.8).
