@@ -74,6 +74,7 @@ beacon/
 - [ADR-0010](docs/adr/0010-contract-artifacts-cross-sdk-source-of-truth.md) — Contract artifacts (`config-keys.yaml` + `severity-table.json`) as cross-SDK single source of truth; additive carve-out from M0 freeze; CI drift gate via `check_contract_drift.py` (M1.8).
 - [ADR-0011](docs/adr/0011-otel-sdk-version-policy.md) — OTel SDK version policy: milestone-cadence review, bump-or-justify (M1.8).
 - [ADR-0012](docs/adr/0012-ci-hardening-floor-for-java-sdk.md) — CI hardening floor for the Java SDK: Spotless + JaCoCo (report-only) + Javadoc -Werror + PR-title lint + JMH nightly (report-only); gates vs report-only rationale; deferred items list (M1.9).
+- [ADR-0013](docs/adr/0013-otel-python-sdk-version-pin-m2.md) — OTel Python SDK version pin for M2 (`opentelemetry-{api,sdk,exporter-otlp} == 1.43.0`); mirrors ADR-0011 milestone-cadence "bump or justify" pattern (M2.0).
 
 ## Workflow conventions (READ before editing)
 
