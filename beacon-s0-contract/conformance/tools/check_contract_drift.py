@@ -189,12 +189,58 @@ def check_java_severity_table(bands: list[dict], errors: list[str]) -> None:
             errors.append(f"[java/severity] band name '{name}' not found in SeverityMapper.java")
 
 
-def check_python_sdk(keys, bands, errors):  # noqa: ARG001  (M2 stub)
-    # Python SDK lands in M2. Until then this is a no-op success.
+def check_python_sdk(keys: list[dict], bands: list[dict], errors: list[str]) -> None:
+    """Source-level introspection of the Python SDK (no interpreter required).
+
+    Mirrors the Java checks' shape (``check_java_severity_table`` for the severity arm and the
+    ``check_java_config_keys`` env-literal loop for the config arm). Per ADR-0010 the Python
+    SDK must LOAD the contract artifacts at runtime and never re-encode them, so this gate
+    asserts: (a) the severity loader references 'severity-table.json'; (b) all 6 band names
+    appear in mapper.py; (c) every config-keys.yaml BEACON_* env literal appears somewhere in
+    beacon-sdk-python/src/beacon/.
+    """
     py_root = REPO_ROOT / "beacon-sdk-python"
     if not py_root.exists():
         return  # M2 has not landed; nothing to check
-    errors.append("[python] M2 Python SDK detected but check_contract_drift.py has no Python introspection yet")
+
+    # ----- Severity introspection -----
+    mapper_path = py_root / "src" / "beacon" / "severity" / "mapper.py"
+    loader_path = py_root / "src" / "beacon" / "severity" / "_loader.py"
+    if not mapper_path.exists():
+        errors.append("[python/severity] src/beacon/severity/mapper.py missing")
+        return
+    mapper_src = mapper_path.read_text(encoding="utf-8")
+    loader_src = loader_path.read_text(encoding="utf-8") if loader_path.exists() else ""
+    combined_severity = mapper_src + "\n" + loader_src
+
+    # The Python SDK must reference severity-table.json from its loader (ADR-0010 mandate:
+    # load at runtime, never re-encode).
+    if "severity-table.json" not in combined_severity:
+        errors.append(
+            "[python/severity] mapper/_loader does not reference 'severity-table.json' "
+            "- runtime is not loading the contract artifact"
+        )
+
+    # All 6 band names must appear as identifiers/strings in mapper.py.
+    for band in bands:
+        name = band["name"]
+        if not re.search(rf"\b{name}\b", mapper_src):
+            errors.append(f"[python/severity] band name '{name}' not found in mapper.py")
+
+    # ----- Config-key introspection -----
+    # Walk src/beacon/ source files for the canonical BEACON_* literals (mirrors the Java
+    # env-spelling loop in check_java_config_keys, which greps the concatenated main source).
+    all_py_source = ""
+    for p in (py_root / "src" / "beacon").rglob("*.py"):
+        all_py_source += p.read_text(encoding="utf-8") + "\n"
+
+    for key in keys:
+        env_literal = key.get("env")
+        if env_literal and env_literal not in all_py_source:
+            errors.append(
+                f"[python/config] env literal '{env_literal}' from config-keys.yaml "
+                "not found in beacon-sdk-python/src/beacon/"
+            )
 
 
 # ----- Driver -----

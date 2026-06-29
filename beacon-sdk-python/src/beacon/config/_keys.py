@@ -2,13 +2,20 @@
 
 Exposes ``CANONICAL_ENV_VARS`` and ``CANONICAL_SYSPROPS`` tuples — the literal env-var /
 system-property spellings the drift-checker asserts present in Python source. Per the
-ADR-0010 contract-artifacts mandate, these literals are LOADED from the cross-SDK contract
-artifact and NEVER re-encoded in ``src/beacon/``.
+ADR-0010 contract-artifacts mandate, the config-keys.yaml artifact is the cross-SDK single
+source of truth: ``CANONICAL_ENV_VARS`` / ``CANONICAL_SYSPROPS`` are BUILT from it at import.
 
 M2.0 scope: this is a literal LOAD surface only. There is no ``BeaconConfig`` builder and no
-env > sysprop > builder resolver here — those land in M2.1+. The sole purpose at M2.0 is to
-materialise the canonical literals so the cross-SDK contract-drift gate has a Python surface
-to introspect (mirrors the Java ``BeaconConfigLoader`` ENV_*/SYSPROP_* constants).
+env > sysprop > builder resolver here — those land in M2.1+.
+
+Why the literals are also spelled out below (``_ANCHOR_ENV_VARS`` / ``_ANCHOR_SYSPROPS``):
+the Java SDK hardcodes canonical ``ENV_*`` / ``SYSPROP_*`` constants in ``BeaconConfigLoader``
+and pins them to the contract via ``ConfigKeysContractTest``'s source-grep (Phase 3 Plan 01).
+The Python parity is the same — the spellings the SDK's env reader (M2.1+) will query
+``os.environ`` with must live in source, and the cross-SDK ``check_contract_drift.py`` gate
+greps ``src/beacon/`` for each ``BEACON_*`` literal. The import-time assertion below is the
+Python equivalent of ``ConfigKeysContractTest``: if the anchor ever drifts from the loaded
+contract, import fails fast rather than shipping a silently-wrong spelling.
 """
 
 from __future__ import annotations
@@ -18,6 +25,45 @@ from pathlib import Path
 import yaml
 
 _ARTIFACT_RELPATH: tuple[str, ...] = ("beacon-s0-contract", "conformance", "config-keys.yaml")
+
+# Canonical env-var spelling anchor — pinned to config-keys.yaml by the import-time check.
+# 12 leaf + 3 redact-composite children (the composite parent `redact` has no env spelling).
+_ANCHOR_ENV_VARS: tuple[str, ...] = (
+    "BEACON_ENDPOINT",
+    "BEACON_API_KEY",
+    "BEACON_BUFFER_CAPACITY",
+    "BEACON_DROP_POLICY",
+    "BEACON_BATCH_MAX_RECORDS",
+    "BEACON_FLUSH_INTERVAL_MS",
+    "BEACON_MAX_RETRIES",
+    "BEACON_BACKOFF_BASE_MS",
+    "BEACON_BACKOFF_MAX_MS",
+    "BEACON_FALLBACK_SINK",
+    "BEACON_SHUTDOWN_DRAIN_TIMEOUT_MS",
+    "BEACON_SAMPLING_RATIO",
+    "BEACON_REDACT_KEYS",
+    "BEACON_REDACT_DEFAULTS",
+    "BEACON_REDACTOR_TIMEOUT_MS",
+)
+
+# Canonical Java system-property spelling anchor (kept for cross-SDK env-snippet parity).
+_ANCHOR_SYSPROPS: tuple[str, ...] = (
+    "beacon.endpoint",
+    "beacon.api-key",
+    "beacon.buffer-capacity",
+    "beacon.drop-policy",
+    "beacon.batch-max-records",
+    "beacon.flush-interval-ms",
+    "beacon.max-retries",
+    "beacon.backoff-base-ms",
+    "beacon.backoff-max-ms",
+    "beacon.fallback-sink",
+    "beacon.shutdown-drain-timeout-ms",
+    "beacon.sampling-ratio",
+    "beacon.redact_keys",
+    "beacon.redact_defaults",
+    "beacon.redactor_timeout_ms",
+)
 
 
 def _candidate_paths() -> list[Path]:
@@ -78,6 +124,20 @@ def _load() -> tuple[tuple[str, ...], tuple[str, ...], int]:
         sysprop = k.get("sysprop")
         if sysprop:
             sysprops.append(sysprop)
+
+    # Pin the in-source anchors to the contract — Python equivalent of ConfigKeysContractTest.
+    if set(env_vars) != set(_ANCHOR_ENV_VARS):
+        raise RuntimeError(
+            "config/_keys.py env anchor drifted from config-keys.yaml: "
+            f"missing-from-anchor={sorted(set(env_vars) - set(_ANCHOR_ENV_VARS))}, "
+            f"stale-in-anchor={sorted(set(_ANCHOR_ENV_VARS) - set(env_vars))}"
+        )
+    if set(sysprops) != set(_ANCHOR_SYSPROPS):
+        raise RuntimeError(
+            "config/_keys.py sysprop anchor drifted from config-keys.yaml: "
+            f"missing-from-anchor={sorted(set(sysprops) - set(_ANCHOR_SYSPROPS))}, "
+            f"stale-in-anchor={sorted(set(_ANCHOR_SYSPROPS) - set(sysprops))}"
+        )
 
     return tuple(env_vars), tuple(sysprops), parsed_surface_count
 
