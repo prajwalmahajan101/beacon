@@ -25,9 +25,9 @@ import threading
 
 
 class SdkMetrics:
-    """Lock-guarded counters/gauge for the emit path (M2.1 surface).
+    """Lock-guarded counters/gauge for the emit path (M2.1) + flusher path (M2.2).
 
-    All three accessors and mutators take ``self._lock`` so increments never
+    Every accessor and mutator takes ``self._lock`` so increments never
     interleave-and-lose under concurrent producers — the Python idiom of Java's
     ``AtomicLong``.
     """
@@ -37,6 +37,8 @@ class SdkMetrics:
         self._enqueued = 0
         self._dropped = 0
         self._buffer_depth = 0
+        self._batches_flushed = 0
+        self._records_flushed = 0
 
     # ---- M2.1 surface — emit path --------------------------------------
 
@@ -73,3 +75,28 @@ class SdkMetrics:
     def buffer_depth(self) -> int:
         with self._lock:
             return self._buffer_depth
+
+    # ---- M2.2 surface — flusher path -----------------------------------
+
+    def inc_batches_flushed(self) -> None:
+        """Increment ``batches_flushed`` by 1 (mirror Java ``incBatchesFlushed``)."""
+        with self._lock:
+            self._batches_flushed += 1
+
+    @property
+    def batches_flushed(self) -> int:
+        with self._lock:
+            return self._batches_flushed
+
+    def inc_records_flushed(self, n: int) -> None:
+        """Add ``n`` to ``records_flushed`` (mirror Java ``incRecordsFlushed(int)``).
+
+        The flusher passes the flushed batch size on each successful flush.
+        """
+        with self._lock:
+            self._records_flushed += n
+
+    @property
+    def records_flushed(self) -> int:
+        with self._lock:
+            return self._records_flushed

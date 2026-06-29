@@ -1,4 +1,4 @@
-"""Structured config carrier — ``DropPolicy`` enum + minimal ``BufferConfig``.
+"""Structured config carriers — ``DropPolicy`` + ``BufferConfig`` (M2.1) + ``FlusherConfig`` (M2.2).
 
 Python idiom of the Java ``BeaconConfig`` (see
 ``beacon-sdk-java/src/main/java/io/beacon/sdk/config/BeaconConfig.java``), scoped
@@ -54,4 +54,38 @@ class BufferConfig:
         if self.buffer_capacity <= 0:
             raise ValueError(
                 f"buffer_capacity must be > 0, got {self.buffer_capacity}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class FlusherConfig:
+    """Minimal flusher config carrier — Java ``BeaconConfig.defaults()`` parity.
+
+    Holds exactly the two knobs the M2.2 batch flusher consumes, mirroring the
+    Java ``BatchFlusher`` ctor params (``batchMaxRecords`` / ``flushIntervalMs``).
+    Defaults are the EXACT canonical values from
+    ``beacon-s0-contract/conformance/config-keys.yaml`` (``batch-max-records`` 512
+    / C4, ``flush-interval-ms`` 1000 / C5).
+
+    Naming note: the M2 roadmap informally writes ``flush_max_size``; the canonical
+    cross-SDK contract name (config-keys.yaml + the ``BEACON_BATCH_MAX_RECORDS``
+    anchor in ``config/_keys.py``) is ``batch_max_records``. This carrier uses the
+    canonical spelling — ``flush_max_size`` maps to ``batch_max_records``.
+
+    See ADR-0015 (Plan 04) for the M2.2 architecture record and ADR-0004 for the
+    originating Java batch-flusher concurrency-model decision.
+    """
+
+    batch_max_records: int = 512
+    flush_interval_ms: int = 1000
+
+    def __post_init__(self) -> None:
+        # Mirror Java BatchFlusher ctor guards (BatchFlusher.java:47-52).
+        if self.batch_max_records <= 0:
+            raise ValueError(
+                f"batch_max_records must be > 0, got {self.batch_max_records}"
+            )
+        if self.flush_interval_ms <= 0:
+            raise ValueError(
+                f"flush_interval_ms must be > 0, got {self.flush_interval_ms}"
             )
