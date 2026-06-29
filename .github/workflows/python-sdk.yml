@@ -53,4 +53,8 @@ jobs:
         run: uv run python -m pytest ../beacon-s0-contract/conformance/python -v
 
       - name: Cross-SDK contract-drift check (Python introspection)
-        run: python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk python
+        # check_contract_drift.py imports PyYAML; the bare runner python has no
+        # third-party deps, so install it explicitly (mirrors contract.yml).
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk python
