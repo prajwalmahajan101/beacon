@@ -1,5 +1,12 @@
-"""Config layer — config-keys.yaml load surface (M2.0); BeaconConfig builder M2.1+."""
+"""Config layer — config-keys.yaml load surface (M2.0); DropPolicy + BufferConfig (M2.1)."""
 
+from ._config import BufferConfig, DropPolicy
 from ._keys import CANONICAL_ENV_VARS, CANONICAL_SURFACE_COUNT, CANONICAL_SYSPROPS
 
-__all__ = ["CANONICAL_ENV_VARS", "CANONICAL_SYSPROPS", "CANONICAL_SURFACE_COUNT"]
+__all__ = [
+    "CANONICAL_ENV_VARS",
+    "CANONICAL_SYSPROPS",
+    "CANONICAL_SURFACE_COUNT",
+    "DropPolicy",
+    "BufferConfig",
+]
