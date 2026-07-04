@@ -15,7 +15,7 @@ flusher, exporter, drain, redactor, contextvars enricher, and the
 Requires [`uv`](https://docs.astral.sh/uv/) and Python 3.10+.
 
 ```bash
-# From this directory (beacon-sdk-python/):
+# From this directory (sdk/python/core/):
 uv sync                  # creates .venv, installs runtime + dev deps, editable-installs the SDK
 uv run pytest tests/     # unit tests
 uv run python -m pytest ../contract/conformance/python  # conformance harness (C1 + C12)

@@ -1,7 +1,7 @@
 # Beacon Spring Boot starter sample (JSDK-08)
 
 A minimal Spring Boot 3.x application that consumes
-[`beacon-spring-boot-starter`](../../beacon-spring-boot-starter) end-to-end.
+[`beacon-sdk-spring-adapter`](../../sdk/java/spring-adapter) end-to-end.
 This sample proves the **JSDK-08** acceptance contract: a developer should
 be able to go from `git clone` to a first emitted log record in **under
 30 minutes**.

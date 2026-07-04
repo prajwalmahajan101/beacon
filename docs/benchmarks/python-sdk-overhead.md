@@ -19,7 +19,7 @@ Java JMH benchmark in [`sdk-overhead.md`](sdk-overhead.md) (JSDK-10).
 
 Measured on a `13th Gen Intel Core i7-1355U`, CPython 3.10.19 (Linux
 `7.0.9-arch2-1` x86_64), 50 000 warmup + 500 000 measurement single-op
-iterations. Reproduce with `uv run --frozen python benchmarks/emit_overhead.py`.
+iterations. Reproduce with `uv run --frozen python emit_overhead.py` (from `sdk/python/benchmark/`).
 
 **Result:** PRD NFR-6 budget (p99 < 1 ms = 1 000 000 ns) is met — **p99 = 30 663 ns,
 ~33× under budget.** As expected, the interpreted CPython hot path costs more per
@@ -138,7 +138,7 @@ machine-readable `emit_overhead.json` (gitignored build output, mirrors the Java
 ## First measured run
 
 Executed on the host above with
-`uv run --frozen python benchmarks/emit_overhead.py`
+`uv run --frozen python emit_overhead.py` (from `sdk/python/benchmark/`)
 (50 000 warmup + 500 000 measurement single-op iterations):
 
 ```

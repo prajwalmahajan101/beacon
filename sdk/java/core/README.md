@@ -68,7 +68,7 @@ This Java SDK module exposes `BeaconLogbackAppender` directly for non-Spring con
 
 ## Configuration keys
 
-The SDK contract surface is **13 canonical keys** (cross-language, identical in `beacon-sdk-python`):
+The SDK contract surface is **13 canonical keys** (cross-language, identical in `sdk/python/core`):
 
 | Key | Default | Notes |
 |---|---|---|
