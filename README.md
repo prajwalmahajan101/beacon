@@ -5,7 +5,7 @@
 
 > Self-hosted, OpenTelemetry-native observability platform — logs, traces, and metrics from polyglot services, correlated by W3C trace context, queryable from a single console.
 
-**Status: M0 frozen ([2026-06-05](./beacon-s0-contract/M0-FROZEN.md)) · M1 (Java SDK) in progress — 8/9 phases complete, **12/12 conformance scenarios green** through [M1.7](./docs/adr/0009-spring-boot-starter-design.md). Spring Boot starter + Logback appender + sample app + JMH overhead benchmark shipped (p99 `BeaconSdk.emit` = 6,360 ns, ~157× under the 1 ms PRD NFR-6 budget). M1.8 (`v0.2-m1` cut) next.**
+**Status: M0 frozen ([2026-06-05](./contract/M0-FROZEN.md)) · M1 (Java SDK) in progress — 8/9 phases complete, **12/12 conformance scenarios green** through [M1.7](./docs/adr/0009-spring-boot-starter-design.md). Spring Boot starter + Logback appender + sample app + JMH overhead benchmark shipped (p99 `BeaconSdk.emit` = 6,360 ns, ~157× under the 1 ms PRD NFR-6 budget). M1.8 (`v0.2-m1` cut) next.**
 
 Beacon is a vendor-neutral alternative to CloudWatch / Datadog / Loki-style stacks for teams that want OpenTelemetry from day one and prefer a stack they can run themselves. Services integrate via lightweight Java and Python SDKs that never block or crash the host application; telemetry flows through Kafka into purpose-built storage (Elasticsearch search + a write-optimized wide-column system-of-record + a metrics TSDB), and a React console gives operators fast search, cross-signal correlation, and live tail.
 
@@ -35,7 +35,7 @@ The cost is one week up front. The payoff is that "the Java and Python clients a
 ```
 PRD.md                          ← hybrid Product Requirements + Technical Design (RFC)
 CHANGELOG.md                    ← milestone-versioned change log
-beacon-s0-contract/             ← M0: the telemetry contract
+contract/             ← M0: the telemetry contract
   README.md                     ← contract overview + Definition of Done
   M0-FROZEN.md                  ← freeze record (what's locked, verification matrix)
   spec/
@@ -59,7 +59,7 @@ pip install jsonschema pyyaml pytest
 # 1. Schema rejects bad data, accepts good data
 python3 - <<'PY'
 import json, jsonschema, pathlib
-root = pathlib.Path("beacon-s0-contract")
+root = pathlib.Path("contract")
 schema = json.loads((root / "schema/log-record.schema.json").read_text())
 print("valid  →", end=" ")
 jsonschema.validate(json.loads((root / "schema/examples/log-valid.json").read_text()), schema)
@@ -73,7 +73,7 @@ except jsonschema.ValidationError as e:
 PY
 
 # 2. Python conformance suite collects (will be stubbed-as-skipped until M2)
-python3 -m pytest beacon-s0-contract/conformance/python --collect-only -q
+python3 -m pytest contract/conformance/python --collect-only -q
 ```
 
 Expected: `valid OK`, `invalid rejected`, 20 pytest items collected.

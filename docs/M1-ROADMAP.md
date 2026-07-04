@@ -1,12 +1,12 @@
 # M1 — Java SDK: Roadmap
 
-**Status:** Drafted 2026-06-10 · last updated 2026-06-24 · M1.0–M1.9 ✅ shipped (CI hardening floor merged, PR #26) (**12/12 conformance green**), `v0.2-m1` cut · **Predecessor:** [M0 frozen 2026-06-05](../beacon-s0-contract/M0-FROZEN.md) · **Acceptance bar:** all 12 conformance scenarios green against the Java SDK.
+**Status:** Drafted 2026-06-10 · last updated 2026-06-24 · M1.0–M1.9 ✅ shipped (CI hardening floor merged, PR #26) (**12/12 conformance green**), `v0.2-m1` cut · **Predecessor:** [M0 frozen 2026-06-05](../contract/M0-FROZEN.md) · **Acceptance bar:** all 12 conformance scenarios green against the Java SDK.
 
 ---
 
 ## What the contract demands
 
-**Deliverable:** `beacon-sdk-java/` module whose tests turn all 12 `@Disabled` scenarios in `beacon-s0-contract/conformance/java/ConformanceTest.java` green, with the same JSON Schema validation passing on emitted records.
+**Deliverable:** `sdk/java/core/` module whose tests turn all 12 `@Disabled` scenarios in `contract/conformance/java/ConformanceTest.java` green, with the same JSON Schema validation passing on emitted records.
 
 ### What's locked (can't drift)
 
@@ -35,7 +35,7 @@ Logback/Log4j2 appender + Spring Boot starter
 ## Suggested module layout
 
 ```
-beacon-sdk-java/
+sdk/java/core/
   build.gradle.kts
   src/main/java/io/beacon/sdk/
     config/         BeaconConfig + loader (yaml/env, the 13 keys)
@@ -60,14 +60,14 @@ beacon-sdk-java/
   src/test/...    unit tests
 ```
 
-The existing `beacon-s0-contract/conformance/java/ConformanceTest.java` is **the** acceptance suite — wire it into the SDK module's test classpath (not a copy).
+The existing `contract/conformance/java/ConformanceTest.java` is **the** acceptance suite — wire it into the SDK module's test classpath (not a copy).
 
 ---
 
 ## What needs to exist before code
 
 1. **ADR-0001 — Java SDK architecture & dependencies** (Gradle vs Maven; Logback-first vs Log4j2-first; OTel Java SDK as backbone vs hand-rolled; `com.networknt:json-schema-validator` for C1; SnakeYAML for `scenarios.yaml`). CLAUDE.md mandates this before non-trivial backend changes.
-2. **Conformance harness wiring** — current Java skeleton is in `beacon-s0-contract/conformance/java/` (no build file). Decide: keep it there and have the new module depend on it, or move/symlink. Either way the SDK module's CI must run those 12 tests un-`@Disabled`.
+2. **Conformance harness wiring** — current Java skeleton is in `contract/conformance/java/` (no build file). Decide: keep it there and have the new module depend on it, or move/symlink. Either way the SDK module's CI must run those 12 tests un-`@Disabled`.
 3. **M1 CHANGELOG entry shell** + freeze-compat note.
 
 ---
@@ -81,7 +81,7 @@ The existing `beacon-s0-contract/conformance/java/ConformanceTest.java` is **the
 | 3 | OTel Java SDK as transport core | **Yes** — spec explicitly says SDKs build on OTel, must not re-implement. Use `OtlpGrpcLogRecordExporter` underneath the Beacon resilience layer. |
 | 4 | Min Java baseline | Java 17 (Spring Boot 3.x baseline) |
 | 5 | Spring Boot starter | Ship in M1 (FR-SDK-1 explicitly requires it) |
-| 6 | Where harness lives | Keep in `beacon-s0-contract/conformance/java/` as canonical; add a Gradle subproject there so the SDK can depend on it. Prevents drift. |
+| 6 | Where harness lives | Keep in `contract/conformance/java/` as canonical; add a Gradle subproject there so the SDK can depend on it. Prevents drift. |
 
 ---
 
@@ -100,7 +100,7 @@ The full rule and the journal section template live in [`CONTRIBUTING.md` § Per
 5. **M1.4** ✅ — OTLP exporter + retry/backoff + fallback sink → **C6 + C7 + C8 green**.
 6. **M1.5** ✅ — shutdown drain → **C9 green**.
 7. **M1.6** ✅ — redactor (ADR-0007) + MDC/OTel Context enricher + async-context propagation (ADR-0008) → **C10 + C11 green**; pipeline now `enrich → redact → buffer` with direct-sink fallback on `RedactorTimeoutException`.
-8. **M1.7** ✅ — `BeaconLogbackAppender` + `beacon-spring-boot-starter` (13 canonical surfaces, composite `beacon.redact`, `BeaconTaskDecorator` opt-in named bean) + `examples/spring-boot-sample/` + `:beacon-sdk-java-benchmark` JMH overhead baseline (p99 = 6,360 ns, ~157× under PRD NFR-6); CI publishes consolidated JUnit HTML; **12/12 conformance preserved**. (ADR-0009)
+8. **M1.7** ✅ — `BeaconLogbackAppender` + `beacon-sdk-spring-adapter` (13 canonical surfaces, composite `beacon.redact`, `BeaconTaskDecorator` opt-in named bean) + `examples/spring-boot-sample/` + `:beacon-sdk-java-benchmark` JMH overhead baseline (p99 = 6,360 ns, ~157× under PRD NFR-6); CI publishes consolidated JUnit HTML; **12/12 conformance preserved**. (ADR-0009)
 9. **M1.8** ✅ — `v0.2-m1` release cut, contract artifacts (`config-keys.yaml` + `severity-table.json`, ADR-0010), OTel SDK version policy (ADR-0011), `CanonicalJson.writeMap` NPE closed, CHANGELOG roll-up + `docs/M1-COMPLETE.md` retrospective, tag `v0.2-m1`.
 10. **M1.9** ✅ — Java CI hardening floor (ADR-0012): Spotless + google-java-format gate (CI-01), JaCoCo report-only coverage (CI-02, 81% baseline on both public-API subprojects), Javadoc `-Werror` gate scoped to public-API subprojects (CI-03), PR-title Conventional-Commits lint (CI-04), JMH nightly workflow (CI-05, report-only). Five tracked CI requirements. Discipline locked in before M2 (Python SDK) lands. **12/12 conformance preserved.**
 
@@ -117,6 +117,6 @@ The full rule and the journal section template live in [`CONTRIBUTING.md` § Per
 ## Cross-references
 
 - M1.0 detailed plan: `~/.claude/plans/refactored-knitting-walrus.md`
-- Contract specs: [`beacon-s0-contract/spec/`](../beacon-s0-contract/spec/)
-- Conformance suite: [`beacon-s0-contract/conformance/scenarios.yaml`](../beacon-s0-contract/conformance/scenarios.yaml)
+- Contract specs: [`contract/spec/`](../contract/spec/)
+- Conformance suite: [`contract/conformance/scenarios.yaml`](../contract/conformance/scenarios.yaml)
 - PRD/RFC: [`PRD.md`](../PRD.md) §19 (SDK design), §26 (milestones)

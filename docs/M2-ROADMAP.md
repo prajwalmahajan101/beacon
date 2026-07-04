@@ -1,22 +1,22 @@
 # M2 — Python SDK: Roadmap
 
-**Status:** Drafted 2026-06-25 · Updated 2026-07-05 · **M2.0–M2.8 ✅ shipped, `v0.3-m2` tagged** · **Predecessor:** [M1.0–M1.9 ✅ shipped](./M1-ROADMAP.md), `v0.2-m1` tagged · **Acceptance bar:** all 12 conformance scenarios green against the Python SDK on `beacon-s0-contract/conformance/python/test_conformance.py`.
+**Status:** Drafted 2026-06-25 · Updated 2026-07-05 · **M2.0–M2.8 ✅ shipped, `v0.3-m2` tagged** · **Predecessor:** [M1.0–M1.9 ✅ shipped](./M1-ROADMAP.md), `v0.2-m1` tagged · **Acceptance bar:** all 12 conformance scenarios green against the Python SDK on `contract/conformance/python/test_conformance.py`.
 
 ---
 
 ## What the contract demands
 
-**Deliverable:** `beacon-sdk-python/` package whose tests turn the 12 conformance scenarios green on the Python harness, with the same JSON Schema validation passing on emitted records, and the same canonical-JSON byte stream as the Java SDK.
+**Deliverable:** `sdk/python/core/` package whose tests turn the 12 conformance scenarios green on the Python harness, with the same JSON Schema validation passing on emitted records, and the same canonical-JSON byte stream as the Java SDK.
 
 ### What's locked (can't drift — inherited from M0 + M1.8 contract artifacts)
 
-- **Record shape** — 12 log fields; `schema_version=1`; OTel-aligned resource keys; ns-precision RFC3339 timestamps; lowercase-hex trace/span IDs with all-zero rejected. (Source: `beacon-s0-contract/spec/01-record.md`, frozen 2026-06-05.)
-- **Severity mapping** — band-anchor numbers TRACE 1, DEBUG 5, INFO 9, WARN 13, ERROR 17, FATAL 21. **Loaded from `beacon-s0-contract/conformance/severity-table.json`** at runtime — Python SDK never re-encodes these.
-- **Config keys** — 13 canonical `beacon.*` keys. **Loaded from `beacon-s0-contract/conformance/config-keys.yaml`** at runtime — Python SDK never re-encodes these.
+- **Record shape** — 12 log fields; `schema_version=1`; OTel-aligned resource keys; ns-precision RFC3339 timestamps; lowercase-hex trace/span IDs with all-zero rejected. (Source: `contract/spec/01-record.md`, frozen 2026-06-05.)
+- **Severity mapping** — band-anchor numbers TRACE 1, DEBUG 5, INFO 9, WARN 13, ERROR 17, FATAL 21. **Loaded from `contract/conformance/severity-table.json`** at runtime — Python SDK never re-encodes these.
+- **Config keys** — 13 canonical `beacon.*` keys. **Loaded from `contract/conformance/config-keys.yaml`** at runtime — Python SDK never re-encodes these.
 - **Behavior** (`spec/02` §2) — 9 normative groups → C2–C12. Non-blocking emit (`<1ms` p99), bounded buffer + drop policy, batch-or-interval flush, retry+backoff→fallback, drain-on-shutdown, redaction before export, W3C propagation from contextvars + OTel-Python Span.
 - **Self-observability** (`spec/02` §3, SHOULD) — 6 counters/gauges, mirrored from Java's `SdkMetrics`.
 
-The M1.8 cross-SDK contract artifacts (ADR-0010) + the M1.8 CI drift gate (`beacon-s0-contract/conformance/tools/check_contract_drift.py`) mean cross-SDK drift will be caught in CI before merge, not at runtime.
+The M1.8 cross-SDK contract artifacts (ADR-0010) + the M1.8 CI drift gate (`contract/conformance/tools/check_contract_drift.py`) mean cross-SDK drift will be caught in CI before merge, not at runtime.
 
 ---
 
@@ -40,7 +40,7 @@ Sync-only API surface. No `asyncio` `aemit` in v1 — `queue.Queue.put_nowait()`
 ## Suggested module layout
 
 ```
-beacon-sdk-python/
+sdk/python/core/
   pyproject.toml             ← PEP 621, uv-managed
   uv.lock
   README.md
@@ -65,17 +65,17 @@ beacon-sdk-python/
       shutdown.py            ← atexit + SIGTERM drain within shutdown_drain_timeout_ms
   tests/
     unit/                    ← pytest unit tests
-    conformance/             ← depends on beacon-s0-contract/conformance/python/ (not copied)
+    conformance/             ← depends on contract/conformance/python/ (not copied)
 ```
 
-The existing `beacon-s0-contract/conformance/python/test_conformance.py` is **the** acceptance suite — the Python package depends on it (editable install or path import via `pytest --rootdir`), never duplicates it.
+The existing `contract/conformance/python/test_conformance.py` is **the** acceptance suite — the Python package depends on it (editable install or path import via `pytest --rootdir`), never duplicates it.
 
 ---
 
 ## What needs to exist before code
 
 1. **ADR-0013 — OTel Python SDK version pin for M2** — drafted during M2.0's `/gsd:research-phase`. Mirrors the M1.8 ADR-0011 milestone-cadence review pattern. Researcher checks current `opentelemetry-sdk` + `opentelemetry-exporter-otlp` release, Python-baseline compatibility, CVE history; writes a recommendation; an ADR records the decision before M2.0 lands.
-2. **Conformance harness wiring** — existing `beacon-s0-contract/conformance/python/test_conformance.py` becomes the SDK's acceptance suite. Decide: editable-install the SDK into the harness venv, or run pytest from the SDK rootdir with the harness on `sys.path`. Either way the SDK CI must run those 12 tests un-skipped from M2.1 onward (M2.0 enables C1 + C12 only).
+2. **Conformance harness wiring** — existing `contract/conformance/python/test_conformance.py` becomes the SDK's acceptance suite. Decide: editable-install the SDK into the harness venv, or run pytest from the SDK rootdir with the harness on `sys.path`. Either way the SDK CI must run those 12 tests un-skipped from M2.1 onward (M2.0 enables C1 + C12 only).
 3. **M2 CHANGELOG entry shell** + cross-SDK contract-artifacts loader note.
 
 ---
@@ -121,7 +121,7 @@ The cross-SDK publishing milestone is **M2.9** — tracked as **Phase 4.9** in `
 
 ## Cross-references
 
-- M0 freeze: [`beacon-s0-contract/M0-FROZEN.md`](../beacon-s0-contract/M0-FROZEN.md)
+- M0 freeze: [`contract/M0-FROZEN.md`](../contract/M0-FROZEN.md)
 - M1 ADRs that translate to Python:
   - [ADR-0002](./adr/0002-record-model-canonical-json.md) — record model + canonical JSON byte-for-byte determinism
   - [ADR-0003](./adr/0003-bounded-buffer-drop-policy.md) — bounded buffer + drop policy
@@ -139,7 +139,7 @@ The cross-SDK publishing milestone is **M2.9** — tracked as **Phase 4.9** in `
   - [ADR-0018](./adr/0018-python-redactor-literal-key-monotonic-deadline.md) — Python redactor (Python idiom of ADR-0007): literal-key recursive walker (no user regex — ReDoS-immune), ASCII case-insensitive `str.lower()` + length short-circuit, depth cap 32, per-record `time.monotonic_ns()` deadline; on timeout/over-depth raise `RedactorTimeoutError` carrying the ORIGINAL record + inc `redactor_timeout_total` (caller → fallback; never partial PII); dotted-key-is-flat; lazy-copy identity preservation; reuses `redact_keys`/`redact_defaults`/`redactor_timeout_ms` keys (no new `BEACON_*`); C10 green; landed in the M2.5 PR.
   - [ADR-0019](./adr/0019-python-contextvars-enricher.md) — Python contextvars enricher (Python idiom of ADR-0008): single module-level `ContextVar[Mapping[str,str]]` frozen dict (locked decision #4; `MappingProxyType`; `set/update/clear/get` in `beacon.context`) as FALLBACK, OTel-Python `Span` PRIMARY, W3C-hex validated, both-absent → omitted, read-only; `asyncio.Task` copy-on-spawn gives cross-async propagation FREE (NO `BeaconExecutors` wrapping — where Python is simpler than Java); `threading.Thread`/`ProcessPoolExecutor` boundary documented; C11 (incl. across_async) green; landed in the M2.5 PR.
   - [ADR-0020](./adr/0020-python-integration-surface-beacon-logging-handler.md) — Python integration surface (the Python counterpart of ADR-0009): `BeaconLoggingHandler(logging.Handler)` as the SINGLE, framework-agnostic on-ramp (NO FastAPI/Django/Flask starter — locked decision #5; stdlib `logging` is universal; `contextvars` copy-on-spawn removes the `TaskDecorator` need), never raises into the host logger (`handleError`), zero-arg lazy-default one-liner, never mutates `logging.config` (Pitfall #18 parity); `EmitPipeline`/`build_emit_pipeline` facade chains enrich→redact→buffer, routes `RedactorTimeoutError`'s ORIGINAL record to fallback, retires the last emit-path wiring via a shared-buffer `build_pipeline(buffer=)` handoff; stdlib float-`created` ns-fidelity tradeoff documented; cross-references the known OTLP `force_flush` fallback-swallow limitation (Pitfall #29 — the zero-arg one-liner relies on the OTLP path); NO new `BEACON_*` keys; PSDK-06 + PSDK-09 Satisfied; landed in the M2.6 PR.
-- Contract specs: [`beacon-s0-contract/spec/`](../beacon-s0-contract/spec/)
-- Conformance scenarios: [`beacon-s0-contract/conformance/scenarios.yaml`](../beacon-s0-contract/conformance/scenarios.yaml)
+- Contract specs: [`contract/spec/`](../contract/spec/)
+- Conformance scenarios: [`contract/conformance/scenarios.yaml`](../contract/conformance/scenarios.yaml)
 - PRD/RFC: [`PRD.md`](../PRD.md) §19 (SDK design), §26 (milestones)
 - M1 retrospective (recommended read before M2.0): [`docs/M1-COMPLETE.md`](./M1-COMPLETE.md)

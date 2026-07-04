@@ -24,7 +24,7 @@ See `docs/adr/0001-java-sdk-architecture.md` for the reasoning behind each choic
 ```bash
 # Contract validation (no Java required) — the 30-second smoke test from README.md
 pip install jsonschema pyyaml pytest
-python3 -m pytest beacon-s0-contract/conformance/python --collect-only -q
+python3 -m pytest contract/conformance/python --collect-only -q
 
 # Java multi-project build (assemble + run all tests incl. conformance harness)
 ./gradlew build
@@ -46,20 +46,29 @@ beacon/
 ├── CLAUDE.md                       ← you are here
 ├── README.md
 ├── LICENSE                         ← Apache-2.0
-├── settings.gradle.kts             ← Gradle root (includes :beacon-sdk-java, :conformance-java)
+├── settings.gradle.kts             ← Gradle root (projects keep flat names :beacon-sdk-java etc.; projectDir maps into sdk/)
 ├── build.gradle.kts                ← Gradle root conventions (Java 17 toolchain, JUnit Platform)
 ├── gradle/                         ← wrapper + libs.versions.toml
 ├── gradlew, gradlew.bat
-├── beacon-sdk-java/                ← M1 Java SDK (API stubs in M1.0; behaviour M1.1+)
-├── beacon-s0-contract/             ← M0 contract — frozen
+├── sdk/                            ← SDK umbrella (M2.9, ADR-0022)
+│   ├── java/
+│   │   ├── core/                   ← Java SDK       (Gradle :beacon-sdk-java)
+│   │   ├── spring-adapter/         ← Spring Boot adapter (Gradle :beacon-sdk-spring-adapter; was beacon-spring-boot-starter)
+│   │   └── benchmark/              ← JMH overhead benchmark (Gradle :beacon-sdk-java-benchmark)
+│   └── python/
+│       ├── core/                   ← Python SDK (uv `beacon-sdk`)
+│       └── benchmark/              ← emit-overhead benchmark (uv path-dep on ../core)
+├── contract/                       ← M0 contract — frozen (renamed from beacon-s0-contract, M2.9, ADR-0023)
 │   ├── M0-FROZEN.md
 │   ├── spec/                       ← 01 record · 02 SDK behaviour · 03 conformance suite
 │   ├── schema/                     ← log-record.schema.json + valid/invalid fixtures
-│   └── conformance/                ← scenarios.yaml + java/ + python/ harnesses
+│   └── conformance/                ← scenarios.yaml + java/ (Gradle :conformance-java) + python/ + tools/
+├── examples/                       ← spring-boot-sample + python-sample
 ├── docs/
-│   ├── M1-ROADMAP.md               ← phase breakdown M1.0 → M1.8
+│   ├── M1-ROADMAP.md · M2-ROADMAP.md · ROADMAP.md
+│   ├── benchmarks/                 ← sdk-overhead.md (Java) + python-sdk-overhead.md
 │   └── adr/                        ← architecture decision records
-└── .github/workflows/              ← contract.yml + java-sdk.yml
+└── .github/workflows/              ← contract · java-sdk · python-sdk · jmh-nightly · python-bench-nightly · pr-title-lint
 ```
 
 ## ADR index
@@ -85,6 +94,8 @@ beacon/
 - [ADR-0019](docs/adr/0019-python-contextvars-enricher.md) — Python contextvars enricher (Python idiom of Java ADR-0008): single module-level `ContextVar[Mapping[str,str]]` frozen dict (locked decision #4; `MappingProxyType`; `set/update/clear/get` in `beacon.context`) as FALLBACK, OTel-Python `Span` as PRIMARY, W3C-hex validated, both-absent → omitted, pre-stamp-wins, read-only w.r.t. OTel context; `asyncio.Task` copy-on-spawn gives cross-async propagation FREE (NO `BeaconExecutors` wrapping — where Python is simpler than Java); `threading.Thread`/`ProcessPoolExecutor` boundary documented; C11 (incl. across_async) green (M2.5).
 - [ADR-0020](docs/adr/0020-python-integration-surface-beacon-logging-handler.md) — Python integration surface (the Python counterpart of Java ADR-0009): `BeaconLoggingHandler(logging.Handler)` as the SINGLE, framework-agnostic on-ramp (NO FastAPI/Django/Flask starter — locked decision #5; stdlib `logging` is the universal Python integration point), never raises into the host logger (`handleError`), zero-arg one-liner via a lazy-default `EmitPipeline`, never mutates `logging.config` (Pitfall #18 parity); the `EmitPipeline`/`build_emit_pipeline` facade chains enrich→redact→buffer, routes `RedactorTimeoutError`'s ORIGINAL record to fallback, and retires the last emit-path wiring via a shared-buffer `build_pipeline(buffer=)` handoff; contextvars (ADR-0019) copy-on-spawn removes the `TaskDecorator` need; stdlib float-`created` ns-fidelity tradeoff documented; **cross-references the known OTLP `force_flush` fallback-swallow limitation (Pitfall #29 — the zero-arg one-liner relies on the OTLP path)**; NO new `BEACON_*` keys (M2.6).
 - [ADR-0021](docs/adr/0021-python-ci-hardening-floor.md) — Python CI hardening floor (Python parity of Java ADR-0012): three gates + one report-only — `ruff check` (CI-PY-01, subsumes flake8/isort/pyupgrade/pydocstyle), `ruff format --check` (CI-PY-02, replaces black), `mypy --strict` (CI-PY-03, Python-specific type gate with NO Java sibling), `pytest-cov` report-only (CI-PY-04, mirrors JaCoCo — no threshold, `python-sdk-coverage-report` artifact); mypy-over-pyright decision (stdlib-`typing` parity, no Node toolchain); lands-green-first (ruff-clean Wave 1 + mypy-strict-clean Wave 2 before gates-on Wave 3); skip rationale for darglint / standalone pydocstyle / black / coverage-threshold / OS-Python matrix (Pitfall #22); the **4.8-before-4.7 reorder** (CI floor locked green before the release cut — the roadmap "depends on 4.7" is a numbering artifact, real constraint only that both precede 4.9); mypy `--strict` surfaced a real latent `endpoint: str | None` bug (Pitfall #30); NO new `BEACON_*` keys (M2.8).
+- [ADR-0022](docs/adr/0022-sdk-monorepo-restructure-and-adapter-rename.md) — SDK monorepo restructure: `sdk/{java,python}` umbrella; Gradle project names kept flat (only `projectDir` remaps) to preserve the M0-frozen conformance build + artifact IDs; `beacon-spring-boot-starter` → `beacon-sdk-spring-adapter` (adapter family; Spring auto-config discovery is artifact-name-independent); Python benchmark promoted to a sibling `sdk/python/benchmark` (uv path-dep) with nightly + PR-smoke CI at parity with Java's JMH (ADR-0012 lineage); surfaced + fixed a latent PyYAML runtime-dep bug (M2.9).
+- [ADR-0023](docs/adr/0023-contract-dir-rename-m0-freeze-amendment.md) — M0-freeze amendment: rename `beacon-s0-contract/` → `contract/`. Contract content byte-identical apart from the mechanical name substitution in path/reference strings; functional refs updated in both SDKs + drift tool + build + CI; historical CHANGELOG/journals/past ADRs NOT rewritten (this entry is the forward-note) (M2.9).
 
 ## Workflow conventions (READ before editing)
 
@@ -111,7 +122,7 @@ Skipping the journal is the most common drift point. The journal is for the auth
 
 ### Spec changes follow an ADR
 
-The M0 contract (`beacon-s0-contract/`) is frozen. Material changes to record shape, SDK behaviour, schema, or scenarios require:
+The M0 contract (`contract/`, renamed from `beacon-s0-contract/` in M2.9 per ADR-0023) is frozen. Material changes to record shape, SDK behaviour, schema, or scenarios require:
 1. A Discussion outlining the problem.
 2. A new ADR (`docs/adr/NNNN-<slug>.md`) — template: Context / Decision / Consequences / Usage.
 3. JSON Schema / scenario / fixture updates in the **same PR**.
@@ -129,7 +140,7 @@ See `CONTRIBUTING.md` for the full flow.
 
 ## Known gotchas
 
-- **M0 is frozen.** Files under `beacon-s0-contract/spec/`, `beacon-s0-contract/schema/`, and `beacon-s0-contract/M0-FROZEN.md` are immutable without an ADR. The Java conformance harness file (`beacon-s0-contract/conformance/java/ConformanceTest.java`) is part of that freeze — `@Disabled` reasons may be updated as tests get implemented in M1.1+, but the scenario list (C1–C12) and class structure do not change without an ADR amendment.
+- **M0 is frozen.** The contract dir was renamed `beacon-s0-contract/` → `contract/` in M2.9 (ADR-0023) — content byte-identical apart from the mechanical name substitution. Files under `contract/spec/`, `contract/schema/`, and `contract/M0-FROZEN.md` are immutable without an ADR. The Java conformance harness file (`contract/conformance/java/ConformanceTest.java`) is part of that freeze — `@Disabled` reasons may be updated as tests get implemented in M1.1+, but the scenario list (C1–C12) and class structure do not change without an ADR amendment.
 - **Default branch is `main`.** Older docs may reference `master`; that was renamed on 2026-06-10. The contract.yml workflow now triggers on `main` (commit `c63b477`).
 - **`gradle/wrapper/gradle-wrapper.jar` is committed** as a binary (standard Gradle practice). `.gitattributes` marks it as such.
 - **Conformance harness sourceSet quirk:** `:conformance-java`'s `test` sourceSet has `srcDirs = ["."]` so the harness file stays at the M0-documented path. Javac doesn't require the on-disk path to match the package declaration for compilation; the output `.class` lands in the correct package directory regardless.
@@ -138,7 +149,7 @@ See `CONTRIBUTING.md` for the full flow.
 
 - Platform PRD/RFC: [`PRD.md`](PRD.md)
 - M1 roadmap (phase breakdown M1.0 → M1.8): [`docs/M1-ROADMAP.md`](docs/M1-ROADMAP.md)
-- M0 freeze record: [`beacon-s0-contract/M0-FROZEN.md`](beacon-s0-contract/M0-FROZEN.md)
-- Contract specs: [`beacon-s0-contract/spec/`](beacon-s0-contract/spec/)
-- Conformance scenarios: [`beacon-s0-contract/conformance/scenarios.yaml`](beacon-s0-contract/conformance/scenarios.yaml)
+- M0 freeze record: [`contract/M0-FROZEN.md`](contract/M0-FROZEN.md)
+- Contract specs: [`contract/spec/`](contract/spec/)
+- Conformance scenarios: [`contract/conformance/scenarios.yaml`](contract/conformance/scenarios.yaml)
 - Contributor entry points: [`CONTRIBUTING.md`](CONTRIBUTING.md)

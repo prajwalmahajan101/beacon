@@ -4,13 +4,32 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+**Milestone:** M2.9 — SDK monorepo restructure + benchmark CI parity, ahead of the `v1.0-rc-sdk` cut. Both SDKs move under an `sdk/{java,python}` umbrella; the Java Spring module is renamed to the adapter family; the Python benchmark is promoted to a sibling module with nightly + PR-smoke CI at parity with Java's JMH; and the M0 contract dir is renamed `beacon-s0-contract/` → `contract/`. Decisions in **ADR-0022** (restructure/rename/bench parity) + **ADR-0023** (M0-freeze amendment). A latent PyYAML runtime-dep bug surfaced by the sibling benchmark was fixed. NO new `BEACON_*` keys; contract content byte-identical apart from the mechanical rename.
+
 ### Added
+
+- M2.9: `sdk/` umbrella — `sdk/java/{core,spring-adapter,benchmark}` + `sdk/python/{core,benchmark}` (ADR-0022). Gradle project names kept flat (`:beacon-sdk-java`, `:beacon-sdk-java-benchmark`); only `projectDir` remaps in `settings.gradle.kts`, so the M0-frozen conformance build + artifact IDs are untouched.
+- M2.9: Python benchmark promoted to a sibling module `sdk/python/benchmark/` with its own `pyproject.toml` (uv path-dep on `../core`) — the Python analogue of Gradle's `jmh(project(":beacon-sdk-java"))`. New `BEACON_BENCH_WARMUP`/`BEACON_BENCH_ITERS` env knobs (analogue of `-PbenchmarkCI`) drive a fast smoke vs the full nightly.
+- M2.9: `.github/workflows/python-bench-nightly.yml` — cron `30 3 * * *` (staggered from JMH's `0 3`) + `workflow_dispatch`, `permissions: contents: read`, runs the full benchmark, writes `run-metadata.json`, uploads `python-bench-results-<run_id>` (30-day retention, `if-no-files-found: error`). Plus a PR-time `Verify benchmark runs (smoke)` step in `python-sdk.yml` — the parity of Java's `:beacon-sdk-java-benchmark:compileJmhJava` gate.
+- M2.9: ADR-0022 (restructure + adapter rename + bench parity) and ADR-0023 (contract dir rename / M0-freeze amendment).
 
 ### Changed
 
+- M2.9: Spring module `:beacon-spring-boot-starter` → `:beacon-sdk-spring-adapter` (dir `sdk/java/spring-adapter`). Runtime-safe — Spring Boot discovers auto-config via `META-INF/spring/…AutoConfiguration.imports`, not the artifact name; module unpublished, so no consumer migration. Sets up the `beacon-sdk-<framework>-adapter` family (django/fastapi/micronaut later).
+- M2.9: M0 contract dir `beacon-s0-contract/` → `contract/` (ADR-0023). Functional path refs updated across both SDKs (`SeverityMapper` classpath + fallback ladder, `_keys.py` `_ARTIFACT_RELPATH`, the two contract-test repo-root walk-ups), `settings.gradle.kts`, the drift tool, and all CI path filters. Contract content byte-identical apart from the mechanical name substitution; historical CHANGELOG/journals/past ADRs NOT rewritten (ADR-0023 + CLAUDE.md carry the forward-note).
+- M2.9: CI workflows (`java-sdk.yml`, `jmh-nightly.yml`, `python-sdk.yml`, `contract.yml`) repointed to the new `sdk/…` + `contract/` paths (working-directories, report/artifact paths, conformance relative-path depth `..` → `../../../`); GitHub issue/PR templates updated.
+- M2.9: the two Java contract tests (`ConfigKeysContractTest`, `SeverityMapperContractTest`) now resolve the repo root by walking up to the `contract/` marker instead of a fixed single-level `..` — depth-robust after the move.
+
 ### Fixed
 
+- M2.9: **latent runtime-dependency bug** surfaced by the sibling benchmark's runtime-only closure — `beacon/config/_keys.py` does a top-level `import yaml` on the `import beacon.config` path, but `pyyaml` was declared only in the Python SDK's **dev** group, so a runtime-only install broke. Moved `pyyaml` to `[project.dependencies]` (types-PyYAML stays dev); relocked. Same class as ADR-0021's `endpoint` fix.
+- M2.9: `check_contract_drift.py` had stale post-restructure SDK-source paths (`beacon-sdk-{java,python}/src/…`); repointed to `sdk/{java,python}/core/src/…` (caught by running `--sdk all` after the move).
+
 ### Verified
+
+- M2.9: `./gradlew build` green (SDK + `:beacon-sdk-spring-adapter` + benchmark compile, all unit tests + 12-scenario conformance harness); `:beacon-sdk-java:javadoc :beacon-sdk-spring-adapter:javadoc` `-Werror` clean; spotless clean.
+- M2.9: Python — core `127` unit tests + `20 passed / 0 skipped` conformance (C1–C12); benchmark full + smoke runs PASS (p99 well under the 1 ms budget).
+- M2.9: `check_contract_drift.py --sdk all` → OK (16 keys, 6 bands, exit 0); all 6 workflows YAML-parse.
 
 ## [v0.3-m2] — 2026-07-05
 
