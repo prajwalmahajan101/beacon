@@ -36,6 +36,7 @@ dev = [
   "pytest-html >= 4.1",
   "jsonschema >= 4.23",
   "pyyaml >= 6.0.2",
+  "ruff >= 0.6",
 ]
 
 [build-system]
@@ -47,3 +48,20 @@ packages = ["src/beacon"]
 
 [tool.uv]
 # (Intentionally minimal — uv defaults are correct for src-layout + editable project root.)
+
+# ADR-0012 (Java CI floor) idiom in Python: ruff SUBSUMES flake8 (E/F), isort (I),
+# pyupgrade (UP), bugbear (B) and pydocstyle (D) — one tool, no separate pydocstyle/darglint.
+[tool.ruff]
+target-version = "py310"   # matches requires-python >=3.10 + locked decision #2 (3.10 floor)
+line-length = 100          # single documented width (modern default; not bikeshed)
+src = ["src", "tests"]     # first-party roots so isort (I) orders imports correctly
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "D"]
+# D1xx "missing docstring" ignores: this is a floor, not a docstring-writing marathon
+# (Pitfall #22 — do not gold-plate). D100 module / D104 package / D107 __init__ docstrings
+# are not required across the existing (non-docstring-heavy) codebase.
+ignore = ["D100", "D104", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"      # consistent docstring style for the D rules (vs full-pedantic default)
