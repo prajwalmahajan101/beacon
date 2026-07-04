@@ -33,6 +33,7 @@ Source = "https://github.com/beacon/beacon/tree/main/beacon-sdk-python"
 # PEP 735 — uv's preferred location for dev deps (NOT [tool.uv.dev-dependencies]).
 dev = [
   "pytest >= 8.2",
+  "pytest-html >= 4.1",
   "jsonschema >= 4.23",
   "pyyaml >= 6.0.2",
 ]

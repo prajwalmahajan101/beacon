@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "beacon-sdk-python/**"
+      - "examples/python-sample/**"
       - "beacon-s0-contract/conformance/python/**"
       - "beacon-s0-contract/spec/severity-table.json"
       - "beacon-s0-contract/conformance/config-keys.yaml"
@@ -14,6 +15,7 @@ on:
     branches: [main]
     paths:
       - "beacon-sdk-python/**"
+      - "examples/python-sample/**"
       - "beacon-s0-contract/conformance/python/**"
       - "beacon-s0-contract/spec/severity-table.json"
       - "beacon-s0-contract/conformance/config-keys.yaml"
@@ -44,9 +46,17 @@ jobs:
         working-directory: beacon-sdk-python
         run: uv sync --frozen
 
-      - name: Unit tests
+      - name: Unit tests (HTML report)
         working-directory: beacon-sdk-python
-        run: uv run pytest tests/ -v
+        run: uv run pytest tests/ -v --html=pytest-report.html --self-contained-html
+
+      - name: Upload pytest HTML report
+        # if: always() so the report uploads even when the suite fails.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-sdk-pytest-report
+          path: beacon-sdk-python/pytest-report.html
 
       - name: Conformance harness (C1 + C12 expected green; C2..C11 expected skipped)
         working-directory: beacon-sdk-python
@@ -58,3 +68,11 @@ jobs:
         run: |
           python3 -m pip install --quiet pyyaml
           python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk python
+
+      - name: Run python-sample (integration smoke)
+        # Makes examples/python-sample/ a CI-verified integration artifact: uv run
+        # propagates the script's exit code, so a broken sample fails CI. No
+        # collector runs here, so the sample emits via the stderr/file fallback
+        # (Plan 02) — exit 0 is the pass condition (stderr content is NOT gated).
+        working-directory: examples/python-sample
+        run: uv run --with ../../beacon-sdk-python python main.py
