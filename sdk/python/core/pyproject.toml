@@ -24,6 +24,11 @@ dependencies = [
   "opentelemetry-sdk == 1.43.0",
   # ADR-0013: OTel Python SDK pin for M2 — see docs/adr/0013-otel-python-sdk-version-pin-m2.md
   "opentelemetry-exporter-otlp == 1.43.0",
+  # RUNTIME dep: config/_keys.py does a top-level `import yaml` on the
+  # `import beacon.config` path, so PyYAML must be installed for any real
+  # (runtime-only) consumer — not just the dev env. Surfaced by the sibling
+  # benchmark's runtime-only closure (M2.9, ADR-0022). types-PyYAML stays dev-only.
+  "pyyaml >= 6.0.2",
 ]
 
 [project.urls]
@@ -36,7 +41,6 @@ dev = [
   "pytest-html >= 4.1",
   "pytest-cov >= 5.0",
   "jsonschema >= 4.23",
-  "pyyaml >= 6.0.2",
   "ruff >= 0.6",
   "mypy >= 1.11",
   # types-PyYAML: the typeshed stub for `yaml` (imported in config/_keys.py).

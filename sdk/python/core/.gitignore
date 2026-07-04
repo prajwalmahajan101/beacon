@@ -7,8 +7,7 @@ __pycache__/
 build/
 dist/
 
-# Benchmark machine-readable output (build artifact; mirrors the Java results.json).
-benchmarks/emit_overhead.json
+# Benchmark moved to the sibling module sdk/python/benchmark (M2.9, ADR-0022).
 pytest-report.html
 
 # pytest-cov / coverage.py output (report-only CI artifacts; uploaded, never committed).

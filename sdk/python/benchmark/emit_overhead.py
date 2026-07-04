@@ -38,6 +38,7 @@ It prints a p50/p95/p99/p99.9 + mean table and a PASS/CARRY verdict against the
 from __future__ import annotations
 
 import json
+import os
 import platform
 import statistics
 import sys
@@ -55,8 +56,11 @@ from beacon.record import LogRecord
 
 # --- Workload knobs (mirror the Java floor workload) ------------------------
 
-WARMUP_ITERS = 50_000
-MEASURE_ITERS = 500_000
+# Env-overridable so CI can run a fast smoke (tiny N) on every PR vs the full
+# nightly measurement — the Python analogue of Java's `-PbenchmarkCI` reduced
+# profile (jmh-nightly.yml / ADR-0012). Defaults are the full local workload.
+WARMUP_ITERS = int(os.environ.get("BEACON_BENCH_WARMUP", "50000"))
+MEASURE_ITERS = int(os.environ.get("BEACON_BENCH_ITERS", "500000"))
 # Buffer big enough to never DROP during a drain window; we drain every
 # DRAIN_EVERY offers so `offer` always measures the accept (put_nowait) path.
 BUFFER_CAPACITY = 100_000

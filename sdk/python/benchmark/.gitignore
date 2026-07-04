@@ -1,0 +1,6 @@
+# Machine-readable benchmark output (regenerated on every run)
+emit_overhead.json
+
+# uv / venv
+.venv/
+__pycache__/

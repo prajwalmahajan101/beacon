@@ -1,0 +1,16 @@
+[project]
+name = "beacon-sdk-benchmark"
+version = "0.0.0"
+description = "Beacon Python SDK emit-path overhead benchmark — sibling of the SDK, not published (the Python analogue of the :beacon-sdk-java-benchmark JMH module). See docs/adr/0022."
+requires-python = ">=3.10"
+# Depends on the SDK by path so the benchmark times the REAL emit pipeline, the
+# Python analogue of Gradle's `jmh(project(":beacon-sdk-java"))`. No third-party
+# runtime dep of its own — stdlib perf_counter_ns + the SDK's own closure.
+dependencies = ["beacon-sdk"]
+
+[tool.uv]
+# This project is a runnable script, not an installable package — don't try to build it.
+package = false
+
+[tool.uv.sources]
+beacon-sdk = { path = "../core" }
