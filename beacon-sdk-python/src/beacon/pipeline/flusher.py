@@ -36,6 +36,7 @@ Locked decision #3 / ADR-0004: a single daemon thread + timed poll, NOT
 
 from __future__ import annotations
 
+import sys
 import threading
 import time
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -128,6 +129,12 @@ class BatchFlusher:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
+        # Idempotency guard for drain_and_stop (ADR-0006 decision #4 /
+        # ADR-0017): the Python idiom of Java's ``closed.compareAndSet(false,
+        # true)`` AtomicBoolean (the ADR-0014 threading.Lock idiom). A second
+        # drain_and_stop observes ``_closed`` under ``_lock`` and is a no-op:
+        # it does NOT double-join or double-flush.
+        self._closed = False
 
     def start(self) -> None:
         """Start the daemon flush thread. Idempotent + thread-safe."""
@@ -159,15 +166,63 @@ class BatchFlusher:
             self._thread = None
 
     def drain_and_stop(self, timeout_ms: int) -> None:
-        """Graceful drain on shutdown (spec/02 §2.6, C9) — **M2.4 seam**.
+        """Graceful drain on shutdown (spec/02 §2.6, C9) — the M2.4 close path.
 
-        Fail-loud per the M2.1 ``SPILL_FALLBACK`` precedent: the buffer-drain-then-
-        flush tail (plus the atexit / SIGTERM wiring) is owned by M2.4. Selecting
-        it pre-M2.4 raises rather than silently degrading. M2.4 will: stop the
-        loop, join with ``timeout_ms``, then ``buffer.drain_to(...)`` whatever the
-        buffer still holds through :meth:`_flush`.
+        Python idiom of Java ``BatchFlusher.drainAndStop`` / ``BeaconSdk.close()``
+        (ADR-0006, mirrored for Python in ADR-0017). Three phases:
+
+        1. **Stop + bounded best-effort join.** Set ``self._stop`` and
+           ``join(timeout_ms/1000)`` the worker (ADR-0006 decision #5). The
+           chunked poll (see module docstring) means the loop observes the flag
+           within ~one ``_POLL_CHUNK_MS`` chunk. The join is BEST-EFFORT: if it
+           times out and the worker is still alive we do NOT force-kill it — we
+           proceed to drain the buffer remainder and return (parity with Java
+           "join is best-effort, not enforced").
+        2. **In-flight batch** (ADR-0006 decision #2, first half). The worker's
+           existing loop-exit hook in :meth:`_run_loop` already flushes whatever
+           batch it was accumulating when it observed the stop — this method does
+           NOT duplicate it.
+        3. **Buffer remainder** (ADR-0006 decision #2 second half + decision #3).
+           After the join returns, drain EVERYTHING still in the buffer via
+           ``buffer.drain_to(remaining, sys.maxsize)`` (Java uses
+           ``Integer.MAX_VALUE``; ``drain_to`` is a non-blocking ``get_nowait``
+           loop so it is bounded) and, if non-empty, route it through the SAME
+           :meth:`_flush` helper — the configured ``self._sink``. Reuses the
+           configured sink — no fallback shortcut. When wired with
+           ``ResilientSink.of(OtlpExporter(...))`` (M2.4 Plan 02) the fallback
+           route is inherited for free (ADR-0006 decision #3); NEVER a
+           drain-only branch to a fallback.
+
+        Idempotent + thread-safe (ADR-0006 decision #4): guarded by a ``_closed``
+        bool flipped under ``self._lock``. A second call is a no-op. The lock is
+        held ONLY to flip ``_closed`` + capture the thread handle, then RELEASED
+        before the (potentially slow) join+drain so a concurrent ``stop()`` /
+        ``drain_and_stop()`` observes ``_closed`` without blocking on the join
+        (match how Java gates on ``compareAndSet`` then drains outside the
+        monitor). ``stop()`` remains the non-draining test path (ADR-0006
+        decision #1); a ``drain_and_stop()`` after a bare ``stop()`` still drains
+        any buffer remainder exactly once.
         """
-        raise NotImplementedError("M2.4: graceful drain (drain_and_stop)")
+        with self._lock:
+            if self._closed:
+                return  # already drained — no double-join, no double-flush
+            self._closed = True
+            self._stop.set()
+            thread = self._thread
+            self._thread = None
+
+        # Bounded, best-effort join OUTSIDE the lock (may be slow). Do NOT
+        # force-kill on timeout — if the worker is still alive we proceed to
+        # drain the remainder anyway; records still reach the sink.
+        if thread is not None:
+            thread.join(timeout=max(timeout_ms, 0) / 1000.0)
+
+        # Drain the buffer remainder through the configured sink. drain_to pulls
+        # via get_nowait until empty, so sys.maxsize is bounded in practice.
+        remaining: list[LogRecord] = []
+        self._buffer.drain_to(remaining, sys.maxsize)
+        if remaining:
+            self._flush(remaining)
 
     def _run_loop(self) -> None:
         """Drain the buffer into batches; flush on size OR interval (chunked poll)."""
