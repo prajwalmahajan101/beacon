@@ -46,9 +46,26 @@ jobs:
         working-directory: beacon-sdk-python
         run: uv sync --frozen
 
-      - name: Unit tests (HTML report)
+      # ADR-0012 (Java CI floor) idiom in Python — three BLOCKING gates that fail the
+      # build on any finding (no continue-on-error). Placed before the test suite to
+      # fail fast on style/type before running tests. Landed GREEN on the first gated
+      # run because Plans 01-02 made the tree ruff-clean + mypy --strict-clean.
+      - name: Ruff lint (gate)
         working-directory: beacon-sdk-python
-        run: uv run pytest tests/ -v --html=pytest-report.html --self-contained-html
+        run: uv run ruff check src tests
+
+      - name: Ruff format (gate)
+        working-directory: beacon-sdk-python
+        run: uv run ruff format --check src tests
+
+      - name: Mypy strict (gate)
+        working-directory: beacon-sdk-python
+        run: uv run mypy --strict src
+
+      - name: Unit tests (HTML report + coverage)
+        working-directory: beacon-sdk-python
+        # --cov is REPORT-ONLY (no threshold gate; mirrors Java JaCoCo, ADR-0012 §2).
+        run: uv run pytest tests/ -v --html=pytest-report.html --self-contained-html --cov --cov-report=html:htmlcov --cov-report=xml:coverage.xml --cov-report=term-missing
 
       - name: Upload pytest HTML report
         # if: always() so the report uploads even when the suite fails.
@@ -58,7 +75,18 @@ jobs:
           name: python-sdk-pytest-report
           path: beacon-sdk-python/pytest-report.html
 
-      - name: Conformance harness (C1 + C12 expected green; C2..C11 expected skipped)
+      - name: Upload coverage report
+        # Report-only coverage artifact (mirrors Java jacoco-coverage-report, ADR-0012 §2);
+        # if: always() so it uploads even when the suite fails. NO threshold check.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-sdk-coverage-report
+          path: |
+            beacon-sdk-python/htmlcov
+            beacon-sdk-python/coverage.xml
+
+      - name: Conformance harness (C1–C12 green)
         working-directory: beacon-sdk-python
         run: uv run python -m pytest ../beacon-s0-contract/conformance/python -v
 

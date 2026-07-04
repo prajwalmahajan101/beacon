@@ -10,3 +10,8 @@ dist/
 # Benchmark machine-readable output (build artifact; mirrors the Java results.json).
 benchmarks/emit_overhead.json
 pytest-report.html
+
+# pytest-cov / coverage.py output (report-only CI artifacts; uploaded, never committed).
+.coverage
+coverage.xml
+htmlcov/
