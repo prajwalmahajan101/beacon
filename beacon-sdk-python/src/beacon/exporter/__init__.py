@@ -13,6 +13,7 @@ from .fallback import (
     StderrFallbackSink,
     fallback_from_config,
 )
+from .otlp import OtlpExporter, OtlpExportError, parse_retry_after
 from .retry import RetryPolicy
 
 __all__ = [
@@ -22,4 +23,7 @@ __all__ = [
     "FileFallbackSink",
     "CapturingFallback",
     "fallback_from_config",
+    "OtlpExporter",
+    "OtlpExportError",
+    "parse_retry_after",
 ]
