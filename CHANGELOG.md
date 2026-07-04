@@ -4,6 +4,18 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Verified
+
+## [v0.3-m2] — 2026-07-05
+
+> **Milestone:** M2 complete — the Python SDK ships with conformance 12/12 green (C1–C12 on the Python harness), the same M0-frozen record shape + cross-SDK contract artifacts as the Java SDK (drift-gated under BOTH SDKs), a framework-agnostic `BeaconLoggingHandler`, and the Python CI hardening floor (M2.8, ADR-0021) locked green before the tag. Retrospective: [`docs/M2-COMPLETE.md`](docs/M2-COMPLETE.md). Spans M2.0–M2.8.
+
 **Milestone:** M2.8 — Python CI hardening floor (ruff + ruff format + mypy `--strict` + pytest-cov). The Python parity of Java's M1.9 floor (ADR-0012), landed as its own phase before the `v0.3-m2` release cut so the tag points at a tree that already passes the full style/type gate. Three BLOCKING gates in `.github/workflows/python-sdk.yml` — `uv run ruff check src tests` (**CI-PY-01**, subsumes flake8/isort/pyupgrade/pydocstyle-subset), `uv run ruff format --check src tests` (**CI-PY-02**, replaces black), `uv run mypy --strict src` (**CI-PY-03**, the Python-specific type gate — no Java sibling) — plus report-only `pytest-cov` (**CI-PY-04**, mirrors Java JaCoCo: no threshold, `python-sdk-coverage-report` artifact). **Lands-green-first:** the tree was made ruff-clean (Wave 1) and `mypy --strict`-clean (Wave 2) BEFORE the gates turned on (Wave 3), so the very first gated run is green — the Python analogue of Java CI-01's reformat-before-gate discipline. Decisions ratified in **ADR-0021** (mypy-over-pyright for stdlib-`typing` parity + no Node toolchain; skip rationale for darglint / standalone pydocstyle / black / coverage-threshold / OS-Python matrix — Pitfall #22). **`mypy --strict` surfaced a genuine latent bug** — `ExporterConfig.endpoint` (`str | None`) was passed to `OtlpExporter.__init__(endpoint: str)`; reconciled HONESTLY by widening `OtlpExporter`'s ctor param + property to `str | None` (matching the documented `endpoint=None` → OTel-default-target → fail-fast → `ResilientSink` fallback contract), NOT a cast/ignore (Pitfall #30). **Phase-order note:** Phase 4.8 was executed BEFORE Phase 4.7 — the roadmap "depends on 4.7" is a numbering artifact; the only real ordering constraint is that both precede 4.9 (publishing). NO new `BEACON_*` keys; the M0-frozen conformance harness is untouched.
 
 ### Added
