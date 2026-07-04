@@ -13,6 +13,6 @@ description = "Beacon Spring Boot starter sample — one-import integration demo
 // individual Spring Boot module versions do not need pinning here.
 
 dependencies {
-    implementation(project(":beacon-spring-boot-starter"))
+    implementation(project(":beacon-sdk-spring-adapter"))
     implementation("org.springframework.boot:spring-boot-starter-web")
 }

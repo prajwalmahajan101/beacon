@@ -66,7 +66,7 @@ subprojects {
     // Internal subprojects (conformance harness, JMH benchmarks, examples) opt out:
     // no public consumers, so doc-warning fixes there are pure overhead.
     // See plan 03.1-03 + anticipated ADR-0012 for the scoping rationale.
-    val publicApiSubprojects = setOf("beacon-sdk-java", "beacon-spring-boot-starter")
+    val publicApiSubprojects = setOf("beacon-sdk-java", "beacon-sdk-spring-adapter")
     if (project.name in publicApiSubprojects) {
         tasks.withType<Javadoc>().configureEach {
             options {

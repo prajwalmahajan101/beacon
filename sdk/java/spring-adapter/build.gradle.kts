@@ -2,8 +2,8 @@ plugins {
     `java-library`
 }
 
-description = "Beacon Spring Boot starter — auto-wires BeaconSdk + BeaconLogbackAppender + " +
-    "BeaconTaskDecorator for Spring Boot 3.x apps. See docs/adr/0009 (anticipated)."
+description = "Beacon SDK Spring Boot adapter — auto-wires BeaconSdk + BeaconLogbackAppender + " +
+    "BeaconTaskDecorator for Spring Boot 3.x apps. See docs/adr/0009 + docs/adr/0022 (rename)."
 
 val libs = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
