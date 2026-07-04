@@ -37,6 +37,13 @@ dev = [
   "jsonschema >= 4.23",
   "pyyaml >= 6.0.2",
   "ruff >= 0.6",
+  "mypy >= 1.11",
+  # types-PyYAML: the typeshed stub for `yaml` (imported in config/_keys.py).
+  # Declared as a real dev dep (NOT `mypy --install-types` ad-hoc) so CI is reproducible.
+  # Pitfall #23: typeshed stub bumps can surface NEW mypy errors on minor bumps
+  # (the Python analog of the Javadoc `-Werror` JDK-bump tail flush) — a `>=` floor
+  # keeps us current while the bump-or-justify review catches the tail.
+  "types-PyYAML >= 6.0",
 ]
 
 [build-system]
@@ -71,3 +78,25 @@ ignore = ["D100", "D104", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"      # consistent docstring style for the D rules (vs full-pedantic default)
+
+# ADR-0012 (Java CI floor) idiom in Python: `mypy --strict` is the type gate — the
+# Python analog of the Java compiler's type-checking. DEFAULT PICK is mypy (over pyright)
+# for stdlib `typing` parity (rationale recorded in ADR-0021, Plan 04). This config IS the
+# gate: `strict = true` is the single flag that turns on the full strict bundle.
+[tool.mypy]
+python_version = "3.10"    # check against the OLDEST supported interpreter's typing surface
+                           # (matches requires-python >=3.10 + locked decision #2)
+strict = true              # the single flag that turns on the full strict bundle
+files = ["src"]            # type-check the SDK source; tests are out of scope this phase
+                           # (keep the floor minimal — Pitfall #22; do NOT expand to tests/)
+warn_unused_ignores = true    # keep the `# type: ignore` surface honest (flag stale ignores)
+warn_redundant_casts = true   # flag casts that mypy can already prove unnecessary
+
+# The ONE sanctioned import-boundary ignore (mirrors how Java treats un-annotated 3rd-party
+# deps): the OTel Python SDK ships partial/no py.typed for the internal modules Beacon imports,
+# so silence the missing-stub errors for `opentelemetry.*` at the MODULE level rather than
+# scattering `# type: ignore[import-not-found]` across exporter/otlp.py + pipeline/enricher.py.
+# NOTE: `yaml` is NOT ignored here — it has real stubs (types-PyYAML), installed instead.
+[[tool.mypy.overrides]]
+module = ["opentelemetry.*"]
+ignore_missing_imports = true
