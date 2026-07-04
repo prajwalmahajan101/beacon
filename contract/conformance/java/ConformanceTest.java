@@ -68,7 +68,7 @@ import org.yaml.snakeyaml.Yaml;
 class ConformanceTest {
 
   private static final Path SCENARIOS_DIR =
-      Paths.get("..").toAbsolutePath().normalize(); // .../beacon-s0-contract/conformance/
+      Paths.get("..").toAbsolutePath().normalize(); // .../contract/conformance/
 
   /**
    * Cross-SDK config-key contract artifact (M1.8 Plan 03-01). Loaded once before any scenario runs;
@@ -93,7 +93,7 @@ class ConformanceTest {
 
     // severity-table.json lives under spec/ (additive carve-out within the M0
     // freeze per Plan 03-02 / ADR-0010 draft). SCENARIOS_DIR points at
-    // beacon-s0-contract/conformance/, so step up one level to reach spec/.
+    // contract/conformance/, so step up one level to reach spec/.
     Path severityTable = SCENARIOS_DIR.resolve("../spec/severity-table.json").normalize();
     SEVERITY_TABLE_CONTRACT = new ObjectMapper().readTree(severityTable.toFile());
   }

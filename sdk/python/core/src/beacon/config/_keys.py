@@ -1,4 +1,4 @@
-"""Loads beacon-s0-contract/conformance/config-keys.yaml at import time.
+"""Loads contract/conformance/config-keys.yaml at import time.
 
 Exposes ``CANONICAL_ENV_VARS`` and ``CANONICAL_SYSPROPS`` tuples — the literal env-var /
 system-property spellings the drift-checker asserts present in Python source. Per the
@@ -24,7 +24,7 @@ from pathlib import Path
 
 import yaml
 
-_ARTIFACT_RELPATH: tuple[str, ...] = ("beacon-s0-contract", "conformance", "config-keys.yaml")
+_ARTIFACT_RELPATH: tuple[str, ...] = ("contract", "conformance", "config-keys.yaml")
 
 # Canonical env-var spelling anchor — pinned to config-keys.yaml by the import-time check.
 # 12 leaf + 3 redact-composite children (the composite parent `redact` has no env spelling).

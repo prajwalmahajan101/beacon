@@ -18,7 +18,7 @@ Requires [`uv`](https://docs.astral.sh/uv/) and Python 3.10+.
 # From this directory (beacon-sdk-python/):
 uv sync                  # creates .venv, installs runtime + dev deps, editable-installs the SDK
 uv run pytest tests/     # unit tests
-uv run python -m pytest ../beacon-s0-contract/conformance/python  # conformance harness (C1 + C12)
+uv run python -m pytest ../contract/conformance/python  # conformance harness (C1 + C12)
 ```
 
 `import beacon; print(beacon.__version__)` should print `0.3.0.dev0`.

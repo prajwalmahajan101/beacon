@@ -3,8 +3,8 @@
 Cross-SDK contract-drift checker.
 
 Compares the contract artifacts:
-  beacon-s0-contract/conformance/config-keys.yaml
-  beacon-s0-contract/spec/severity-table.json
+  contract/conformance/config-keys.yaml
+  contract/spec/severity-table.json
 
 against an SDK's effective surfaces. Today only the Java SDK is implemented;
 the --sdk python path is a stub that returns 0 (M2 will fill it in).
@@ -15,7 +15,7 @@ Java introspection (no JVM required - source-level regex):
                                literal env/sysprop spelling found via grep
   3. SeverityMapper.java     - confirmed to load severity-table.json (string literal
                                check); the runtime behaviour is pinned by
-                               SeverityMapperContractTest in :beacon-sdk-java:test.
+                               SeverityMapperContractTest in :sdk/java/core:test.
 
 Exit codes:
   0 - no drift
@@ -33,15 +33,15 @@ from pathlib import Path
 
 import yaml
 
-# parents indexing (verified): __file__ at beacon-s0-contract/conformance/tools/check_contract_drift.py
-#   parents[0] = tools/   parents[1] = conformance/   parents[2] = beacon-s0-contract/   parents[3] = repo root
+# parents indexing (verified): __file__ at contract/conformance/tools/check_contract_drift.py
+#   parents[0] = tools/   parents[1] = conformance/   parents[2] = contract/   parents[3] = repo root
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CONFIG_KEYS = REPO_ROOT / "beacon-s0-contract" / "conformance" / "config-keys.yaml"
-SEVERITY_TABLE = REPO_ROOT / "beacon-s0-contract" / "spec" / "severity-table.json"
+CONFIG_KEYS = REPO_ROOT / "contract" / "conformance" / "config-keys.yaml"
+SEVERITY_TABLE = REPO_ROOT / "contract" / "spec" / "severity-table.json"
 
-JAVA_CONFIG = REPO_ROOT / "beacon-sdk-java" / "src" / "main" / "java" / "io" / "beacon" / "sdk" / "config" / "BeaconConfig.java"
-JAVA_LOADER = REPO_ROOT / "beacon-sdk-java" / "src" / "main" / "java" / "io" / "beacon" / "sdk" / "config" / "BeaconConfigLoader.java"
-JAVA_SEVERITY = REPO_ROOT / "beacon-sdk-java" / "src" / "main" / "java" / "io" / "beacon" / "sdk" / "severity" / "SeverityMapper.java"
+JAVA_CONFIG = REPO_ROOT / "sdk/java/core" / "src" / "main" / "java" / "io" / "beacon" / "sdk" / "config" / "BeaconConfig.java"
+JAVA_LOADER = REPO_ROOT / "sdk/java/core" / "src" / "main" / "java" / "io" / "beacon" / "sdk" / "config" / "BeaconConfigLoader.java"
+JAVA_SEVERITY = REPO_ROOT / "sdk/java/core" / "src" / "main" / "java" / "io" / "beacon" / "sdk" / "severity" / "SeverityMapper.java"
 
 # Composite redact mapping per ADR-0009 section 3
 COMPOSITE_CHILD_TO_COMPONENT = {
@@ -104,9 +104,9 @@ def java_record_components() -> set[str]:
 
 
 def java_all_source() -> str:
-    """Concatenated source under beacon-sdk-java/src/main/java - used for literal env/sysprop search."""
+    """Concatenated source under sdk/java/core/src/main/java - used for literal env/sysprop search."""
     buf = []
-    for p in (REPO_ROOT / "beacon-sdk-java" / "src" / "main" / "java").rglob("*.java"):
+    for p in (REPO_ROOT / "sdk/java/core" / "src" / "main" / "java").rglob("*.java"):
         buf.append(p.read_text())
     return "\n".join(buf)
 
@@ -139,17 +139,17 @@ def check_java_config_keys(keys: list[dict], errors: list[str]) -> None:
         # env spelling must appear literally somewhere in main source
         env = key.get("env")
         if env and env not in java_src:
-            errors.append(f"[java/config] env spelling '{env}' (for key '{name}') not present in beacon-sdk-java/src/main")
+            errors.append(f"[java/config] env spelling '{env}' (for key '{name}') not present in sdk/java/core/src/main")
         sysprop = key.get("sysprop")
         if sysprop and sysprop not in java_src:
-            errors.append(f"[java/config] sysprop spelling '{sysprop}' (for key '{name}') not present in beacon-sdk-java/src/main")
+            errors.append(f"[java/config] sysprop spelling '{sysprop}' (for key '{name}') not present in sdk/java/core/src/main")
 
 
 def check_severity_structural_invariants(bands: list[dict], errors: list[str]) -> None:
     """Artifact-only checks - run regardless of which SDK is being checked.
 
     Anchor-VALUE drift between the contract artifact and SDK runtime is intentionally
-    caught by per-SDK unit tests (e.g. SeverityMapperContractTest in :beacon-sdk-java:test,
+    caught by per-SDK unit tests (e.g. SeverityMapperContractTest in :sdk/java/core:test,
     which runs in java-sdk.yml). This Python checker runs in contract.yml too - which has
     no Gradle - so we can only assert artifact-shape invariants here.
     """
@@ -180,7 +180,7 @@ def check_java_severity_table(bands: list[dict], errors: list[str]) -> None:
         errors.append("[java/severity] SeverityMapper.java does not reference 'severity-table.json' - runtime is not loading the contract artifact")
     # Band names must all appear as Band enum values. (After the Plan 03-02 refactor, the
     # anchor NUMBERS no longer appear as literals in SeverityMapper.java - that drift is
-    # caught by SeverityMapperContractTest under :beacon-sdk-java:test, which runs in
+    # caught by SeverityMapperContractTest under :sdk/java/core:test, which runs in
     # java-sdk.yml. This checker, which also runs in contract.yml without a JVM, is
     # limited to artifact-shape + band-name presence.)
     for band in bands:
@@ -197,9 +197,9 @@ def check_python_sdk(keys: list[dict], bands: list[dict], errors: list[str]) -> 
     SDK must LOAD the contract artifacts at runtime and never re-encode them, so this gate
     asserts: (a) the severity loader references 'severity-table.json'; (b) all 6 band names
     appear in mapper.py; (c) every config-keys.yaml BEACON_* env literal appears somewhere in
-    beacon-sdk-python/src/beacon/.
+    sdk/python/core/src/beacon/.
     """
-    py_root = REPO_ROOT / "beacon-sdk-python"
+    py_root = REPO_ROOT / "sdk/python/core"
     if not py_root.exists():
         return  # M2 has not landed; nothing to check
 
@@ -239,7 +239,7 @@ def check_python_sdk(keys: list[dict], bands: list[dict], errors: list[str]) -> 
         if env_literal and env_literal not in all_py_source:
             errors.append(
                 f"[python/config] env literal '{env_literal}' from config-keys.yaml "
-                "not found in beacon-sdk-python/src/beacon/"
+                "not found in sdk/python/core/src/beacon/"
             )
 
 

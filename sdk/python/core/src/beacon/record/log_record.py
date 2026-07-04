@@ -2,7 +2,7 @@
 
 Field-for-field parity with
 ``beacon-sdk-java/src/main/java/io/beacon/sdk/record/LogRecord.java`` and the
-12-component model defined in ``beacon-s0-contract/spec/01-telemetry-record-spec.md`` §1.
+12-component model defined in ``contract/spec/01-telemetry-record-spec.md`` §1.
 
 All timestamps are **integer nanoseconds** since the Unix epoch (the value
 returned by ``time.time_ns()``). NEVER pass a ``float`` or a ``datetime`` — both

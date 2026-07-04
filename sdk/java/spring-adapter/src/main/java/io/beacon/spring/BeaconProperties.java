@@ -38,8 +38,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>{@code beacon.enabled} is the starter-only opt-out gate (Pitfall #18) and is NOT counted in
  * the 13 canonical surfaces. Defaults to {@code true} (auto-config active).
  *
- * <p>See {@code beacon-s0-contract/spec/02-sdk-behavior-spec.md §4} for the cross-language
- * config-key contract and the anticipated ADR-0009 for the redactor-timeout fold.
+ * <p>See {@code contract/spec/02-sdk-behavior-spec.md §4} for the cross-language config-key
+ * contract and the anticipated ADR-0009 for the redactor-timeout fold.
  */
 @ConfigurationProperties(prefix = "beacon")
 public class BeaconProperties {

@@ -5,7 +5,7 @@ import java.util.Map;
 
 /**
  * Serializes {@link LogRecord} to the canonical JSON shape that {@code
- * beacon-s0-contract/schema/log-record.schema.json} validates.
+ * contract/schema/log-record.schema.json} validates.
  *
  * <p>Hand-rolled to keep the SDK runtime path light (no Jackson on the emit path). Output is the
  * JSON form the conformance harness validates against.

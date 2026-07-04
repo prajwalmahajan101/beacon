@@ -19,9 +19,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Top-level entry point for the Beacon SDK. Build with {@link #builder()}.
  *
  * <p>Runtime behavior implemented incrementally across M1.1–M1.7 against the contract at {@code
- * beacon-s0-contract/spec/02-sdk-behavior-spec.md}. M1.3 wires the batch flusher (size + interval)
- * behind the bounded buffer and exposes a pluggable {@link BatchSink} via the builder. M1.6 inserts
- * the {@link Enricher} + {@link Redactor} pipeline ahead of the buffer (spec §2.7–2.8).
+ * contract/spec/02-sdk-behavior-spec.md}. M1.3 wires the batch flusher (size + interval) behind the
+ * bounded buffer and exposes a pluggable {@link BatchSink} via the builder. M1.6 inserts the {@link
+ * Enricher} + {@link Redactor} pipeline ahead of the buffer (spec §2.7–2.8).
  */
 public final class BeaconSdk implements AutoCloseable {
 

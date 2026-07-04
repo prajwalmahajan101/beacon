@@ -44,7 +44,7 @@ public final class BeaconConfigLoader {
 
   // ─── Reserved canonical env/sysprop spellings (M1.8 Plan 03-01) ──────────
   // These constants exist so the M1.8 cross-SDK contract test (ConfigKeysContractTest)
-  // can assert every canonical spelling in beacon-s0-contract/conformance/config-keys.yaml
+  // can assert every canonical spelling in contract/conformance/config-keys.yaml
   // appears verbatim in SDK source — even for keys whose builder wiring (env > sysprop >
   // builder resolver) is deferred to M2 hygiene work. The names below match
   // config-keys.yaml exactly. Do NOT remove without updating the contract artifact.

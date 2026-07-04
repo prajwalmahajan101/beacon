@@ -1,7 +1,7 @@
 """Canonical JSON serializer for :class:`~beacon.record.log_record.LogRecord`.
 
 Byte-equivalent to ``io.beacon.sdk.record.CanonicalJson`` for nanosecond-precision
-records. Fields are emitted in ``beacon-s0-contract/spec/01-telemetry-record-spec.md``
+records. Fields are emitted in ``contract/spec/01-telemetry-record-spec.md``
 §1 order; this serializer NEVER alphabetizes (so ``json.dumps(sort_keys=True)`` is
 deliberately not used). Optional fields are omitted when ``None``.
 
@@ -25,7 +25,7 @@ from .log_record import LogRecord
 
 
 def serialize(record: LogRecord) -> str:
-    """Canonical JSON form per ``beacon-s0-contract/schema/log-record.schema.json``.
+    """Canonical JSON form per ``contract/schema/log-record.schema.json``.
 
     Schema-required fields are emitted in spec/01 §1 order; optional fields are
     omitted when ``None``. The field order mirrors Java ``CanonicalJson.serialize``:

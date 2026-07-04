@@ -8,7 +8,7 @@ val libs = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
 dependencies {
     api(libs.otel.api)
-    // M1.8 — SeverityMapper loads beacon-s0-contract/spec/severity-table.json at class init
+    // M1.8 — SeverityMapper loads contract/spec/severity-table.json at class init
     // (cross-SDK contract artifact, Plan 03-02). Jackson is required on the SDK main classpath.
     implementation(libs.jackson.databind)
     implementation(libs.otel.sdk)
@@ -27,7 +27,7 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj)
-    // M1.8 — ConfigKeysContractTest loads beacon-s0-contract/conformance/config-keys.yaml
+    // M1.8 — ConfigKeysContractTest loads contract/conformance/config-keys.yaml
     // (cross-SDK single-source-of-truth) to pin the SDK's 13-surface key set (Pitfall #3).
     testImplementation(libs.snakeyaml)
     testRuntimeOnly(libs.junit.platform.launcher)

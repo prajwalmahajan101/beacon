@@ -18,8 +18,8 @@ import org.yaml.snakeyaml.Yaml;
 
 /**
  * Pins the Java SDK's effective config-key set to the cross-SDK contract artifact
- * (beacon-s0-contract/conformance/config-keys.yaml). Pitfall #3 — cross-language config-key drift
- * guard, Java side.
+ * (contract/conformance/config-keys.yaml). Pitfall #3 — cross-language config-key drift guard, Java
+ * side.
  *
  * <p>For each canonical surface in the YAML:
  *
@@ -35,21 +35,21 @@ import org.yaml.snakeyaml.Yaml;
 class ConfigKeysContractTest {
 
   private static final Path CONTRACT_YAML =
-      repoRoot().resolve(Paths.get("beacon-s0-contract", "conformance", "config-keys.yaml"));
+      repoRoot().resolve(Paths.get("contract", "conformance", "config-keys.yaml"));
 
   /**
    * Walk up from the test working directory (the module dir) until the repo root — the ancestor
-   * containing {@code beacon-s0-contract/} — is found. Robust to the module's depth under the root
-   * (M2.9 moved this module to {@code sdk/java/core}; see docs/adr/0022).
+   * containing {@code contract/} — is found. Robust to the module's depth under the root (M2.9
+   * moved this module to {@code sdk/java/core}; see docs/adr/0022).
    */
   private static Path repoRoot() {
     Path dir = Paths.get("").toAbsolutePath();
-    while (dir != null && !Files.isDirectory(dir.resolve("beacon-s0-contract"))) {
+    while (dir != null && !Files.isDirectory(dir.resolve("contract"))) {
       dir = dir.getParent();
     }
     if (dir == null) {
       throw new IllegalStateException(
-          "Could not locate repo root (a parent containing beacon-s0-contract) from "
+          "Could not locate repo root (a parent containing contract) from "
               + Paths.get("").toAbsolutePath());
     }
     return dir;

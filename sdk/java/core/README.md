@@ -86,7 +86,7 @@ The SDK contract surface is **13 canonical keys** (cross-language, identical in 
 | `samplingRatio` | `1.0` | Head sampling ratio. |
 | `redact` (composite) | _3 nested fields_ | `keys` (List<String>), `defaults` (boolean, default `true` — union with `password\|authorization\|api_key\|secret\|token`), `timeout-ms` (long, default `5`). |
 
-Cross-reference: `beacon-s0-contract/spec/02-sdk-behavior-spec.md` §4 and ADR-0009 (forthcoming). The Java `BeaconConfig` record internally stores 15 components (the composite `redact` flattens into `redactKeys`, `redactDefaults`, `redactorTimeoutMs` for backward compatibility with M1.6 wiring); the public 13-key surface is the binding contract.
+Cross-reference: `contract/spec/02-sdk-behavior-spec.md` §4 and ADR-0009 (forthcoming). The Java `BeaconConfig` record internally stores 15 components (the composite `redact` flattens into `redactKeys`, `redactDefaults`, `redactorTimeoutMs` for backward compatibility with M1.6 wiring); the public 13-key surface is the binding contract.
 
 Resolution order (highest first): environment variable (`BEACON_<UPPER_SNAKE_CASE>`) → system property (`-Dbeacon.<camelCase>`) → `BeaconConfig.Builder` value → built-in default. See `BeaconConfigLoader`.
 

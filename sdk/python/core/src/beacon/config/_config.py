@@ -65,7 +65,7 @@ class FlusherConfig:
     Holds exactly the two knobs the M2.2 batch flusher consumes, mirroring the
     Java ``BatchFlusher`` ctor params (``batchMaxRecords`` / ``flushIntervalMs``).
     Defaults are the EXACT canonical values from
-    ``beacon-s0-contract/conformance/config-keys.yaml`` (``batch-max-records`` 512
+    ``contract/conformance/config-keys.yaml`` (``batch-max-records`` 512
     / C4, ``flush-interval-ms`` 1000 / C5).
 
     Naming note: the M2 roadmap informally writes ``flush_max_size``; the canonical
@@ -94,7 +94,7 @@ class ExporterConfig:
 
     Holds the M2.3 resilience knobs the ``ResilientSink`` + ``OtlpExporter``
     (Plan 02) consume. Defaults are the EXACT canonical values from
-    ``beacon-s0-contract/conformance/config-keys.yaml`` (``endpoint`` null,
+    ``contract/conformance/config-keys.yaml`` (``endpoint`` null,
     ``max-retries`` 5 / C7, ``backoff-base-ms`` 100 / C7, ``backoff-max-ms`` 5000
     / C7, ``fallback-sink`` ``stderr`` / C8) — NOT invented. Mirrors the
     resilience slice of Java ``BeaconConfig`` + the ``RetryPolicy`` ctor guards
