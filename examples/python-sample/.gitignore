@@ -1,0 +1,5 @@
+# Throwaway demo output written by main.py via the resilience file-fallback path.
+beacon-sample.log
+
+# uv writes this on `uv run`; a script sample pins nothing, so keep it out of git.
+uv.lock
