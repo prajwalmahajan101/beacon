@@ -195,3 +195,98 @@ def test_ctor_rejects_nonpositive():
         BatchFlusher(buffer, NOOP, 0, 1000, metrics)
     with pytest.raises(ValueError):
         BatchFlusher(buffer, NOOP, 10, 0, metrics)
+
+
+# ---- M2.4 drain_and_stop (graceful shutdown; ADR-0006 / ADR-0017) --------
+
+
+def test_drain_and_stop_flushes_buffer_remainder():
+    # C9 shape in miniature: NEITHER trigger fires (huge size cap + huge
+    # interval), so 200 records sit in the buffer until drain_and_stop pulls
+    # the remainder through the configured sink. None are dropped.
+    sink = _CollectingSink()
+    buffer, flusher, _ = _make(1000, sink, 10000, 60000)
+    flusher.start()
+    for i in range(200):
+        assert buffer.offer(_rec(f"r{i}"))
+    flusher.drain_and_stop(5000)
+    assert sink.total_records() == 200
+
+
+def test_drain_and_stop_flushes_in_flight_batch():
+    # The loop poll-pulls at least one record into its in-flight batch; the
+    # loop-exit hook flushes that batch and drain_and_stop drains the rest.
+    # Assert the TOTAL at the sink equals total offered (path-agnostic).
+    sink = _CollectingSink()
+    buffer, flusher, metrics = _make(1000, sink, 10000, 60000)
+    flusher.start()
+    for i in range(50):
+        assert buffer.offer(_rec(f"r{i}"))
+    # Let the loop pull at least one record out of the buffer (depth drops).
+    assert _wait_until(lambda: metrics.buffer_depth < 50, timeout=2.0)
+    flusher.drain_and_stop(5000)
+    assert sink.total_records() == 50
+
+
+def test_drain_and_stop_is_idempotent():
+    # A second drain_and_stop is a no-op: the sink total is unchanged and
+    # batches_flushed does not increase (the _closed guard blocks re-drain).
+    sink = _CollectingSink()
+    buffer, flusher, metrics = _make(1000, sink, 10000, 60000)
+    flusher.start()
+    for i in range(120):
+        assert buffer.offer(_rec(f"r{i}"))
+    flusher.drain_and_stop(5000)
+    total_after_first = sink.total_records()
+    batches_after_first = metrics.batches_flushed
+    assert total_after_first == 120
+    flusher.drain_and_stop(5000)  # no-op
+    assert sink.total_records() == total_after_first
+    assert metrics.batches_flushed == batches_after_first
+
+
+def test_drain_and_stop_joins_worker_thread():
+    # After drain_and_stop the worker is joined: not running, no leaked thread.
+    sink = _CollectingSink()
+    buffer, flusher, _ = _make(1000, sink, 10000, 60000)
+    flusher.start()
+    for i in range(10):
+        assert buffer.offer(_rec(f"r{i}"))
+    flusher.drain_and_stop(5000)
+    assert flusher.is_running is False
+    assert _wait_until(
+        lambda: not any(
+            t.name == _FLUSHER_THREAD_NAME for t in threading.enumerate()
+        ),
+        timeout=0.5,
+    ), "flusher thread survived drain_and_stop()"
+
+
+def test_drain_and_stop_reuses_configured_sink():
+    # The drained remainder reaches the SAME injected sink object (identity) —
+    # proving no fallback shortcut: the remainder rides _flush -> self._sink.
+    sink = _CollectingSink()
+    buffer, flusher, _ = _make(1000, sink, 10000, 60000)
+    flusher.start()
+    for i in range(75):
+        assert buffer.offer(_rec(f"r{i}"))
+    flusher.drain_and_stop(5000)
+    # Every record landed in THIS sink instance (identity capture), not a
+    # separately-constructed fallback.
+    assert sink.total_records() == 75
+    assert sum(len(b) for b in sink.collected) == 75
+
+
+def test_drain_and_stop_after_stop_still_drains_once():
+    # A bare stop() is non-draining; a following drain_and_stop still empties
+    # the buffer remainder exactly once (and a further call is a no-op).
+    sink = _CollectingSink()
+    buffer, flusher, _ = _make(1000, sink, 10000, 60000)
+    flusher.start()
+    for i in range(60):
+        assert buffer.offer(_rec(f"r{i}"))
+    flusher.stop()  # non-draining: may flush an in-flight batch, buffer keeps rest
+    flusher.drain_and_stop(5000)  # first drain after stop -> empties remainder
+    assert sink.total_records() == 60
+    flusher.drain_and_stop(5000)  # no-op
+    assert sink.total_records() == 60
