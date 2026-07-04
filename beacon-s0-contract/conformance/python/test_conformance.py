@@ -30,6 +30,8 @@ except ImportError:  # keep the skeleton importable before deps are installed
 # jsonschema guard.
 try:
     from beacon.config import DropPolicy
+    from beacon.exporter import ResilientSink, RetryPolicy
+    from beacon.exporter.fallback import CapturingFallback
     from beacon.metrics import SdkMetrics
     from beacon.pipeline import BatchFlusher, BoundedBuffer
     from beacon.record import LogRecord
@@ -113,6 +115,62 @@ def _wait_until(predicate, timeout: float = 2.0, step: float = 0.005) -> bool:
             return True
         time.sleep(step)
     return predicate()
+
+
+# ---- Fake delegate BatchSinks for C6/C7/C8 -------------------------------
+# These are test-support classes (NOT in the SDK). Each implements the
+# structural BatchSink contract (``accept(batch)``) and is injected into the REAL
+# ResilientSink so C6/C7/C8 exercise the actual retry/backoff/fallback path with
+# NO live OTLP collector. The resilient sink IS the unit under test here (there
+# is no full emit() pipeline until M2.4/M2.6), mirroring how C4/C5 drove the
+# BatchFlusher directly.
+
+
+class _FailNTimesDelegate:
+    """Fails its first ``fail_times`` ``accept`` calls, then succeeds.
+
+    Models a broker that is transiently unavailable. Tracks ``calls`` so a test
+    can assert exactly how many attempts the ResilientSink made.
+    """
+
+    def __init__(self, fail_times: int) -> None:
+        self._fail_times = fail_times
+        self.calls = 0
+
+    def accept(self, batch: list["LogRecord"]) -> None:
+        self.calls += 1
+        if self.calls <= self._fail_times:
+            raise RuntimeError("transient")
+
+
+class _UnreachableDelegate:
+    """Always raises — models an unreachable gateway / broker down for the run."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def accept(self, batch: list["LogRecord"]) -> None:
+        self.calls += 1
+        raise RuntimeError("unreachable")
+
+
+class _DownThenUpDelegate:
+    """Raises while ``up`` is False; succeeds once the TEST flips ``up = True``.
+
+    Recovery is driven by a flag the test flips rather than the scenario's
+    wall-clock ``down_ms`` — the contract point of C8 is "resumes export without
+    restart", not the exact 1000ms downtime. Tracks records exported after
+    recovery for the delta assertion.
+    """
+
+    def __init__(self) -> None:
+        self.up = False
+        self.exported = 0
+
+    def accept(self, batch: list["LogRecord"]) -> None:
+        if not self.up:
+            raise RuntimeError("down")
+        self.exported += len(batch)
 
 
 @pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
@@ -268,19 +326,101 @@ def test_c5_flush_by_interval():
     assert observed_ms < 2000.0, f"interval flush took {observed_ms:.1f}ms"
 
 
-@pytest.mark.skip(reason="M1: fail 6x, max_retries=5 -> fallback, no loss")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c6_retry_backoff_then_fallback():
-    ...
+    """C6 — retries are exhausted, then the batch is routed to the fallback (no loss).
+
+    Per scenarios.yaml C6 (exporter=fail_n_times, fail_times=6, max_retries=5,
+    expect_fallback: true). A ``_FailNTimesDelegate(fail_times=6)`` is injected
+    into the REAL ResilientSink with ``max_retries=5`` — i.e. ``max_retries + 1 =
+    6`` total attempts, all of which fail (calls 1..6 are <= fail_times=6). With
+    every attempt exhausted the batch MUST land in the fallback sink; nothing is
+    dropped. ``base_ms=max_ms=1`` keeps the (at most 1ms) backoff sleeps
+    negligible + deterministic — no live OTLP collector.
+    """
+    metrics = SdkMetrics()
+    cf = CapturingFallback(metrics)
+    delegate = _FailNTimesDelegate(fail_times=6)
+    rs = ResilientSink(delegate, RetryPolicy(5, 1, 1), cf, metrics)
+
+    batch = [_rec(f"r{i}") for i in range(3)]
+    rs.accept(batch)
+
+    # 6 total attempts (initial + 5 retries), all failed -> fallback.
+    assert delegate.calls == 6, f"expected 6 attempts, got {delegate.calls}"
+    assert metrics.export_failures == 6
+    assert metrics.records_exported == 0
+    # expect_fallback: true — the batch is in the fallback, no records lost.
+    assert len(cf.records) == len(batch)
+    assert metrics.fallback_writes == len(batch)
 
 
-@pytest.mark.skip(reason="M1: unreachable gateway -> records in fallback sink")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c7_fallback_sink_on_broker_down():
-    ...
+    """C7 — an unreachable broker routes every emitted record to the fallback sink.
+
+    Per scenarios.yaml C7 (exporter=unreachable, emit_count=50,
+    expect_fallback_min: 50). A ``_UnreachableDelegate`` (always raises) is
+    injected into the REAL ResilientSink. There is no full emit() pipeline yet, so
+    the 50 records are modeled as 50 single-record batches each passed to
+    ``rs.accept`` (the resilient sink IS the unit under test, as with C4/C5 driving
+    the flusher directly) — unambiguous for the ">= 50 in fallback" assertion.
+    ``max_retries=1`` + ``base_ms=max_ms=1`` keep 50 exhaustions fast; the contract
+    point is records-in-fallback, not the retry count. No live OTLP collector.
+    """
+    emit_count = 50
+    metrics = SdkMetrics()
+    cf = CapturingFallback(metrics)
+    delegate = _UnreachableDelegate()
+    rs = ResilientSink(delegate, RetryPolicy(1, 1, 1), cf, metrics)
+
+    for i in range(emit_count):
+        rs.accept([_rec(f"r{i}")])
+
+    # expect_fallback_min: 50 — every record fell back, none exported/lost.
+    assert len(cf.records) >= emit_count, (
+        f"expected >= {emit_count} in fallback, got {len(cf.records)}"
+    )
+    assert metrics.fallback_writes >= emit_count
+    assert metrics.records_exported == 0
 
 
-@pytest.mark.skip(reason="M1: down_then_up -> resumes export without restart")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c8_recovery_after_broker_returns():
-    ...
+    """C8 — after the broker returns, the SAME sink resumes export (no restart).
+
+    Per scenarios.yaml C8 (exporter=down_then_up, down_ms=1000,
+    emit_after_recovery=10, expect_exported_after_recovery: 10). Recovery is driven
+    by a flag the test flips (``delegate.up = True``) rather than the scenario's
+    wall-clock ``down_ms`` — the contract point is "resumes export without restart",
+    NOT the exact 1000ms downtime (see _DownThenUpDelegate). Phase 1: while down, a
+    batch exhausts retries -> fallback. Phase 2: the broker returns and 10 records
+    are emitted AFTER recovery on the SAME ``rs`` instance (no re-instantiation) —
+    exactly 10 are exported and none fall back. No live OTLP collector.
+    """
+    metrics = SdkMetrics()
+    cf = CapturingFallback(metrics)
+    delegate = _DownThenUpDelegate()  # starts down (up=False)
+    rs = ResilientSink(delegate, RetryPolicy(2, 1, 1), cf, metrics)
+
+    # Phase 1 (down): retries exhausted -> fallback.
+    rs.accept([_rec("during-down")])
+    assert metrics.records_exported == 0
+    fallback_after_down = metrics.fallback_writes
+    assert fallback_after_down >= 1  # the down-phase batch fell back
+
+    # Phase 2 (recovery — NO restart of rs): the broker returns.
+    delegate.up = True
+    for i in range(10):
+        rs.accept([_rec(f"after{i}")])  # SAME rs instance
+
+    # expect_exported_after_recovery: 10 — exactly 10 exported on the same sink.
+    assert metrics.records_exported == 10, (
+        f"expected 10 exported after recovery, got {metrics.records_exported}"
+    )
+    assert delegate.exported == 10
+    # Post-recovery emits did NOT fall back — the count is unchanged from phase 1.
+    assert metrics.fallback_writes == fallback_after_down
 
 
 @pytest.mark.skip(reason="M1: pending=200 -> flushed/fallback within drain timeout")
