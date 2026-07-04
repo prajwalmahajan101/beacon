@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from beacon.config import BufferConfig, ExporterConfig, FlusherConfig
     from beacon.metrics import SdkMetrics
+    from beacon.pipeline.buffer import BoundedBuffer
     from beacon.pipeline.flusher import BatchFlusher, BatchSink
 
 _LOG = logging.getLogger("io.beacon.sdk.lifecycle")
@@ -172,6 +173,7 @@ def build_pipeline(
     *,
     drain_timeout_ms: int = _DEFAULT_DRAIN_TIMEOUT_MS,
     sink: BatchSink | None = None,
+    buffer: BoundedBuffer | None = None,
 ) -> BatchFlusher:
     """Assemble the full M2.4 pipeline and install the graceful-drain hooks.
 
@@ -192,15 +194,27 @@ def build_pipeline(
     ``ResilientSink.of(OtlpExporter(...))`` so unit tests can inject a capturing
     sink WITHOUT a live collector. Production callers pass ``sink=None`` and get the
     real resilient/OTLP sink.
+
+    ``buffer=`` is the SHARED-BUFFER seam (M2.6): when ``None`` (the default) the
+    pipeline constructs its own internal ``BoundedBuffer`` exactly as before — ALL
+    existing M2.4 callers/tests stay backward-safe. When provided, that internal
+    construction is SKIPPED and the passed-in buffer is handed to the
+    ``BatchFlusher`` instead. This lets :func:`beacon.pipeline.emit.build_emit_pipeline`
+    hand the SAME buffer to both the ``EmitPipeline`` (which offers into it) and the
+    started flusher (which drains it) — without a shared buffer the two would split
+    and records offered via ``emit()`` would be silently lost. Like ``sink=`` and
+    ``drain_timeout_ms``, ``buffer=`` is a plain function parameter — NOT a new
+    ``BEACON_*`` config key.
     """
     # Imported here (not at module top) so importing beacon.lifecycle stays cheap
     # and free of the OTel exporter import cost / side effects.
     from beacon.exporter import OtlpExporter, ResilientSink
     from beacon.pipeline import BatchFlusher, BoundedBuffer
 
-    buffer = BoundedBuffer(
-        buffer_config.buffer_capacity, buffer_config.drop_policy, metrics
-    )
+    if buffer is None:
+        buffer = BoundedBuffer(
+            buffer_config.buffer_capacity, buffer_config.drop_policy, metrics
+        )
 
     if sink is None:
         # Real production sink: ResilientSink decorating a transport-only
