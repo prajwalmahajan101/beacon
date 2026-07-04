@@ -45,7 +45,7 @@ records file-side (see [What this demo does](#what-this-demo-does)).
 ### 4. Run the sample
 
 ```bash
-uv run --with ../../beacon-sdk-python python main.py
+uv run --with ../../sdk/python/core python main.py
 ```
 
 ### 5. Observe the records

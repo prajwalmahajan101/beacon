@@ -3,7 +3,7 @@
 # This is a SCRIPT sample, not a distributable package: there is intentionally no build
 # backend. Run it with uv, pulling the local SDK in as an ephemeral dependency:
 #
-#     uv run --with ../../beacon-sdk-python python main.py
+#     uv run --with ../../sdk/python/core python main.py
 #
 # The ``[tool.uv.sources]`` path entry below lets ``uv run`` resolve ``beacon-sdk``
 # from the sibling checkout instead of PyPI when the dependency is declared.
@@ -22,4 +22,4 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-beacon-sdk = { path = "../../beacon-sdk-python", editable = true }
+beacon-sdk = { path = "../../sdk/python/core", editable = true }

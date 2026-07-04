@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 /**
  * Beacon Spring Boot starter sample (M1.7 / JSDK-08).
  *
- * <p>Boots a Spring Boot 3.x web app that consumes {@code beacon-spring-boot-starter} end-to-end.
+ * <p>Boots a Spring Boot 3.x web app that consumes {@code beacon-sdk-spring-adapter} end-to-end.
  * The starter auto-configures {@link io.beacon.sdk.BeaconSdk}, attaches {@link
  * io.beacon.sdk.appender.BeaconLogbackAppender} to the root Logback context (no {@code
  * logback-spring.xml} mutation — Pitfall #18), and exposes {@link

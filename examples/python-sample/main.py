@@ -31,7 +31,7 @@ SIGTERM). In production those very same records go to your OTLP collector instea
 Locked decision #5: NO web-framework starters here. Locked decision #3: the emit
 path is sync-only.
 
-    uv run --with ../../beacon-sdk-python python main.py
+    uv run --with ../../sdk/python/core python main.py
 """
 
 from __future__ import annotations

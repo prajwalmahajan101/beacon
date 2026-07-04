@@ -32,7 +32,7 @@ dependencies = [
 ]
 
 [project.urls]
-Source = "https://github.com/beacon/beacon/tree/main/beacon-sdk-python"
+Source = "https://github.com/beacon/beacon/tree/main/sdk/python/core"
 
 [dependency-groups]
 # PEP 735 — uv's preferred location for dev deps (NOT [tool.uv.dev-dependencies]).
