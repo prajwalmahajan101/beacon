@@ -1,0 +1,59 @@
+name: python-bench-nightly
+
+on:
+  schedule:
+    # 03:30 UTC daily — staggered 30 min after jmh-nightly (0 3) so the two
+    # benchmark jobs don't contend for GitHub-hosted runners at the same minute.
+    - cron: "30 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: Python emit-overhead benchmark (SDK overhead)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10 (floor)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Run emit-overhead benchmark (full measurement)
+        working-directory: sdk/python/benchmark
+        run: uv run --frozen python emit_overhead.py
+
+      - name: Capture run metadata (commit + date)
+        if: always()
+        run: |
+          cat > sdk/python/benchmark/run-metadata.json <<EOF
+          {
+            "commit": "${{ github.sha }}",
+            "ref": "${{ github.ref }}",
+            "run_id": "${{ github.run_id }}",
+            "run_started_at": "${{ github.event.repository.updated_at }}",
+            "runner_os": "ubuntu-latest",
+            "python_version": "3.10",
+            "trigger": "${{ github.event_name }}"
+          }
+          EOF
+
+      - name: Upload benchmark results (JSON + metadata)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-bench-results-${{ github.run_id }}
+          path: |
+            sdk/python/benchmark/emit_overhead.json
+            sdk/python/benchmark/run-metadata.json
+          retention-days: 30
+          if-no-files-found: error

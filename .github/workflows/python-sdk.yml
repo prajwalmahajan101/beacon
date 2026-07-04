@@ -4,22 +4,24 @@ on:
   push:
     branches: [main]
     paths:
-      - "beacon-sdk-python/**"
+      - "sdk/python/core/**"
+      - "sdk/python/benchmark/**"
       - "examples/python-sample/**"
-      - "beacon-s0-contract/conformance/python/**"
-      - "beacon-s0-contract/spec/severity-table.json"
-      - "beacon-s0-contract/conformance/config-keys.yaml"
-      - "beacon-s0-contract/schema/**"
+      - "contract/conformance/python/**"
+      - "contract/spec/severity-table.json"
+      - "contract/conformance/config-keys.yaml"
+      - "contract/schema/**"
       - ".github/workflows/python-sdk.yml"
   pull_request:
     branches: [main]
     paths:
-      - "beacon-sdk-python/**"
+      - "sdk/python/core/**"
+      - "sdk/python/benchmark/**"
       - "examples/python-sample/**"
-      - "beacon-s0-contract/conformance/python/**"
-      - "beacon-s0-contract/spec/severity-table.json"
-      - "beacon-s0-contract/conformance/config-keys.yaml"
-      - "beacon-s0-contract/schema/**"
+      - "contract/conformance/python/**"
+      - "contract/spec/severity-table.json"
+      - "contract/conformance/config-keys.yaml"
+      - "contract/schema/**"
       - ".github/workflows/python-sdk.yml"
 
 permissions:
@@ -43,7 +45,7 @@ jobs:
           version: "latest"
 
       - name: uv sync (locked)
-        working-directory: beacon-sdk-python
+        working-directory: sdk/python/core
         run: uv sync --frozen
 
       # ADR-0012 (Java CI floor) idiom in Python — three BLOCKING gates that fail the
@@ -51,19 +53,19 @@ jobs:
       # fail fast on style/type before running tests. Landed GREEN on the first gated
       # run because Plans 01-02 made the tree ruff-clean + mypy --strict-clean.
       - name: Ruff lint (gate)
-        working-directory: beacon-sdk-python
+        working-directory: sdk/python/core
         run: uv run ruff check src tests
 
       - name: Ruff format (gate)
-        working-directory: beacon-sdk-python
+        working-directory: sdk/python/core
         run: uv run ruff format --check src tests
 
       - name: Mypy strict (gate)
-        working-directory: beacon-sdk-python
+        working-directory: sdk/python/core
         run: uv run mypy --strict src
 
       - name: Unit tests (HTML report + coverage)
-        working-directory: beacon-sdk-python
+        working-directory: sdk/python/core
         # --cov is REPORT-ONLY (no threshold gate; mirrors Java JaCoCo, ADR-0012 §2).
         run: uv run pytest tests/ -v --html=pytest-report.html --self-contained-html --cov --cov-report=html:htmlcov --cov-report=xml:coverage.xml --cov-report=term-missing
 
@@ -73,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: python-sdk-pytest-report
-          path: beacon-sdk-python/pytest-report.html
+          path: sdk/python/core/pytest-report.html
 
       - name: Upload coverage report
         # Report-only coverage artifact (mirrors Java jacoco-coverage-report, ADR-0012 §2);
@@ -83,19 +85,19 @@ jobs:
         with:
           name: python-sdk-coverage-report
           path: |
-            beacon-sdk-python/htmlcov
-            beacon-sdk-python/coverage.xml
+            sdk/python/core/htmlcov
+            sdk/python/core/coverage.xml
 
       - name: Conformance harness (C1–C12 green)
-        working-directory: beacon-sdk-python
-        run: uv run python -m pytest ../beacon-s0-contract/conformance/python -v
+        working-directory: sdk/python/core
+        run: uv run python -m pytest ../../../contract/conformance/python -v
 
       - name: Cross-SDK contract-drift check (Python introspection)
         # check_contract_drift.py imports PyYAML; the bare runner python has no
         # third-party deps, so install it explicitly (mirrors contract.yml).
         run: |
           python3 -m pip install --quiet pyyaml
-          python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk python
+          python3 contract/conformance/tools/check_contract_drift.py --sdk python
 
       - name: Run python-sample (integration smoke)
         # Makes examples/python-sample/ a CI-verified integration artifact: uv run
@@ -103,4 +105,15 @@ jobs:
         # collector runs here, so the sample emits via the stderr/file fallback
         # (Plan 02) — exit 0 is the pass condition (stderr content is NOT gated).
         working-directory: examples/python-sample
-        run: uv run --with ../../beacon-sdk-python python main.py
+        run: uv run --with ../../sdk/python/core python main.py
+
+      - name: Verify benchmark runs (smoke)
+        # Python parity of the Java `:beacon-sdk-java-benchmark:compileJmhJava` PR gate
+        # (java-sdk.yml) — proves the emit-overhead benchmark imports the real SDK and
+        # runs end-to-end on every PR, at a tiny iteration count (BEACON_BENCH_*). The
+        # FULL measurement + result upload runs nightly in python-bench-nightly.yml.
+        working-directory: sdk/python/benchmark
+        env:
+          BEACON_BENCH_WARMUP: "200"
+          BEACON_BENCH_ITERS: "1000"
+        run: uv run --frozen python emit_overhead.py

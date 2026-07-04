@@ -28,7 +28,7 @@ jobs:
           python -c "
           import json, sys
           from jsonschema import Draft202012Validator
-          with open('beacon-s0-contract/schema/log-record.schema.json') as f:
+          with open('contract/schema/log-record.schema.json') as f:
               schema = json.load(f)
           Draft202012Validator.check_schema(schema)
           print('schema OK')
@@ -39,10 +39,10 @@ jobs:
           python <<'EOF'
           import json, sys, glob
           from jsonschema import Draft202012Validator
-          with open('beacon-s0-contract/schema/log-record.schema.json') as f:
+          with open('contract/schema/log-record.schema.json') as f:
               schema = json.load(f)
           v = Draft202012Validator(schema)
-          paths = ['beacon-s0-contract/schema/examples/log-valid.json']
+          paths = ['contract/schema/examples/log-valid.json']
           failed = []
           for p in paths:
               with open(p) as f:
@@ -64,11 +64,11 @@ jobs:
           python <<'EOF'
           import json, sys, glob
           from jsonschema import Draft202012Validator
-          with open('beacon-s0-contract/schema/log-record.schema.json') as f:
+          with open('contract/schema/log-record.schema.json') as f:
               schema = json.load(f)
           v = Draft202012Validator(schema)
-          paths = sorted(glob.glob('beacon-s0-contract/schema/examples/invalid/*.json'))
-          paths.append('beacon-s0-contract/schema/examples/log-invalid.json')
+          paths = sorted(glob.glob('contract/schema/examples/invalid/*.json'))
+          paths.append('contract/schema/examples/log-invalid.json')
           unexpectedly_valid = []
           for p in paths:
               with open(p) as f:
@@ -88,7 +88,7 @@ jobs:
         run: |
           python -c "
           import yaml
-          with open('beacon-s0-contract/conformance/scenarios.yaml') as f:
+          with open('contract/conformance/scenarios.yaml') as f:
               data = yaml.safe_load(f)
           assert data, 'scenarios.yaml is empty'
           print(f'scenarios.yaml OK ({len(data) if isinstance(data, list) else len(data.keys())} top-level entries)')
@@ -110,7 +110,7 @@ jobs:
         run: pip install pyyaml==6.0.2
 
       - name: Run contract-drift checker (Java SDK)
-        run: python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk java
+        run: python3 contract/conformance/tools/check_contract_drift.py --sdk java
 
       - name: Run contract-drift checker (all present SDKs)
-        run: python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk all
+        run: python3 contract/conformance/tools/check_contract_drift.py --sdk all
