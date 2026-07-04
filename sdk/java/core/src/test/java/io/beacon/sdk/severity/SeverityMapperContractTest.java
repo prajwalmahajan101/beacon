@@ -18,9 +18,25 @@ import org.junit.jupiter.api.Test;
 class SeverityMapperContractTest {
 
   private static final Path CONTRACT_JSON =
-      Paths.get("..", "beacon-s0-contract", "spec", "severity-table.json")
-          .toAbsolutePath()
-          .normalize();
+      repoRoot().resolve(Paths.get("beacon-s0-contract", "spec", "severity-table.json"));
+
+  /**
+   * Walk up from the test working directory (the module dir) until the repo root — the ancestor
+   * containing {@code beacon-s0-contract/} — is found. Robust to the module's depth under the root
+   * (M2.9 moved this module to {@code sdk/java/core}; see docs/adr/0022).
+   */
+  private static Path repoRoot() {
+    Path dir = Paths.get("").toAbsolutePath();
+    while (dir != null && !Files.isDirectory(dir.resolve("beacon-s0-contract"))) {
+      dir = dir.getParent();
+    }
+    if (dir == null) {
+      throw new IllegalStateException(
+          "Could not locate repo root (a parent containing beacon-s0-contract) from "
+              + Paths.get("").toAbsolutePath());
+    }
+    return dir;
+  }
 
   @Test
   @DisplayName(
