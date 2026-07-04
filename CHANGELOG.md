@@ -4,6 +4,18 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Verified
+
+## [v1.0-rc-sdk] — 2026-07-05
+
+> **Release candidate:** the first combined SDK RC — the Java SDK (M1, `v0.2-m1`) and Python SDK (M2, `v0.3-m2`) unified under the `sdk/` tree with structural + benchmark-CI parity, conformance-green on the M0-frozen contract (C1–C12 on both harnesses; Python 20 passed / 0 skipped). Bundles the M2.9 restructure documented below. Milestone audit passed (SDK scope, `.planning/v1.0-MILESTONE-AUDIT.md`); the platform milestones M3–M5 remain. Emit-path overhead well under the PRD NFR-6 1 ms budget: **Java p99 6,360 ns (~157×), Python p99 30,663 ns (~33×)**, both benchmarks now running nightly in CI at parity.
+
 **Milestone:** M2.9 — SDK monorepo restructure + benchmark CI parity, ahead of the `v1.0-rc-sdk` cut. Both SDKs move under an `sdk/{java,python}` umbrella; the Java Spring module is renamed to the adapter family; the Python benchmark is promoted to a sibling module with nightly + PR-smoke CI at parity with Java's JMH; and the M0 contract dir is renamed `beacon-s0-contract/` → `contract/`. Decisions in **ADR-0022** (restructure/rename/bench parity) + **ADR-0023** (M0-freeze amendment). A latent PyYAML runtime-dep bug surfaced by the sibling benchmark was fixed. NO new `BEACON_*` keys; contract content byte-identical apart from the mechanical rename.
 
 ### Added
