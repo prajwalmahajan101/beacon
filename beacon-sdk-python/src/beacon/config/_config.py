@@ -1,4 +1,4 @@
-"""Structured config carriers — ``DropPolicy`` + ``BufferConfig`` (M2.1) + ``FlusherConfig`` (M2.2) + ``ExporterConfig`` (M2.3).
+"""Structured config carriers — ``DropPolicy`` + ``BufferConfig`` (M2.1) + ``FlusherConfig`` (M2.2) + ``ExporterConfig`` (M2.3) + ``RedactorConfig`` (M2.5).
 
 Python idiom of the Java ``BeaconConfig`` (see
 ``beacon-sdk-java/src/main/java/io/beacon/sdk/config/BeaconConfig.java``), scoped
@@ -142,3 +142,59 @@ class ExporterConfig:
             raise ValueError(
                 f"transport must be 'grpc' or 'http', got {self.transport!r}"
             )
+
+
+# Canonical always-on redaction baseline — MUST match the Java baseline
+# byte-for-byte (cross-SDK-drift invariant that ADR-0010 exists to protect):
+#   * config-keys.yaml ``redact.defaults`` note ("Union with the always-on
+#     baseline ``password|authorization|api_key|secret|token`` when true").
+#   * Java ``BeaconConfigLoader.DEFAULT_REDACT_KEYS =
+#     Set.of("password","authorization","api_key","secret","token")``.
+# Do NOT invent keys (no ``ssn``-style guesses) and do NOT reorder — the set is
+# unordered but its membership is the authoritative contract.
+_DEFAULT_REDACT_KEYS: frozenset[str] = frozenset(
+    {"password", "authorization", "api_key", "secret", "token"}
+)
+
+
+@dataclass(frozen=True, slots=True)
+class RedactorConfig:
+    """Redactor config carrier — Java ``BeaconConfig`` redaction-slice parity.
+
+    Holds exactly the three knobs the M2.5 ``Redactor`` (Plan 02) consumes,
+    parsing the THREE **already-existing** contract redact keys — NO new
+    ``BEACON_*`` surface is introduced, so ``check_contract_drift.py --sdk all``
+    stays exit 0. The anchors ``BEACON_REDACT_KEYS`` / ``BEACON_REDACT_DEFAULTS``
+    / ``BEACON_REDACTOR_TIMEOUT_MS`` already live in ``config/_keys.py``.
+
+    Defaults mirror the canonical ``config-keys.yaml`` values: ``redact_defaults``
+    True (union in the always-on baseline), ``redactor_timeout_ms`` 5 (the Java
+    ADR-0007 5 ms per-record budget). ``redact_keys`` is the user-supplied set,
+    unioned with ``_DEFAULT_REDACT_KEYS`` when ``redact_defaults`` is True.
+
+    See ADR-0007 (Java origin — ReDoS-resistant redaction) and the forthcoming
+    M2.5 Python ADR (redactor) for the architecture record. Reuses the existing
+    ``redact_keys`` / ``redact_defaults`` / ``redactor_timeout_ms`` contract keys
+    — no new ``BEACON_*`` surface (drift gate stays green).
+    """
+
+    redact_keys: tuple[str, ...] = ()
+    redact_defaults: bool = True
+    redactor_timeout_ms: int = 5
+
+    def __post_init__(self) -> None:
+        # Mirror the other carriers' > 0 guards (Java Redactor timeout budget).
+        if self.redactor_timeout_ms <= 0:
+            raise ValueError(
+                f"redactor_timeout_ms must be > 0, got {self.redactor_timeout_ms}"
+            )
+
+    def effective_keys_lower(self) -> frozenset[str]:
+        """The ASCII-lowercased key set the ``Redactor`` matches against.
+
+        ``(_DEFAULT_REDACT_KEYS if redact_defaults else {}) ∪ redact_keys``, each
+        key lowercased via ``str.lower()`` (ASCII domain — matches the Java
+        ``Locale.ROOT`` intent; config keys are ASCII identifiers).
+        """
+        base = _DEFAULT_REDACT_KEYS if self.redact_defaults else frozenset()
+        return frozenset(k.lower() for k in (*base, *self.redact_keys))

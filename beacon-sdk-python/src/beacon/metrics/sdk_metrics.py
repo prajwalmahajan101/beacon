@@ -42,6 +42,7 @@ class SdkMetrics:
         self._records_exported = 0
         self._export_failures = 0
         self._fallback_writes = 0
+        self._redactor_timeouts = 0
 
     # ---- M2.1 surface — emit path --------------------------------------
 
@@ -135,3 +136,15 @@ class SdkMetrics:
     def fallback_writes(self) -> int:
         with self._lock:
             return self._fallback_writes
+
+    # ---- M2.5 surface — redactor path ----------------------------------
+
+    def inc_redactor_timeout(self) -> None:
+        """Increment ``redactor_timeout_total`` by 1 on a per-record redaction-deadline expiry (mirror Java ``SdkMetrics.incRedactorTimeout``)."""
+        with self._lock:
+            self._redactor_timeouts += 1
+
+    @property
+    def redactor_timeout_total(self) -> int:
+        with self._lock:
+            return self._redactor_timeouts
