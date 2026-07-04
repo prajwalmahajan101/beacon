@@ -2,6 +2,7 @@
 
 from ._shutdown import (
     beacon_shutdown,
+    build_pipeline,
     ensure_shutdown_registered,
     register_flusher,
 )
@@ -10,4 +11,5 @@ __all__ = [
     "beacon_shutdown",
     "ensure_shutdown_registered",
     "register_flusher",
+    "build_pipeline",
 ]
