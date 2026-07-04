@@ -29,11 +29,13 @@ except ImportError:  # keep the skeleton importable before deps are installed
 # importable, so the skipif on C2/C3 is belt-and-suspenders parity with C1's
 # jsonschema guard.
 try:
-    from beacon.config import DropPolicy
+    from beacon.config import DropPolicy, RedactorConfig
+    from beacon.context import clear_context, set_context
     from beacon.exporter import ResilientSink, RetryPolicy
     from beacon.exporter.fallback import CapturingFallback
     from beacon.metrics import SdkMetrics
-    from beacon.pipeline import BatchFlusher, BoundedBuffer
+    from beacon.pipeline import BatchFlusher, BoundedBuffer, Enricher, Redactor
+    from beacon.pipeline.redactor import RedactorTimeoutError
     from beacon.record import LogRecord
 except ImportError:  # keep the harness importable without the SDK on the path
     BoundedBuffer = None
@@ -482,14 +484,130 @@ def test_c9_graceful_shutdown_drains_buffer():
     )
 
 
-@pytest.mark.skip(reason="M1: redact_keys removed/masked (top-level + nested); others untouched")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c10_pii_redaction_before_export():
-    ...
+    """C10 — PII in the configured redact_keys is masked before export.
+
+    Per scenarios.yaml C10 (redact_keys ['password','card.number']; a record with
+    attributes {password:'hunter2', card.number:'4111111111111111', order.id:9921}):
+    ``expect_present: [order.id]`` — order.id survives untouched (== 9921);
+    ``expect_absent_or_masked: [password, card.number]`` — both are masked to the
+    canonical ``[REDACTED]`` sentinel. See spec/02 §2.7 (redaction on the emit path)
+    and ADR-0007 (the Java literal-key-walker origin).
+
+    Drive the ``Redactor`` STAGE directly (there is no top-level ``emit()`` until
+    M2.6 — the redactor is a composable stage M2.6 will chain), mirroring how C9
+    drove ``drain_and_stop`` directly. ``redact_defaults=False`` so ONLY the
+    scenario's two keys are active — the C10 assertion is exact and a broad default
+    set must not accidentally mask order.id.
+
+    Also asserts the fail-safe (the 'never export partial PII' guarantee, spec/02
+    §2.7 / ADR-0007): a redactor whose per-record deadline has expired raises
+    ``RedactorTimeoutError`` carrying the ORIGINAL record and bumps
+    ``redactor_timeout_total`` — the caller drops rather than exports a
+    partially-redacted record.
+    """
+    rec = _rec("c10").with_(
+        attributes={
+            "password": "hunter2",
+            "card.number": "4111111111111111",
+            "order.id": 9921,
+        }
+    )
+
+    cfg = RedactorConfig(redact_keys=("password", "card.number"), redact_defaults=False)
+    r = Redactor(cfg.effective_keys_lower(), cfg.redactor_timeout_ms, SdkMetrics())
+    out = r.redact(rec)
+    a = out.attributes
+
+    # expect_present: order.id survives untouched.
+    assert a["order.id"] == 9921
+    # expect_absent_or_masked: both PII keys masked to the [REDACTED] sentinel.
+    assert a["password"] == "[REDACTED]"
+    assert a["card.number"] == "[REDACTED]"
+
+    # Fail-safe: an expired deadline raises with the ORIGINAL record and increments
+    # redactor_timeout_total (never exports a partially-redacted record).
+    metrics0 = SdkMetrics()
+    r0 = Redactor(cfg.effective_keys_lower(), 0, metrics0)  # timeout_ms=0 -> deadline already past
+    with pytest.raises(RedactorTimeoutError) as exc:
+        r0.redact(rec)
+    assert exc.value.record is rec  # the ORIGINAL record, unredacted
+    assert metrics0.redactor_timeout_total == 1
 
 
-@pytest.mark.skip(reason="M1: active context -> trace_id/span_id attached, incl across async/await")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c11_trace_context_propagation():
-    ...
+    """C11 — the active trace context is stamped onto the record, incl. across async.
+
+    Per scenarios.yaml C11 (trace_id '4bf92f3577b34da6a3ce929d0e0e4736',
+    span_id '00f067aa0ba902b7', across_async: true). Drives the ``Enricher`` STAGE
+    directly (no top-level ``emit()`` until M2.6), asserting all three of its paths:
+
+      (a) ContextVar FALLBACK — with no live span, the enricher stamps the
+          ContextVar map's ids.
+      (b) Span PRIMARY — with a live OTel span, the enriched ids equal the span's
+          ``format_trace_id`` / ``format_span_id`` (span beats the fallback).
+      (c) across_async — an ``asyncio.Task`` spawned from a parent that set the
+          context sees the SAME ids in its own enrich (copy-on-spawn — the child
+          Task inherits the parent's ContextVar map, Python's default, no explicit
+          copy). Driven via ``asyncio.run()`` from the sync body — NO pytest-asyncio,
+          NO new dev dep.
+
+    See spec/02 §2.8 (enrichment) and ADR-0008 (the Java async-context-propagation
+    origin). The body runs in a try/finally that clears the ContextVar AND resets
+    the tracer provider so C11 leaves NO global state (mirror C9's clean teardown).
+    """
+    import asyncio
+
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    enr = Enricher()
+    rec = _rec("c11")
+    C11_TRACE = "4bf92f3577b34da6a3ce929d0e0e4736"
+    C11_SPAN = "00f067aa0ba902b7"
+
+    saved_provider = trace.get_tracer_provider()
+    try:
+        # (a) ContextVar fallback — no live span, ids come off the context map.
+        set_context({"trace_id": C11_TRACE, "span_id": C11_SPAN})
+        out = enr.enrich(rec)
+        assert out.trace_id == C11_TRACE
+        assert out.span_id == C11_SPAN
+        clear_context()
+
+        # (b) Span primary — a live span's ids win over any fallback context.
+        set_context({"trace_id": C11_TRACE, "span_id": C11_SPAN})  # different, must be beaten
+        provider = TracerProvider()
+        trace.set_tracer_provider(provider)
+        tracer = provider.get_tracer("c11")
+        with tracer.start_as_current_span("c11") as span:
+            sc = span.get_span_context()
+            out = enr.enrich(rec)
+            assert out.trace_id == trace.format_trace_id(sc.trace_id)
+            assert out.span_id == trace.format_span_id(sc.span_id)
+            # proves span-primary beat the fallback context we set above
+            assert out.trace_id != C11_TRACE
+        clear_context()
+
+        # (c) across_async — a child asyncio.Task inherits the parent's context.
+        async def _child() -> tuple[str | None, str | None]:
+            child_out = enr.enrich(rec)
+            return child_out.trace_id, child_out.span_id
+
+        async def _spawn_child() -> tuple[str | None, str | None]:
+            set_context({"trace_id": C11_TRACE, "span_id": C11_SPAN})
+            child = asyncio.create_task(_child())  # copy-on-spawn: child sees parent ctx
+            return await child
+
+        t, s = asyncio.run(_spawn_child())
+        assert t == C11_TRACE
+        assert s == C11_SPAN
+    finally:
+        clear_context()
+        # Reset tracer state so C11 leaves no global provider behind.
+        trace._TRACER_PROVIDER = saved_provider
 
 
 def test_c12_severity_mapping():
