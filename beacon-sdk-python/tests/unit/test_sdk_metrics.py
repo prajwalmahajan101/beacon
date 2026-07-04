@@ -79,6 +79,57 @@ def test_flusher_counters_concurrent_increment():
     assert m.records_flushed == threads_n * per_thread
 
 
+def test_inc_exported_adds_n():
+    m = SdkMetrics()
+    assert m.records_exported == 0
+    m.inc_exported(5)
+    m.inc_exported(3)
+    assert m.records_exported == 8
+
+
+def test_inc_export_failure_increments():
+    m = SdkMetrics()
+    assert m.export_failures == 0
+    m.inc_export_failure()
+    m.inc_export_failure()
+    m.inc_export_failure()
+    assert m.export_failures == 3
+
+
+def test_inc_fallback_write_adds_n():
+    m = SdkMetrics()
+    assert m.fallback_writes == 0
+    m.inc_fallback_write(10)
+    m.inc_fallback_write(7)
+    assert m.fallback_writes == 17
+
+
+def test_export_counters_concurrent_increment():
+    # The M2.3 exporter/resilience counters must also be lock-guarded. 8 threads
+    # x 1000 iterations, each iteration bumps records_exported by 1,
+    # export_failures by 1, fallback_writes by 1 — all three must total exactly
+    # 8000 with no lost updates under the lock.
+    m = SdkMetrics()
+    threads_n = 8
+    per_thread = 1000
+
+    def worker() -> None:
+        for _ in range(per_thread):
+            m.inc_exported(1)
+            m.inc_export_failure()
+            m.inc_fallback_write(1)
+
+    threads = [threading.Thread(target=worker) for _ in range(threads_n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert m.records_exported == threads_n * per_thread
+    assert m.export_failures == threads_n * per_thread
+    assert m.fallback_writes == threads_n * per_thread
+
+
 def test_concurrent_increments_lose_no_updates():
     # The itertools.count / non-locked-int failure mode would lose increments
     # under contention. 8 threads x 1000 increments must total exactly 8000.

@@ -39,6 +39,9 @@ class SdkMetrics:
         self._buffer_depth = 0
         self._batches_flushed = 0
         self._records_flushed = 0
+        self._records_exported = 0
+        self._export_failures = 0
+        self._fallback_writes = 0
 
     # ---- M2.1 surface — emit path --------------------------------------
 
@@ -100,3 +103,35 @@ class SdkMetrics:
     def records_flushed(self) -> int:
         with self._lock:
             return self._records_flushed
+
+    # ---- M2.3 surface — exporter / resilience path ---------------------
+
+    def inc_exported(self, n: int) -> None:
+        """Add ``n`` to ``records_exported`` on a successful export (mirror Java ``incExported(int)``)."""
+        with self._lock:
+            self._records_exported += n
+
+    @property
+    def records_exported(self) -> int:
+        with self._lock:
+            return self._records_exported
+
+    def inc_export_failure(self) -> None:
+        """Increment ``export_failures`` by 1 per failed delegate attempt (mirror Java ``incExportFailure``)."""
+        with self._lock:
+            self._export_failures += 1
+
+    @property
+    def export_failures(self) -> int:
+        with self._lock:
+            return self._export_failures
+
+    def inc_fallback_write(self, n: int) -> None:
+        """Add ``n`` (batch size) to ``fallback_writes`` (mirror Java ``incFallbackWrite(int)``)."""
+        with self._lock:
+            self._fallback_writes += n
+
+    @property
+    def fallback_writes(self) -> int:
+        with self._lock:
+            return self._fallback_writes
