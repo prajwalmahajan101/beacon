@@ -423,9 +423,63 @@ def test_c8_recovery_after_broker_returns():
     assert metrics.fallback_writes == fallback_after_down
 
 
-@pytest.mark.skip(reason="M1: pending=200 -> flushed/fallback within drain timeout")
+@pytest.mark.skipif(BoundedBuffer is None, reason="beacon SDK not importable")
 def test_c9_graceful_shutdown_drains_buffer():
-    ...
+    """C9 — a graceful drain loses nothing within the shutdown budget.
+
+    Per scenarios.yaml C9 (pending_records=200, shutdown_drain_timeout_ms=5000,
+    expect_flushed_or_fallback=200). 200 records sit pending in the buffer, then
+    ``BatchFlusher.drain_and_stop(5000)`` drains them; exactly 200 records reach
+    the sink and none are lost within the 5s budget.
+
+    Drive the drain PRIMITIVE (``drain_and_stop``) directly rather than the
+    ``beacon.lifecycle`` atexit/SIGTERM path — this keeps C9 a pure drain-contract
+    test with no global atexit/signal state to reset (the real-signal path is
+    proven by ``beacon-sdk-python/tests/integration/test_sigterm_drain.py``).
+
+    The sink is a capturing ``_CollectingSink`` (no live OTLP collector), mirroring
+    how M2.3 drove C6/C7/C8 with fakes. ``expect_flushed_or_fallback: 200`` — with a
+    capturing sink the 200 are "flushed"; the "or fallback" half is exercised
+    structurally by the ResilientSink wiring (C7 / M2.3) + the subprocess
+    file-fallback test. The batch size cap (10000) and interval (60000ms) are set
+    huge so NEITHER flush trigger fires during the buffering window — the ONLY thing
+    that empties the buffer is the drain, isolating the drain contract. Capacity
+    1000 > 200 so DROP_OLDEST never evicts and all 200 stay pending. The flusher is
+    drained in a try/finally so a failed assert still tears down the daemon thread
+    (no leak-guard conftest covers this directory).
+    """
+    metrics = SdkMetrics()
+    buf = BoundedBuffer(1000, DropPolicy.DROP_OLDEST, metrics)  # capacity > 200
+    sink = _CollectingSink()
+    flusher = BatchFlusher(
+        buf,
+        sink,
+        batch_max_records=10000,  # size trigger cannot fire on 200
+        flush_interval_ms=60000,  # interval trigger cannot fire in-window
+        metrics=metrics,
+    )
+
+    for i in range(200):
+        assert buf.offer(_rec(f"r{i}")) is True
+
+    flusher.start()
+    try:
+        t0 = time.monotonic()
+        flusher.drain_and_stop(5000)  # shutdown_drain_timeout_ms = 5000
+        elapsed = time.monotonic() - t0
+    finally:
+        flusher.drain_and_stop(5000)  # idempotent — safe teardown if an assert fails
+
+    total = sum(len(b) for b in sink.batches)
+    assert total == 200, (  # expect_flushed_or_fallback: 200 — no records lost
+        f"expected 200 records drained to the sink, got {total}"
+    )
+    # Generous outer bound: draining 200 in-memory records is sub-millisecond; the
+    # bound asserts the drain did NOT hang past the 5s budget (slack for CI jitter).
+    assert elapsed < 6.0, f"drain took {elapsed:.3f}s, exceeding the 5s budget"
+    assert metrics.records_flushed >= 200, (
+        f"expected >= 200 records_flushed, got {metrics.records_flushed}"
+    )
 
 
 @pytest.mark.skip(reason="M1: redact_keys removed/masked (top-level + nested); others untouched")
