@@ -34,6 +34,7 @@ Source = "https://github.com/beacon/beacon/tree/main/beacon-sdk-python"
 dev = [
   "pytest >= 8.2",
   "pytest-html >= 4.1",
+  "pytest-cov >= 5.0",
   "jsonschema >= 4.23",
   "pyyaml >= 6.0.2",
   "ruff >= 0.6",
@@ -100,3 +101,18 @@ warn_redundant_casts = true   # flag casts that mypy can already prove unnecessa
 [[tool.mypy.overrides]]
 module = ["opentelemetry.*"]
 ignore_missing_imports = true
+
+# ADR-0012 (Java CI floor) idiom in Python: coverage.py (via pytest-cov) mirrors the
+# Java JaCoCo REPORT-ONLY stance (ADR-0012 §2) — baseline-first, NO threshold gate.
+# There is deliberately NO coverage-threshold key: coverage is measured + published as a
+# CI artifact, but it does NOT block the build (explicit non-goal — no coverage-threshold
+# gate, no third-party coverage-upload service). `--cov` stays out of a shared pytest `addopts`
+# so local `uv run pytest` stays fast (the leak-guard suite is not slowed); the CI step
+# passes `--cov` explicitly instead.
+[tool.coverage.run]
+source = ["beacon"]   # measure the SDK package, not the tests
+branch = true         # branch coverage is cheap and more honest than line-only
+
+[tool.coverage.report]
+show_missing = true   # useful terminal summary of uncovered lines
+# NB: intentionally NO threshold key — report-only, baseline-first (mirrors Java JaCoCo).
