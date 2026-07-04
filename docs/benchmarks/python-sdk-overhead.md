@@ -36,7 +36,7 @@ The hot path of `beacon.pipeline.emit.EmitPipeline.emit(record)` — specificall
 The flusher thread (`BatchFlusher`), OTLP serialization, and network I/O are
 **deliberately out of scope** — they run asynchronously on a daemon thread and
 never block the caller's thread, by spec
-(`beacon-s0-contract/spec/02-sdk-behavior-spec.md` §2.1 "non-blocking emit"). The
+(`contract/spec/02-sdk-behavior-spec.md` §2.1 "non-blocking emit"). The
 benchmark proves the caller-thread budget is met. `offer` is a non-blocking
 `put_nowait` under the hood, so no batching / flush / network crosses the thread
 boundary during the timed window.
@@ -99,15 +99,19 @@ benchmark is a local/reproduction artifact, not a CI gate.
 
 ## Reproduce
 
-From `beacon-sdk-python/`, on any host with `uv` + CPython 3.10+:
+From `sdk/python/benchmark/` (a sibling of the SDK, uv path-dep on `../core`; M2.9,
+ADR-0022), on any host with `uv` + CPython 3.10+:
 
 ```bash
-uv run --frozen python benchmarks/emit_overhead.py
+uv run --frozen python emit_overhead.py
+# fast smoke (tiny N — the CI PR-gate profile):
+BEACON_BENCH_WARMUP=200 BEACON_BENCH_ITERS=1000 uv run --frozen python emit_overhead.py
 ```
 
 It prints the percentile table + the PASS/CARRY verdict and writes a
-machine-readable `benchmarks/emit_overhead.json` (gitignored build output, mirrors
-the Java `results.json`).
+machine-readable `emit_overhead.json` (gitignored build output, mirrors the Java
+`results.json`). The full measurement is also run nightly by
+`python-bench-nightly.yml`, which uploads the JSON as an artifact.
 
 ## Limitations + carry-forwards
 
@@ -151,5 +155,5 @@ max                  266,787
 VERDICT: PASS — p99 30,663 ns < 1,000,000 ns budget (~33x under budget)
 ```
 
-The full machine-readable result is at `beacon-sdk-python/benchmarks/emit_overhead.json`
+The full machine-readable result is at `sdk/python/benchmark/emit_overhead.json`
 after a run; it is gitignored (build output).

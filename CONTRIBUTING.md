@@ -20,7 +20,7 @@ If you're not sure, **default to a Discussion** — issues should be actionable.
 
 ## Spec changes follow an ADR
 
-The PRD ([`PRD.md`](./PRD.md)) and M0 contract ([`beacon-s0-contract/`](./beacon-s0-contract/))
+The PRD ([`PRD.md`](./PRD.md)) and M0 contract ([`contract/`](./contract/))
 are the spec. A change to either must:
 
 1. Start as a Discussion outlining the problem and proposed change.
@@ -47,7 +47,7 @@ bug — file as a Discussion.
 ## Local dev quickstart
 
 See [README.md](./README.md) for the running-it-locally walkthrough.
-The contract harness lives in `beacon-s0-contract/` and is the only thing
+The contract harness lives in `contract/` and is the only thing
 CI runs today (`contract.yml`); run it locally before opening any PR that
 touches schema or fixtures.
 

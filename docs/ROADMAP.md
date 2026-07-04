@@ -39,15 +39,15 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 **Goal:** Lock the wire contract that both SDKs (Java, Python) must satisfy, with a conformance suite that proves they are interchangeable.
 
 **Shipped:**
-- [`beacon-s0-contract/spec/01-telemetry-record-spec.md`](../beacon-s0-contract/spec/01-telemetry-record-spec.md) — OTel-aligned record contract (12 fields, schema_version=1, ns-precision RFC3339 timestamps, severity band anchors).
-- [`beacon-s0-contract/spec/02-sdk-behavior-spec.md`](../beacon-s0-contract/spec/02-sdk-behavior-spec.md) — SDK runtime behaviour (RFC-2119 normative; 9 invariant groups → C2–C12).
-- [`beacon-s0-contract/spec/03-conformance-suite.md`](../beacon-s0-contract/spec/03-conformance-suite.md) — Given/When/Then scenario catalog.
-- [`beacon-s0-contract/schema/log-record.schema.json`](../beacon-s0-contract/schema/log-record.schema.json) — normative JSON Schema (Draft 2020-12).
-- [`beacon-s0-contract/conformance/scenarios.yaml`](../beacon-s0-contract/conformance/scenarios.yaml) — 12 scenarios (C1–C12) parameterised for both languages.
-- [`beacon-s0-contract/conformance/java/ConformanceTest.java`](../beacon-s0-contract/conformance/java/ConformanceTest.java) — JUnit 5 skeleton.
-- [`beacon-s0-contract/conformance/python/test_conformance.py`](../beacon-s0-contract/conformance/python/test_conformance.py) — pytest skeleton.
+- [`contract/spec/01-telemetry-record-spec.md`](../contract/spec/01-telemetry-record-spec.md) — OTel-aligned record contract (12 fields, schema_version=1, ns-precision RFC3339 timestamps, severity band anchors).
+- [`contract/spec/02-sdk-behavior-spec.md`](../contract/spec/02-sdk-behavior-spec.md) — SDK runtime behaviour (RFC-2119 normative; 9 invariant groups → C2–C12).
+- [`contract/spec/03-conformance-suite.md`](../contract/spec/03-conformance-suite.md) — Given/When/Then scenario catalog.
+- [`contract/schema/log-record.schema.json`](../contract/schema/log-record.schema.json) — normative JSON Schema (Draft 2020-12).
+- [`contract/conformance/scenarios.yaml`](../contract/conformance/scenarios.yaml) — 12 scenarios (C1–C12) parameterised for both languages.
+- [`contract/conformance/java/ConformanceTest.java`](../contract/conformance/java/ConformanceTest.java) — JUnit 5 skeleton.
+- [`contract/conformance/python/test_conformance.py`](../contract/conformance/python/test_conformance.py) — pytest skeleton.
 
-**Frozen by:** [`beacon-s0-contract/M0-FROZEN.md`](../beacon-s0-contract/M0-FROZEN.md) (verification matrix + freeze record).
+**Frozen by:** [`contract/M0-FROZEN.md`](../contract/M0-FROZEN.md) (verification matrix + freeze record).
 
 **Drift rule:** Any change to record shape, SDK behaviour, schema, or scenarios requires an ADR amendment + schema/scenario/fixture update + harness move in the **same** PR. See [`../CONTRIBUTING.md` § Spec changes follow an ADR](../CONTRIBUTING.md#spec-changes-follow-an-adr).
 
@@ -70,7 +70,7 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 | M1.4 | OTLP exporter + retry/backoff + fallback sink | **C6, C7, C8** | ✅ |
 | M1.5 | Graceful shutdown drain | **C9** | ✅ |
 | M1.6 | Redactor + MDC/Context enricher + async-context propagation | **C10, C11** | ✅ |
-| M1.7 | `BeaconLogbackAppender` + `beacon-spring-boot-starter` + `examples/spring-boot-sample/` + `:beacon-sdk-java-benchmark` JMH overhead baseline; CI publishes consolidated JUnit HTML | (no new scenarios; 12/12 preserved) | ✅ |
+| M1.7 | `BeaconLogbackAppender` + `beacon-sdk-spring-adapter` + `examples/spring-boot-sample/` + `:beacon-sdk-java-benchmark` JMH overhead baseline; CI publishes consolidated JUnit HTML | (no new scenarios; 12/12 preserved) | ✅ |
 | M1.8 | `v0.2-m1` release cut + contract artifacts (`config-keys.yaml` + `severity-table.json`, ADR-0010) + OTel SDK version policy (ADR-0011) + `docs/M1-COMPLETE.md` retrospective | (release; 12/12 preserved) | ✅ |
 
 **Conformance progress:** **12 / 12 green** (C1–C12). All scenarios un-`@Disabled`.
@@ -95,7 +95,7 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 - Reuse the canonical JSON form via Python's `json.dumps` (no Jackson equivalent needed — schema validation is the gate).
 - Wrap the `opentelemetry-sdk` + `opentelemetry-exporter-otlp-*` Python packages — same "build on OTel, don't reinvent" rule as M1 (see ADR-0001).
 - Async story: `asyncio` + background drain task as the analog of Java's daemon flusher thread. Spec §2.1 (non-blocking emit) applies identically.
-- Acceptance: all 12 scenarios pass on `beacon-s0-contract/conformance/python/test_conformance.py` (which already exists as a pytest skeleton — 20 parameterised tests collect today, will turn green incrementally).
+- Acceptance: all 12 scenarios pass on `contract/conformance/python/test_conformance.py` (which already exists as a pytest skeleton — 20 parameterised tests collect today, will turn green incrementally).
 
 **Cross-language risks to watch:**
 - Config key spelling drift — M2 must match Java's 13 keys verbatim (`max_retries`, `backoff_base_ms`, etc.). The `BeaconConfig` constants are the source of truth.
@@ -171,10 +171,10 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 ## Cross-references
 
 - **PRD/RFC:** [`../PRD.md`](../PRD.md) — product authority + technical design.
-- **M0 freeze record:** [`../beacon-s0-contract/M0-FROZEN.md`](../beacon-s0-contract/M0-FROZEN.md).
+- **M0 freeze record:** [`../contract/M0-FROZEN.md`](../contract/M0-FROZEN.md).
 - **M1 detailed roadmap:** [`./M1-ROADMAP.md`](./M1-ROADMAP.md) (phase M1.0 → M1.8).
 - **ADRs:** [`./adr/`](./adr/) (0001 → 0009 cover M1.0–M1.7).
-- **Conformance scenarios:** [`../beacon-s0-contract/conformance/scenarios.yaml`](../beacon-s0-contract/conformance/scenarios.yaml).
+- **Conformance scenarios:** [`../contract/conformance/scenarios.yaml`](../contract/conformance/scenarios.yaml).
 - **Per-phase done definition:** [`../CONTRIBUTING.md#per-phase-done-definition`](../CONTRIBUTING.md#per-phase-done-definition).
 - **Project guide for AI assistants + humans:** [`../CLAUDE.md`](../CLAUDE.md).
 

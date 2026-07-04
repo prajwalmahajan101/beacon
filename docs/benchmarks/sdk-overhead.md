@@ -90,8 +90,8 @@ For a quicker CI-mode run (1 fork × 3 warmup × 5 measurement):
 ./gradlew :beacon-sdk-java-benchmark:jmh -PbenchmarkCI
 ```
 
-Results land at `beacon-sdk-java-benchmark/build/reports/jmh/results.txt`
-and `beacon-sdk-java-benchmark/build/results/jmh/results.json`.
+Results land at `sdk/java/benchmark/build/reports/jmh/results.txt`
+and `sdk/java/benchmark/build/results/jmh/results.json`.
 
 ## Limitations + carry-forwards
 
@@ -169,6 +169,6 @@ of `writeMap` (returns `{}`) and a four-test regression suite
 ## Result file (machine-readable)
 
 The full machine-readable result is at
-`beacon-sdk-java-benchmark/build/results/jmh/results.json` after a run; it is
+`sdk/java/benchmark/build/results/jmh/results.json` after a run; it is
 gitignored (build output). A nightly benchmark workflow that uploads this JSON
 as a CI artifact is tracked in `.journal/M1.7.md` § What's next.
