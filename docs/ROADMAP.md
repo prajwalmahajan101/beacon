@@ -1,6 +1,6 @@
 # Beacon — Project Roadmap (M0 → M5)
 
-> **Status:** Drafted 2026-06-12 · last updated 2026-06-24 · M0 frozen · M1.0–M1.8 shipped (12/12 conformance green) · `v0.2-m1` cut · M2–M5 planned.
+> **Status:** Drafted 2026-06-12 · last updated 2026-07-05 · M0 frozen · M1.0–M1.8 shipped (12/12 conformance green) · `v0.2-m1` cut · M2.0–M2.8 shipped · `v0.3-m2` cut · M3–M5 planned.
 > **Authority:** This document is the **execution** roadmap. The PRD ([`../PRD.md`](../PRD.md)) is the **product/design** authority; PRD §26 is the original milestones sketch and is superseded by this document for numbering and scope. The README table at [`../README.md#roadmap`](../README.md#roadmap) is the at-a-glance summary and links here for detail.
 
 ---
@@ -11,7 +11,7 @@
 |---|---|---|---|---|
 | **M0** | Telemetry contract (spec + schema + conformance suite, no SDK code) | ✅ Frozen 2026-06-05 (`v0.1-m0`) | Schema validates fixtures; harnesses collect cleanly in both languages | ≈1 wk |
 | **M1** | Java SDK — implements the contract, passes C1–C12 against the harness | ✅ 9 / 9 phases done (M1.0–M1.8); **12/12 conformance green**; **`v0.2-m1` tagged** | All 12 conformance scenarios green on the Java harness | shipped |
-| **M2** | Python SDK — same contract, same scenarios, identical config-key surface | ⬜ Planned | All 12 conformance scenarios green on the Python harness | ≈2 wk |
+| **M2** | Python SDK — same contract, same scenarios, identical config-key surface | ✅ Complete (M2.0–M2.8); **12/12 conformance green**; **v0.3-m2 tagged** | All 12 conformance scenarios green on the Python harness | shipped |
 | **M3** | Ingest pipeline — Gateway → Kafka → log indexer → Elasticsearch | ⬜ Planned | End-to-end log emit → searchable via API; DLQ + ILM | ≈2 wk |
 | **M4** | Query API + live tail + Beacon Console (React) | ⬜ Planned | Logs explorable via Console with full-text search + histogram | ≈2 wk |
 | **M5** | Platform hardening — RBAC, retention, PII redaction at the gateway, self-observability, Helm | ⬜ Planned | Helm deploy on K8s; RBAC + redaction + retention all wired | ≈2 wk |
@@ -85,7 +85,7 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 
 ---
 
-## M2 — Python SDK ⬜ PLANNED
+## M2 — Python SDK ✅ COMPLETE (`v0.3-m2`)
 
 **Goal:** Ship a Python SDK that passes the same 12 conformance scenarios against the same `scenarios.yaml`, with identical config-key surface to the Java SDK.
 
