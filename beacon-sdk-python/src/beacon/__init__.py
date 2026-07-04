@@ -1,9 +1,25 @@
-"""Beacon SDK for Python — OTel-aligned logs (M2.0 scaffold)."""
+"""Beacon SDK for Python — OTel-aligned logs.
+
+The public integration surface: ``import beacon`` reaches every layer the README
+references. ``BeaconLoggingHandler`` is the one-line stdlib-``logging`` bridge; the
+``set_context`` / ``get_context`` family scopes trace context; ``EmitPipeline`` /
+``build_emit_pipeline`` are the emit facade for programmatic wiring. The layered
+modules (record / config / severity / pipeline / exporter / metrics / lifecycle /
+handler / context) are all reachable top-level (PSDK-01 / PSDK-02).
+"""
 
 from ._version import __version__
+from .context import clear_context, get_context, set_context, update_context
+from .handler import BeaconLoggingHandler
+from .pipeline import EmitPipeline, build_emit_pipeline
 
-# Public re-exports land as the layers are implemented:
-# TODO(M2.0 / 04-02): from .record import LogRecord, serialize
-# TODO(M2.0 / 04-03): from .severity import SeverityMapper
-
-__all__ = ["__version__"]
+__all__ = [
+    "__version__",
+    "BeaconLoggingHandler",
+    "set_context",
+    "update_context",
+    "clear_context",
+    "get_context",
+    "EmitPipeline",
+    "build_emit_pipeline",
+]
