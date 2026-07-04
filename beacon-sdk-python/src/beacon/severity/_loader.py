@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 _ARTIFACT_RELPATH: tuple[str, ...] = ("beacon-s0-contract", "spec", "severity-table.json")
 
@@ -60,15 +61,19 @@ def _find_artifact() -> Path:
     )
 
 
-def load_bands() -> list[dict]:
+def load_bands() -> list[dict[str, object]]:
     """Load and return the six severity bands from the contract artifact.
 
     Returns the raw band dicts (``name`` / ``anchor`` / ``range_min`` / ``range_max`` /
-    ``text``) in file order. Raises ``RuntimeError`` if the artifact is missing or does not
-    define exactly six bands (mirrors the Java loader's invariant).
+    ``text``) in file order. Band dicts are heterogeneous (``str`` names/text +
+    ``int`` anchors/ranges), so the value type is ``object``; callers narrow per key.
+    Raises ``RuntimeError`` if the artifact is missing or does not define exactly six
+    bands (mirrors the Java loader's invariant).
     """
-    raw = json.loads(_find_artifact().read_text(encoding="utf-8"))
-    bands = raw["bands"]
+    # json.loads is typed ``Any``; materialize into a concrete list[dict[str, object]]
+    # so the declared return type is honored (no-any-return) rather than leaking Any.
+    raw: Any = json.loads(_find_artifact().read_text(encoding="utf-8"))
+    bands: list[dict[str, object]] = list(raw["bands"])
     if len(bands) != 6:
         raise RuntimeError(f"severity-table.json must define exactly 6 bands; got {len(bands)}")
     return bands

@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from beacon.record import serialize
 
 if TYPE_CHECKING:
+    from typing import TextIO
+
     from beacon.config import ExporterConfig
     from beacon.metrics import SdkMetrics
     from beacon.record import LogRecord
@@ -50,7 +52,7 @@ class StderrFallbackSink:
     ``StderrFallbackSink(metrics, err)``.
     """
 
-    def __init__(self, metrics: SdkMetrics, stream=None) -> None:
+    def __init__(self, metrics: SdkMetrics, stream: TextIO | None = None) -> None:
         self._metrics = metrics
         self._stream = stream
 
@@ -71,7 +73,7 @@ class FileFallbackSink:
     errors.
     """
 
-    def __init__(self, path: str | os.PathLike, metrics: SdkMetrics) -> None:
+    def __init__(self, path: str | os.PathLike[str], metrics: SdkMetrics) -> None:
         self._path = Path(path)
         self._metrics = metrics
         self._path.parent.mkdir(parents=True, exist_ok=True)

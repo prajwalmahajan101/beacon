@@ -43,6 +43,8 @@ from opentelemetry.sdk._logs import LoggerProvider
 from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from beacon.record import LogRecord
 
 #: Instrumentation scope reported to OTel (mirror Java ``INSTRUMENTATION_SCOPE``).
@@ -98,9 +100,19 @@ class OtlpExporter:
     the M2.4 lifecycle (mirror Java ``AutoCloseable``).
     """
 
-    def __init__(self, endpoint: str, transport: str = "grpc") -> None:
+    def __init__(self, endpoint: str | None, transport: str = "grpc") -> None:
+        # ``endpoint`` is ``str | None``: when None the OTel exporter resolves its OWN
+        # default target (``localhost:4317`` grpc / ``:4318`` http). This is the documented
+        # "no endpoint configured -> fail-fast export -> ResilientSink fallback" path
+        # (build_pipeline in lifecycle/_shutdown.py) — the signature reflects that real
+        # contract rather than lying about it with ``str``.
         if transport not in ("grpc", "http"):
             raise ValueError(f"transport must be 'grpc' or 'http', got {transport!r}")
+        # The gRPC and HTTP OTLPLogExporter are distinct concrete types arriving over the
+        # un-stubbed ``opentelemetry.*`` boundary (see [[tool.mypy.overrides]] in pyproject);
+        # ``Any`` is the honest type for this boundary local so both branches unify and the
+        # value flows into the (also un-stubbed) SimpleLogRecordProcessor.
+        otel_exporter: Any
         if transport == "grpc":
             otel_exporter = OtlpGrpcLogExporter(endpoint=endpoint)
         else:
@@ -138,8 +150,8 @@ class OtlpExporter:
         self._provider.shutdown()
 
     @property
-    def endpoint(self) -> str:
-        """Configured OTLP endpoint."""
+    def endpoint(self) -> str | None:
+        """Configured OTLP endpoint (``None`` when OTel resolves its own default target)."""
         return self._endpoint
 
     @property
