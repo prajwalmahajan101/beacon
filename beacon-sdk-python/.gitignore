@@ -6,3 +6,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# Benchmark machine-readable output (build artifact; mirrors the Java results.json).
+benchmarks/emit_overhead.json
+pytest-report.html
