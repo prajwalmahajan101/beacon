@@ -33,8 +33,8 @@ jobs:
       - name: Capture run metadata (commit + date)
         if: always()
         run: |
-          mkdir -p beacon-sdk-java-benchmark/build/results/jmh
-          cat > beacon-sdk-java-benchmark/build/results/jmh/run-metadata.json <<EOF
+          mkdir -p sdk/java/benchmark/build/results/jmh
+          cat > sdk/java/benchmark/build/results/jmh/run-metadata.json <<EOF
           {
             "commit": "${{ github.sha }}",
             "ref": "${{ github.ref }}",
@@ -52,7 +52,7 @@ jobs:
         with:
           name: jmh-results-${{ github.run_id }}
           path: |
-            beacon-sdk-java-benchmark/build/results/jmh
-            beacon-sdk-java-benchmark/build/reports/jmh
+            sdk/java/benchmark/build/results/jmh
+            sdk/java/benchmark/build/reports/jmh
           retention-days: 30
           if-no-files-found: error

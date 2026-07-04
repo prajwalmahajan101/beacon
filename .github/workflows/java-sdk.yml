@@ -4,10 +4,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "beacon-sdk-java/**"
-      - "beacon-spring-boot-starter/**"
-      - "beacon-sdk-java-benchmark/**"
-      - "beacon-s0-contract/conformance/java/**"
+      - "sdk/java/core/**"
+      - "sdk/java/spring-adapter/**"
+      - "sdk/java/benchmark/**"
+      - "contract/conformance/java/**"
       - "settings.gradle.kts"
       - "build.gradle.kts"
       - "gradle/**"
@@ -17,10 +17,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "beacon-sdk-java/**"
-      - "beacon-spring-boot-starter/**"
-      - "beacon-sdk-java-benchmark/**"
-      - "beacon-s0-contract/conformance/java/**"
+      - "sdk/java/core/**"
+      - "sdk/java/spring-adapter/**"
+      - "sdk/java/benchmark/**"
+      - "contract/conformance/java/**"
       - "settings.gradle.kts"
       - "build.gradle.kts"
       - "gradle/**"
@@ -59,18 +59,18 @@ jobs:
         run: pip install pyyaml==6.0.2
 
       - name: Run cross-SDK contract-drift checker
-        run: python3 beacon-s0-contract/conformance/tools/check_contract_drift.py --sdk java
+        run: python3 contract/conformance/tools/check_contract_drift.py --sdk java
 
       - name: Verify benchmark subproject compiles
         run: ./gradlew :beacon-sdk-java-benchmark:compileJmhJava --no-daemon
 
       - name: Javadoc compile gate (-Werror)
-        run: ./gradlew :beacon-sdk-java:javadoc :beacon-spring-boot-starter:javadoc --no-daemon
+        run: ./gradlew :beacon-sdk-java:javadoc :beacon-sdk-spring-adapter:javadoc --no-daemon
 
       - name: Surface conformance test report
         if: always()
         run: |
-          report_dir=beacon-s0-contract/conformance/java/build/reports/tests/test
+          report_dir=contract/conformance/java/build/reports/tests/test
           if [ -d "$report_dir" ]; then
             echo "Conformance HTML report at: $report_dir/index.html"
             ls -la "$report_dir"
@@ -84,7 +84,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: conformance-test-report
-          path: beacon-s0-contract/conformance/java/build/reports/tests/test
+          path: contract/conformance/java/build/reports/tests/test
           if-no-files-found: ignore
 
       - name: Upload JaCoCo HTML coverage report
@@ -93,10 +93,10 @@ jobs:
         with:
           name: jacoco-coverage-report
           path: |
-            beacon-sdk-java/build/reports/jacoco/test/html
-            beacon-spring-boot-starter/build/reports/jacoco/test/html
-            beacon-sdk-java-benchmark/build/reports/jacoco/test/html
-            beacon-s0-contract/conformance/java/build/reports/jacoco/test/html
+            sdk/java/core/build/reports/jacoco/test/html
+            sdk/java/spring-adapter/build/reports/jacoco/test/html
+            sdk/java/benchmark/build/reports/jacoco/test/html
+            contract/conformance/java/build/reports/jacoco/test/html
           if-no-files-found: ignore
 
       - name: Upload JUnit HTML test report (SDK + starter)
@@ -105,6 +105,6 @@ jobs:
         with:
           name: junit-html-report
           path: |
-            beacon-sdk-java/build/reports/tests/test
-            beacon-spring-boot-starter/build/reports/tests/test
+            sdk/java/core/build/reports/tests/test
+            sdk/java/spring-adapter/build/reports/tests/test
           if-no-files-found: ignore

@@ -21,4 +21,4 @@ Closes #
 - [ ] Conventional Commits subject (`feat:`, `fix:`, `docs:`, …)
 - [ ] Contract harness (`contract.yml`) runs green locally
 - [ ] No unrelated formatting churn in the diff
-- [ ] If this touches `beacon-s0-contract/`, M0 freeze rationale acknowledged in description
+- [ ] If this touches `contract/`, M0 freeze rationale acknowledged in description

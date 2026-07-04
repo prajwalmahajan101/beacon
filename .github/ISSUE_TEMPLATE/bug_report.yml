@@ -54,7 +54,7 @@ body:
     attributes:
       label: Relevant spec section
       description: Pointer into PRD.md, the JSON Schema, or the scenario manifest.
-      placeholder: "e.g. beacon-s0-contract/scenarios/C7.md"
+      placeholder: "e.g. contract/scenarios/C7.md"
 
   - type: textarea
     id: environment
