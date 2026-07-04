@@ -6,7 +6,7 @@
 
 > Self-hosted, OpenTelemetry-native observability platform — logs, traces, and metrics from polyglot services, correlated by W3C trace context, queryable from a single console.
 
-**Status: M0 frozen ([2026-06-05](./contract/M0-FROZEN.md)) · M1 Java SDK shipped (`v0.2-m1`) · M2 Python SDK shipped (`v0.3-m2`, 2026-07-05).** Both SDKs pass the same conformance suite (C1–C12) against the M0-frozen contract. Current work: **M2.9** — SDK monorepo restructure + benchmark CI parity, ahead of the first combined **`v1.0-rc-sdk`** release candidate. Next platform milestone: **M3** (ingest pipeline).
+**Status: M0 frozen ([2026-06-05](./contract/M0-FROZEN.md)) · M1 Java SDK shipped (`v0.2-m1`) · M2 Python SDK shipped (`v0.3-m2`).** Both SDKs pass the same conformance suite (C1–C12) against the M0-frozen contract, are restructured under a unified `sdk/` tree (M2.9), and now ship at **`v1.0-rc-sdk`** — the first combined SDK release candidate (Java + Python, structural + benchmark-CI parity). Next platform milestone: **M3** (ingest pipeline).
 
 Beacon is a vendor-neutral alternative to CloudWatch / Datadog / Loki-style stacks for teams that want OpenTelemetry from day one and prefer a stack they can run themselves. Services integrate via lightweight Java and Python SDKs that never block or crash the host application; telemetry flows through Kafka into purpose-built storage (Elasticsearch search + a write-optimized wide-column system-of-record + a metrics TSDB), and a React console gives operators fast search, cross-signal correlation, and live tail.
 
@@ -92,9 +92,18 @@ Measured on a `13th Gen Intel Core i7-1355U` (Java: Temurin 17; Python: CPython 
 interpreted CPython hot path costs more per op than the JIT-compiled Java path, as expected — both
 still clear the budget by more than an order of magnitude. Full methodology, hardware baseline, and
 reproduce steps: [`docs/benchmarks/sdk-overhead.md`](./docs/benchmarks/sdk-overhead.md) (Java) and
-[`docs/benchmarks/python-sdk-overhead.md`](./docs/benchmarks/python-sdk-overhead.md) (Python). Each
-benchmark runs nightly in CI (`jmh-nightly.yml` / `python-bench-nightly.yml`) and uploads its
-results as a 30-day artifact.
+[`docs/benchmarks/python-sdk-overhead.md`](./docs/benchmarks/python-sdk-overhead.md) (Python).
+
+Both SDKs run their benchmark **nightly in CI at parity** (cron + `workflow_dispatch`), uploading
+machine-readable results as a 30-day artifact — the Java↔Python parity introduced in `v1.0-rc-sdk`:
+
+| Benchmark job | Result | Artifact |
+|---|---|---|
+| `jmh-nightly` (Java) | ✅ success | `jmh-results-<run_id>` (JSON + HTML + metadata) |
+| `python-bench-nightly` (Python) | ✅ success | `python-bench-results-<run_id>` (JSON + metadata) |
+
+Every PR additionally runs a fast benchmark **smoke** (tiny iteration count) so a broken emit path
+fails the build before merge.
 
 ## Stack at a glance
 
