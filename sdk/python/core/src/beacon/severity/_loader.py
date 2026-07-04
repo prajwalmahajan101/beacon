@@ -2,14 +2,14 @@
 
 Internal module (underscore prefix). The public surface is ``beacon.severity.mapper``.
 
-Per ADR-0010, ``beacon-s0-contract/spec/severity-table.json`` is the cross-SDK single
+Per ADR-0010, ``contract/spec/severity-table.json`` is the cross-SDK single
 source of truth for the OTel severity band table. The Python SDK **loads** it at runtime
 and NEVER re-encodes the bands inside ``src/beacon/`` — a bundled copy would be a drift
 surface the ``check_contract_drift.py`` gate exists to prevent.
 
 Resolution mirrors the Java ``SeverityMapper`` filesystem-fallback ladder: walk a set of
 candidate paths (relative to the current working directory and relative to this module's
-parent directories) until ``beacon-s0-contract/spec/severity-table.json`` is found. If none
+parent directories) until ``contract/spec/severity-table.json`` is found. If none
 resolve, raise ``RuntimeError`` listing every path searched — fail-fast is correct; the SDK
 is unusable without a valid band table.
 """
@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-_ARTIFACT_RELPATH: tuple[str, ...] = ("beacon-s0-contract", "spec", "severity-table.json")
+_ARTIFACT_RELPATH: tuple[str, ...] = ("contract", "spec", "severity-table.json")
 
 
 def _candidate_paths() -> list[Path]:

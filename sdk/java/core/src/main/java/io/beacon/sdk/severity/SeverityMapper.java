@@ -14,15 +14,15 @@ import java.util.List;
 /**
  * OTel severity band-anchor mapping per spec/01-telemetry-record-spec.md §1.1.
  *
- * <p>The band table is loaded from {@code beacon-s0-contract/spec/severity-table.json} at class
- * init (M1.8 Plan 03-02 — cross-SDK contract artifact). Public API (numberFor / textFor / bandFor)
- * is unchanged from M1.1; only the data source moved.
+ * <p>The band table is loaded from {@code contract/spec/severity-table.json} at class init (M1.8
+ * Plan 03-02 — cross-SDK contract artifact). Public API (numberFor / textFor / bandFor) is
+ * unchanged from M1.1; only the data source moved.
  *
  * <p>Resolution order for the artifact:
  *
  * <ol>
- *   <li>Classpath resource {@code /beacon-s0-contract/spec/severity-table.json} (works in test runs
- *       where the contract dir is added to the test resources).
+ *   <li>Classpath resource {@code /contract/spec/severity-table.json} (works in test runs where the
+ *       contract dir is added to the test resources).
  *   <li>Filesystem relative paths walked from common CWDs (conformance harness vs SDK gradle vs
  *       project root vs IDE run).
  * </ol>
@@ -149,7 +149,7 @@ public final class SeverityMapper {
 
   private static JsonNode readContractJson() {
     ObjectMapper mapper = new ObjectMapper();
-    String classpath = "/beacon-s0-contract/spec/severity-table.json";
+    String classpath = "/contract/spec/severity-table.json";
     try (InputStream in = SeverityMapper.class.getResourceAsStream(classpath)) {
       if (in != null) return mapper.readTree(in);
     } catch (IOException e) {
@@ -159,10 +159,10 @@ public final class SeverityMapper {
     // vs project root vs deeper IDE run dirs).
     Path[] candidates =
         new Path[] {
-          Paths.get("beacon-s0-contract", "spec", "severity-table.json"),
-          Paths.get("..", "beacon-s0-contract", "spec", "severity-table.json"),
-          Paths.get("..", "..", "beacon-s0-contract", "spec", "severity-table.json"),
-          Paths.get("..", "..", "..", "beacon-s0-contract", "spec", "severity-table.json"),
+          Paths.get("contract", "spec", "severity-table.json"),
+          Paths.get("..", "contract", "spec", "severity-table.json"),
+          Paths.get("..", "..", "contract", "spec", "severity-table.json"),
+          Paths.get("..", "..", "..", "contract", "spec", "severity-table.json"),
         };
     for (Path p : candidates) {
       if (Files.exists(p)) {

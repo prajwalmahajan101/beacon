@@ -12,27 +12,27 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Pins {@link SeverityMapper} to the cross-SDK contract artifact
- * (beacon-s0-contract/spec/severity-table.json). Pitfall #4 — cross-SDK severity-table divergence
- * guard, Java side. M2 (Python SDK) will mirror this test against the same artifact.
+ * (contract/spec/severity-table.json). Pitfall #4 — cross-SDK severity-table divergence guard, Java
+ * side. M2 (Python SDK) will mirror this test against the same artifact.
  */
 class SeverityMapperContractTest {
 
   private static final Path CONTRACT_JSON =
-      repoRoot().resolve(Paths.get("beacon-s0-contract", "spec", "severity-table.json"));
+      repoRoot().resolve(Paths.get("contract", "spec", "severity-table.json"));
 
   /**
    * Walk up from the test working directory (the module dir) until the repo root — the ancestor
-   * containing {@code beacon-s0-contract/} — is found. Robust to the module's depth under the root
-   * (M2.9 moved this module to {@code sdk/java/core}; see docs/adr/0022).
+   * containing {@code contract/} — is found. Robust to the module's depth under the root (M2.9
+   * moved this module to {@code sdk/java/core}; see docs/adr/0022).
    */
   private static Path repoRoot() {
     Path dir = Paths.get("").toAbsolutePath();
-    while (dir != null && !Files.isDirectory(dir.resolve("beacon-s0-contract"))) {
+    while (dir != null && !Files.isDirectory(dir.resolve("contract"))) {
       dir = dir.getParent();
     }
     if (dir == null) {
       throw new IllegalStateException(
-          "Could not locate repo root (a parent containing beacon-s0-contract) from "
+          "Could not locate repo root (a parent containing contract) from "
               + Paths.get("").toAbsolutePath());
     }
     return dir;

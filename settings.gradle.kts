@@ -22,7 +22,7 @@ project(":beacon-sdk-java-benchmark").projectDir = file("sdk/java/benchmark")
 // Conformance harness lives inside the M0 contract module — the contract owns the suite.
 // We include it as a Gradle subproject so it compiles against the real SDK without copying.
 include(":conformance-java")
-project(":conformance-java").projectDir = file("beacon-s0-contract/conformance/java")
+project(":conformance-java").projectDir = file("contract/conformance/java")
 
 // M1.7 Plan 02-02 — Spring Boot adapter (auto-config wires BeaconSdk +
 // BeaconLogbackAppender + BeaconTaskDecorator). Renamed from :beacon-spring-boot-starter

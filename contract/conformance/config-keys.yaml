@@ -15,7 +15,7 @@
 # the SDK contract. It is intentionally absent below.
 
 schema_version: 1
-spec_reference: "beacon-s0-contract/spec/02-sdk-behavior-spec.md#4"
+spec_reference: "contract/spec/02-sdk-behavior-spec.md#4"
 adr_reference: "docs/adr/0009-spring-boot-starter-design.md#decision"
 canonical_surface_count: 13   # 12 leaf + 1 composite
 

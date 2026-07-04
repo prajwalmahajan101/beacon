@@ -3,7 +3,7 @@
     {
       "name": "beacon",
       "type": "io.beacon.spring.BeaconProperties",
-      "description": "Beacon SDK configuration — 13 canonical surfaces. See docs/adr/0009 (anticipated) and beacon-s0-contract/spec/02-sdk-behavior-spec.md §4."
+      "description": "Beacon SDK configuration — 13 canonical surfaces. See docs/adr/0009 (anticipated) and contract/spec/02-sdk-behavior-spec.md §4."
     },
     {
       "name": "beacon.redact",

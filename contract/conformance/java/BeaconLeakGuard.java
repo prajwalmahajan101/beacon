@@ -11,7 +11,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * forgot to close via {@code sdk.close()}.
  *
  * <p>Registered via {@code @ExtendWith(BeaconLeakGuard.class)} on the test class. Lives next to
- * {@code ConformanceTest.java} in {@code beacon-s0-contract/conformance/java/} because {@code
+ * {@code ConformanceTest.java} in {@code contract/conformance/java/} because {@code
  * :conformance-java} only sees {@code :beacon-sdk-java}'s production JAR via {@code
  * testImplementation} — test-source classes do not cross subproject boundaries.
  *

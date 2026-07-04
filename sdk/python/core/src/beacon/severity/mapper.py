@@ -1,7 +1,7 @@
 """OTel severity band-anchor mapping — Python port of ``SeverityMapper.java``.
 
 The band table is loaded once at import time from
-``beacon-s0-contract/spec/severity-table.json`` (see ``_loader``). Per ADR-0010 the bands
+``contract/spec/severity-table.json`` (see ``_loader``). Per ADR-0010 the bands
 are NEVER re-encoded here; only the lookup logic lives in this module.
 
 Public API:
