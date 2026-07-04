@@ -1,0 +1,25 @@
+# Beacon Python SDK sample (PSDK-06) — a runnable, framework-free, stdlib-logging demo.
+#
+# This is a SCRIPT sample, not a distributable package: there is intentionally no build
+# backend. Run it with uv, pulling the local SDK in as an ephemeral dependency:
+#
+#     uv run --with ../../beacon-sdk-python python main.py
+#
+# The ``[tool.uv.sources]`` path entry below lets ``uv run`` resolve ``beacon-sdk``
+# from the sibling checkout instead of PyPI when the dependency is declared.
+[project]
+name = "beacon-python-sample"
+version = "0.0.0"
+description = "Framework-free stdlib-logging sample integrating the Beacon Python SDK (PSDK-06)"
+requires-python = ">=3.10"
+dependencies = [
+  "beacon-sdk",
+  # The SDK's ``config/_keys.py`` loads the frozen ``config-keys.yaml`` contract
+  # artifact at import time (ADR-0010), so PyYAML is a runtime import of the SDK. It
+  # is currently declared only in the SDK's dev dependency-group, so the sample pulls
+  # it in explicitly here rather than touching SDK source (this plan is examples-only).
+  "pyyaml >= 6.0.2",
+]
+
+[tool.uv.sources]
+beacon-sdk = { path = "../../beacon-sdk-python", editable = true }
