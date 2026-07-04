@@ -13,11 +13,19 @@ Public API:
 
 from __future__ import annotations
 
+from typing import cast
+
 from ._loader import load_bands
 
+# Band dicts are heterogeneous (str names/text + int anchors/ranges), so their value
+# type is ``object``; each lookup below narrows to the concrete type it reads.
+_Band = dict[str, object]
+
 # Eager load, sorted ascending by anchor — TRACE first, FATAL last (Java parity).
-_BANDS: list[dict] = sorted(load_bands(), key=lambda b: b["anchor"])
-_BY_NAME: dict[str, dict] = {b["name"]: b for b in _BANDS}
+# ``anchor`` is an int per the contract (severity-table.json); narrow ``object`` -> int
+# via ``cast`` so the sort key is comparable without leaking Any.
+_BANDS: list[_Band] = sorted(load_bands(), key=lambda b: cast(int, b["anchor"]))
+_BY_NAME: dict[str, _Band] = {str(b["name"]): b for b in _BANDS}
 
 # Sanity: contiguous 1..24 coverage — mirrors Java's IllegalStateException guard.
 assert _BANDS[0]["range_min"] == 1, "severity-table.json: first band must start at 1"
@@ -40,7 +48,8 @@ _PY_LOGGING_TO_OTEL_NUMBER: dict[int, int] = {
 
 def number_for(band_name: str) -> int:
     """Band-anchor number for a band name. e.g. ``number_for("WARN") == 13``."""
-    return _BY_NAME[band_name]["anchor"]
+    # ``anchor`` is an int per the contract; narrow object -> int at the read site.
+    return cast(int, _BY_NAME[band_name]["anchor"])
 
 
 def text_for(otel_number: int) -> str:
@@ -49,10 +58,11 @@ def text_for(otel_number: int) -> str:
     Off-anchor inputs collapse to the band anchor at or below
     (e.g. ``text_for(14) == "WARN"``, ``text_for(18) == "ERROR"``).
     """
-    return band_for(otel_number)["text"]
+    # ``text`` is a str per the contract; narrow object -> str at the read site.
+    return cast(str, band_for(otel_number)["text"])
 
 
-def band_for(otel_number: int) -> dict:
+def band_for(otel_number: int) -> _Band:
     """Return the raw band dict for an OTel ``severity_number`` in 1..24.
 
     Raises ``ValueError`` if the number is out of the legal 1..24 range (spec/01 §1.1).
@@ -61,7 +71,7 @@ def band_for(otel_number: int) -> dict:
         raise ValueError(f"OTel severity_number must be in 1..24 (spec/01 §1.1); got {otel_number}")
     # _BANDS is sorted ascending; walk from highest anchor downward — Java parity.
     for b in reversed(_BANDS):
-        if otel_number >= b["anchor"]:
+        if otel_number >= cast(int, b["anchor"]):
             return b
     raise RuntimeError("severity-table.json missing TRACE band (anchor 1)")
 
