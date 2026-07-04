@@ -2,7 +2,7 @@ server:
   port: 8080
 
 # Beacon SDK configuration — all 13 canonical surfaces from ADR-0009 §3
-# (mirrored in beacon-s0-contract/spec/02-sdk-behavior-spec.md §4). The
+# (mirrored in contract/spec/02-sdk-behavior-spec.md §4). The
 # `beacon.enabled` key below is the starter-only opt-out gate (Pitfall #18)
 # and is NOT counted in the 13 canonical surfaces.
 #
