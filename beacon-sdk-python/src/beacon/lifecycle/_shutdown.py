@@ -38,7 +38,9 @@ import threading
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from beacon.pipeline.flusher import BatchFlusher
+    from beacon.config import BufferConfig, ExporterConfig, FlusherConfig
+    from beacon.metrics import SdkMetrics
+    from beacon.pipeline.flusher import BatchFlusher, BatchSink
 
 _LOG = logging.getLogger("io.beacon.sdk.lifecycle")
 
@@ -160,6 +162,69 @@ def ensure_shutdown_registered() -> None:
         # normal-exit drain.
 
         _atexit_registered = True
+
+
+def build_pipeline(
+    buffer_config: BufferConfig,
+    flusher_config: FlusherConfig,
+    exporter_config: ExporterConfig,
+    metrics: SdkMetrics,
+    *,
+    drain_timeout_ms: int = _DEFAULT_DRAIN_TIMEOUT_MS,
+    sink: BatchSink | None = None,
+) -> BatchFlusher:
+    """Assemble the full M2.4 pipeline and install the graceful-drain hooks.
+
+    ``BoundedBuffer`` → ``BatchFlusher`` → ``ResilientSink.of(OtlpExporter(...))``.
+    This RETIRES the M2.2 ``BatchFlusher`` ``NOOP`` seam by handing the flusher the
+    real resilient sink, so drain-time failures inherit retry + fallback for free
+    (ADR-0006 decision #3 / ADR-0016). Registers the flusher for
+    :func:`beacon_shutdown`, installs the atexit + (main-thread) SIGTERM hooks
+    (ADR-0017), starts the flusher, and returns it.
+
+    ``drain_timeout_ms`` defaults to the canonical ``shutdown-drain-timeout-ms``
+    value (5000, config-keys.yaml / C9). It is a plain function parameter — NOT a
+    new ``BEACON_*`` key; the ``BEACON_SHUTDOWN_DRAIN_TIMEOUT_MS`` anchor already
+    exists and the full env/sysprop loader that would read it is later-M2 growth.
+
+    ``sink=`` is a TEST-ONLY override seam (mirror the Java Builder's ``sink(...)``
+    escape hatch): when provided it replaces the constructed
+    ``ResilientSink.of(OtlpExporter(...))`` so unit tests can inject a capturing
+    sink WITHOUT a live collector. Production callers pass ``sink=None`` and get the
+    real resilient/OTLP sink.
+    """
+    # Imported here (not at module top) so importing beacon.lifecycle stays cheap
+    # and free of the OTel exporter import cost / side effects.
+    from beacon.exporter import OtlpExporter, ResilientSink
+    from beacon.pipeline import BatchFlusher, BoundedBuffer
+
+    buffer = BoundedBuffer(
+        buffer_config.buffer_capacity, buffer_config.drop_policy, metrics
+    )
+
+    if sink is None:
+        # Real production sink: ResilientSink decorating a transport-only
+        # OtlpExporter. When endpoint is None the ExporterConfig contract says
+        # "no OTLP exporter wired → records go to fallback": the OtlpExporter
+        # constructs with endpoint=None (OTel resolves its own default target),
+        # every export fail-fast raises OtlpExportError, and ResilientSink routes
+        # the exhausted batch to its configured fallback (stderr | file:<path>).
+        # NO new config key is invented for this behavior.
+        delegate = OtlpExporter(exporter_config.endpoint, exporter_config.transport)
+        sink = ResilientSink.of(delegate, exporter_config, metrics)
+
+    flusher = BatchFlusher(
+        buffer,
+        sink,
+        batch_max_records=flusher_config.batch_max_records,
+        flush_interval_ms=flusher_config.flush_interval_ms,
+        metrics=metrics,
+    )
+
+    register_flusher(flusher, drain_timeout_ms)
+    ensure_shutdown_registered()
+    flusher.start()
+    return flusher
 
 
 def _reset_for_tests() -> None:
