@@ -89,9 +89,7 @@ class BoundedBuffer:
             case DropPolicy.SPILL_FALLBACK:
                 # Deliberate fail-loud seam — the real FallbackSink ships in M2.3.
                 # Mirrors Java's UnsupportedOperationException("M1.4: ...").
-                raise NotImplementedError(
-                    "M2.3: SPILL_FALLBACK requires FallbackSink"
-                )
+                raise NotImplementedError("M2.3: SPILL_FALLBACK requires FallbackSink")
 
             case _:
                 raise ValueError(f"Unknown drop policy: {self._policy}")

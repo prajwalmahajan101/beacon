@@ -1,4 +1,4 @@
-"""Production literal-key recursive redactor — Python idiom of Java ``Redactor``.
+r"""Production literal-key recursive redactor — Python idiom of Java ``Redactor``.
 
 Node-for-node port of
 ``beacon-sdk-java/src/main/java/io/beacon/sdk/pipeline/Redactor.java`` (spec/02
@@ -53,9 +53,7 @@ class RedactorTimeoutError(Exception):
     """
 
     def __init__(self, record: LogRecord, elapsed_ns: int) -> None:
-        super().__init__(
-            f"redaction exceeded deadline after {elapsed_ns} ns"
-        )
+        super().__init__(f"redaction exceeded deadline after {elapsed_ns} ns")
         self.record = record
         self.elapsed_ns = elapsed_ns
 
@@ -84,9 +82,7 @@ class Redactor:
         metrics: SdkMetrics,
     ) -> None:
         self._effective_keys_lower = frozenset(effective_keys_lower)
-        self._max_key_len = max(
-            (len(k) for k in self._effective_keys_lower), default=0
-        )
+        self._max_key_len = max((len(k) for k in self._effective_keys_lower), default=0)
         self._timeout_ns = timeout_ms * 1_000_000
         self._metrics = metrics
 
@@ -120,13 +116,9 @@ class Redactor:
             return record.with_(**changed)
         except _DeadlineExceeded:
             self._metrics.inc_redactor_timeout()
-            raise RedactorTimeoutError(
-                record, time.monotonic_ns() - start
-            ) from None
+            raise RedactorTimeoutError(record, time.monotonic_ns() - start) from None
 
-    def _walk_map(
-        self, m: Mapping[str, Any], deadline: int, depth: int
-    ) -> Mapping[str, Any]:
+    def _walk_map(self, m: Mapping[str, Any], deadline: int, depth: int) -> Mapping[str, Any]:
         """Redacted copy of ``m`` — or ``m`` itself (identity) when nothing changed."""
         _check_depth(depth)
         out: dict[str, Any] | None = None  # lazy allocate on first change
@@ -153,9 +145,7 @@ class Redactor:
                 out[key] = new_val
         return out if out is not None else m
 
-    def _walk_list(
-        self, lst: list[Any], deadline: int, depth: int
-    ) -> list[Any]:
+    def _walk_list(self, lst: list[Any], deadline: int, depth: int) -> list[Any]:
         """Redacted copy of ``lst`` — or ``lst`` itself (identity) when nothing changed."""
         _check_depth(depth)
         out: list[Any] | None = None

@@ -32,7 +32,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Mapping
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 from beacon.record import LogRecord
 from beacon.severity import from_python_logging_level, text_for

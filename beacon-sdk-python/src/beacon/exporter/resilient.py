@@ -41,13 +41,13 @@ from .retry import RetryPolicy
 if TYPE_CHECKING:
     from beacon.config import ExporterConfig
     from beacon.metrics import SdkMetrics
+
+    # Structural delegate type: any object exposing ``accept(list[LogRecord])``.
+    from beacon.pipeline import BatchSink
     from beacon.record import LogRecord
 
     from .fallback import FallbackSink
     from .otlp import OtlpExporter  # noqa: F401 - doc reference only
-
-    # Structural delegate type: any object exposing ``accept(list[LogRecord])``.
-    from beacon.pipeline import BatchSink
 
 
 class ResilientSink:
@@ -59,10 +59,10 @@ class ResilientSink:
 
     def __init__(
         self,
-        delegate: "BatchSink",
+        delegate: BatchSink,
         retry_policy: RetryPolicy,
-        fallback: "FallbackSink",
-        metrics: "SdkMetrics",
+        fallback: FallbackSink,
+        metrics: SdkMetrics,
     ) -> None:
         # Python has no Objects.requireNonNull; a None delegate/fallback is a
         # programming error — fail loud rather than deferring to an AttributeError.
@@ -104,9 +104,7 @@ class ResilientSink:
         self._fallback.write(batch)
 
     @classmethod
-    def of(
-        cls, delegate: "BatchSink", config: "ExporterConfig", metrics: "SdkMetrics"
-    ) -> "ResilientSink":
+    def of(cls, delegate: BatchSink, config: ExporterConfig, metrics: SdkMetrics) -> ResilientSink:
         """Build a ``ResilientSink`` from an ``ExporterConfig`` (mirror Java ``ResilientSink.of``).
 
         Constructs a :class:`RetryPolicy` + a :class:`FallbackSink` from the config

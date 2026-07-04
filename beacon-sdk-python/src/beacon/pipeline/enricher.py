@@ -85,9 +85,7 @@ class Enricher:
         )
 
     @staticmethod
-    def _stamp(
-        record: LogRecord, trace_id: str, span_id: str | None
-    ) -> LogRecord:
+    def _stamp(record: LogRecord, trace_id: str, span_id: str | None) -> LogRecord:
         """Apply ``trace_id`` / ``span_id``, honoring pre-stamped record values.
 
         Mirror of Java ``stamp``: a value already present on the record wins over

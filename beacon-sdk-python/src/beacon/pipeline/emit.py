@@ -143,9 +143,7 @@ def build_emit_pipeline(
     Returns a :class:`BuiltEmitPipeline` (facade + started flusher + shared buffer).
     """
     # ONE shared buffer — the whole point of the M2.6 buffer= seam.
-    buffer = BoundedBuffer(
-        buffer_config.buffer_capacity, buffer_config.drop_policy, metrics
-    )
+    buffer = BoundedBuffer(buffer_config.buffer_capacity, buffer_config.drop_policy, metrics)
 
     enricher = Enricher()
     redactor = Redactor(

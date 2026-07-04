@@ -95,8 +95,7 @@ def _find_artifact() -> Path:
         if candidate.exists():
             return candidate
     raise RuntimeError(
-        "config-keys.yaml not found on any candidate path: "
-        + ", ".join(str(p) for p in searched)
+        "config-keys.yaml not found on any candidate path: " + ", ".join(str(p) for p in searched)
     )
 
 

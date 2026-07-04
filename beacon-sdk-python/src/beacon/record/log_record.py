@@ -12,8 +12,9 @@ deliberately does NOT import ``datetime`` or call ``time.time()``.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Any, Mapping
+from typing import Any
 
 SCHEMA_VERSION: int = 1
 
@@ -52,7 +53,7 @@ class LogRecord:
         severity_text: str,
         body: str,
         resource: Mapping[str, Any],
-    ) -> "LogRecord":
+    ) -> LogRecord:
         """Schema-required subset (no trace context, no scope, no attributes).
 
         Mirror of Java ``LogRecord.minimal(...)``: defaults ``schema_version`` to
@@ -66,7 +67,7 @@ class LogRecord:
             resource=resource,
         )
 
-    def with_(self, **changes: Any) -> "LogRecord":
+    def with_(self, **changes: Any) -> LogRecord:
         """Return a copy with ``changes`` applied; the receiver is left unmutated.
 
         Dataclass-native equivalent of Java ``LogRecord.Builder.from(r)...build()``.

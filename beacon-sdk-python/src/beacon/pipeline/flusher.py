@@ -110,13 +110,9 @@ class BatchFlusher:
         metrics: SdkMetrics,
     ) -> None:
         if batch_max_records <= 0:
-            raise ValueError(
-                f"batch_max_records must be > 0, got {batch_max_records}"
-            )
+            raise ValueError(f"batch_max_records must be > 0, got {batch_max_records}")
         if flush_interval_ms <= 0:
-            raise ValueError(
-                f"flush_interval_ms must be > 0, got {flush_interval_ms}"
-            )
+            raise ValueError(f"flush_interval_ms must be > 0, got {flush_interval_ms}")
         self._buffer = buffer
         self._sink = sink
         self._batch_max_records = batch_max_records
@@ -294,11 +290,7 @@ class BatchFlusher:
     @property
     def is_running(self) -> bool:
         """True while the thread is alive and not stopping (mirror Java ``isRunning``)."""
-        return (
-            self._thread is not None
-            and self._thread.is_alive()
-            and not self._stop.is_set()
-        )
+        return self._thread is not None and self._thread.is_alive() and not self._stop.is_set()
 
     @property
     def batch_max_records(self) -> int:

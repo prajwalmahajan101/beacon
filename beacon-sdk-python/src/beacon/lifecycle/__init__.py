@@ -1,4 +1,7 @@
-"""Lifecycle layer — graceful drain (atexit + SIGTERM). M2.4 (ADR-0017, Python idiom of Java ADR-0006)."""
+"""Lifecycle layer — graceful drain (atexit + SIGTERM).
+
+M2.4 (ADR-0017, Python idiom of Java ADR-0006).
+"""
 
 from ._shutdown import (
     beacon_shutdown,

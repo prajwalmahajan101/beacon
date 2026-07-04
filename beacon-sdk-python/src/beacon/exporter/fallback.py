@@ -37,7 +37,7 @@ class FallbackSink(Protocol):
     ``pipeline/flusher.py``.
     """
 
-    def write(self, batch: list["LogRecord"]) -> None:
+    def write(self, batch: list[LogRecord]) -> None:
         """Append every record in ``batch`` as one canonical-JSON line."""
         ...
 
@@ -50,11 +50,12 @@ class StderrFallbackSink:
     ``StderrFallbackSink(metrics, err)``.
     """
 
-    def __init__(self, metrics: "SdkMetrics", stream=None) -> None:
+    def __init__(self, metrics: SdkMetrics, stream=None) -> None:
         self._metrics = metrics
         self._stream = stream
 
-    def write(self, batch: list["LogRecord"]) -> None:
+    def write(self, batch: list[LogRecord]) -> None:
+        """Write each record as a canonical-JSON line to the stream."""
         stream = self._stream if self._stream is not None else sys.stderr
         for r in batch:
             print(serialize(r), file=stream)
@@ -70,12 +71,13 @@ class FileFallbackSink:
     errors.
     """
 
-    def __init__(self, path: str | os.PathLike, metrics: "SdkMetrics") -> None:
+    def __init__(self, path: str | os.PathLike, metrics: SdkMetrics) -> None:
         self._path = Path(path)
         self._metrics = metrics
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
-    def write(self, batch: list["LogRecord"]) -> None:
+    def write(self, batch: list[LogRecord]) -> None:
+        """Append each record as a canonical-JSON line to the file."""
         with open(self._path, "a", encoding="utf-8") as f:
             for r in batch:
                 f.write(serialize(r) + "\n")
@@ -91,20 +93,19 @@ class CapturingFallback:
     stderr/files.
     """
 
-    def __init__(self, metrics: "SdkMetrics") -> None:
+    def __init__(self, metrics: SdkMetrics) -> None:
         self._metrics = metrics
-        self.records: list["LogRecord"] = []
-        self.batches: list[list["LogRecord"]] = []
+        self.records: list[LogRecord] = []
+        self.batches: list[list[LogRecord]] = []
 
-    def write(self, batch: list["LogRecord"]) -> None:
+    def write(self, batch: list[LogRecord]) -> None:
+        """Capture the batch (a copy) for later assertions."""
         self.batches.append(list(batch))
         self.records.extend(batch)
         self._metrics.inc_fallback_write(len(batch))
 
 
-def fallback_from_config(
-    config: "ExporterConfig", metrics: "SdkMetrics"
-) -> FallbackSink:
+def fallback_from_config(config: ExporterConfig, metrics: SdkMetrics) -> FallbackSink:
     """Select ``stderr`` vs ``file:<path>`` from ``config.fallback_sink``.
 
     Python idiom of Java ``FallbackSink.fromConfig`` (FallbackSink.java:32-44).
@@ -115,6 +116,4 @@ def fallback_from_config(
         return StderrFallbackSink(metrics)
     if spec.startswith("file:"):
         return FileFallbackSink(spec[len("file:") :], metrics)
-    raise ValueError(
-        f"unsupported fallback_sink: {spec!r} (expected 'stderr' or 'file:<path>')"
-    )
+    raise ValueError(f"unsupported fallback_sink: {spec!r} (expected 'stderr' or 'file:<path>')")

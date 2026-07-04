@@ -61,26 +61,29 @@ class _FakeProvider:
 
 
 def test_transport_selection_grpc() -> None:
-    with mock.patch.object(otlp, "OtlpGrpcLogExporter") as grpc_cls, mock.patch.object(
-        otlp, "OtlpHttpLogExporter"
-    ) as http_cls:
+    with (
+        mock.patch.object(otlp, "OtlpGrpcLogExporter") as grpc_cls,
+        mock.patch.object(otlp, "OtlpHttpLogExporter") as http_cls,
+    ):
         OtlpExporter(_ENDPOINT, "grpc")
         grpc_cls.assert_called_once_with(endpoint=_ENDPOINT)
         http_cls.assert_not_called()
 
 
 def test_transport_selection_http() -> None:
-    with mock.patch.object(otlp, "OtlpGrpcLogExporter") as grpc_cls, mock.patch.object(
-        otlp, "OtlpHttpLogExporter"
-    ) as http_cls:
+    with (
+        mock.patch.object(otlp, "OtlpGrpcLogExporter") as grpc_cls,
+        mock.patch.object(otlp, "OtlpHttpLogExporter") as http_cls,
+    ):
         OtlpExporter(_ENDPOINT, "http")
         http_cls.assert_called_once_with(endpoint=_ENDPOINT)
         grpc_cls.assert_not_called()
 
 
 def test_transport_default_is_grpc() -> None:
-    with mock.patch.object(otlp, "OtlpGrpcLogExporter"), mock.patch.object(
-        otlp, "OtlpHttpLogExporter"
+    with (
+        mock.patch.object(otlp, "OtlpGrpcLogExporter"),
+        mock.patch.object(otlp, "OtlpHttpLogExporter"),
     ):
         e = OtlpExporter(_ENDPOINT)
         assert e.transport == "grpc"
@@ -92,8 +95,9 @@ def test_invalid_transport_raises() -> None:
 
 
 def test_accept_raises_on_flush_failure() -> None:
-    with mock.patch.object(otlp, "OtlpGrpcLogExporter"), mock.patch.object(
-        otlp, "LoggerProvider", return_value=_FakeProvider(flush_ok=False)
+    with (
+        mock.patch.object(otlp, "OtlpGrpcLogExporter"),
+        mock.patch.object(otlp, "LoggerProvider", return_value=_FakeProvider(flush_ok=False)),
     ):
         e = OtlpExporter(_ENDPOINT, "grpc")
         with pytest.raises(OtlpExportError, match="batch of 1 records"):
@@ -102,8 +106,9 @@ def test_accept_raises_on_flush_failure() -> None:
 
 def test_accept_succeeds_on_flush_true() -> None:
     fake = _FakeProvider(flush_ok=True)
-    with mock.patch.object(otlp, "OtlpGrpcLogExporter"), mock.patch.object(
-        otlp, "LoggerProvider", return_value=fake
+    with (
+        mock.patch.object(otlp, "OtlpGrpcLogExporter"),
+        mock.patch.object(otlp, "LoggerProvider", return_value=fake),
     ):
         e = OtlpExporter(_ENDPOINT, "grpc")
         assert e.accept([_rec(), _rec()]) is None  # no raise
@@ -112,8 +117,9 @@ def test_accept_succeeds_on_flush_true() -> None:
 
 def test_close_shuts_down_provider() -> None:
     fake = _FakeProvider()
-    with mock.patch.object(otlp, "OtlpGrpcLogExporter"), mock.patch.object(
-        otlp, "LoggerProvider", return_value=fake
+    with (
+        mock.patch.object(otlp, "OtlpGrpcLogExporter"),
+        mock.patch.object(otlp, "LoggerProvider", return_value=fake),
     ):
         e = OtlpExporter(_ENDPOINT, "grpc")
         e.close()
@@ -121,8 +127,9 @@ def test_close_shuts_down_provider() -> None:
 
 
 def test_otlp_exporter_is_batchsink() -> None:
-    with mock.patch.object(otlp, "OtlpGrpcLogExporter"), mock.patch.object(
-        otlp, "LoggerProvider", return_value=_FakeProvider()
+    with (
+        mock.patch.object(otlp, "OtlpGrpcLogExporter"),
+        mock.patch.object(otlp, "LoggerProvider", return_value=_FakeProvider()),
     ):
         e = OtlpExporter(_ENDPOINT, "grpc")
         assert isinstance(e, BatchSink)

@@ -45,9 +45,11 @@ def main() -> None:
     metrics = SdkMetrics()
 
     class _AlwaysFailDelegate:
-        """Every export attempt raises — models an unreachable collector, but
-        DETERMINISTICALLY (unlike the OTel gRPC exporter, which swallows the
-        connection error inside its own retry/force_flush)."""
+        """Every export attempt raises — models an unreachable collector.
+
+        Fails DETERMINISTICALLY (unlike the OTel gRPC exporter, which swallows
+        the connection error inside its own retry/force_flush).
+        """
 
         def accept(self, batch):
             raise RuntimeError("collector unreachable (integration fixture)")

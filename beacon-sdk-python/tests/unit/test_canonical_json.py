@@ -133,9 +133,7 @@ def test_byte_for_byte_against_java_known_fixture():
     # Computed by hand from spec/01 §1 + the format_rfc3339_nano contract; matches
     # Java CanonicalJson byte-for-byte for this sub-microsecond-precision record
     # (Java Instant.toString() also emits 9 fractional digits when ns % 1000 != 0).
-    r = LogRecord.minimal(
-        1_700_000_000_123_456_789, 9, "INFO", "hello", _RESOURCE
-    )
+    r = LogRecord.minimal(1_700_000_000_123_456_789, 9, "INFO", "hello", _RESOURCE)
     expected = (
         '{"schema_version":1,'
         '"timestamp":"2023-11-14T22:13:20.123456789Z",'
