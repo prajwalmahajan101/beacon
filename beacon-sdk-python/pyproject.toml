@@ -63,5 +63,11 @@ select = ["E", "F", "I", "UP", "B", "D"]
 # are not required across the existing (non-docstring-heavy) codebase.
 ignore = ["D100", "D104", "D107"]
 
+[tool.ruff.lint.per-file-ignores]
+# Test functions/methods are self-documenting via their names + arrange/act/assert
+# bodies; requiring a docstring on every test is the "docstring marathon" the floor
+# explicitly avoids (Pitfall #22). D102/D103 stay enforced on src/ (the public API).
+"tests/**" = ["D101", "D102", "D103"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"      # consistent docstring style for the D rules (vs full-pedantic default)

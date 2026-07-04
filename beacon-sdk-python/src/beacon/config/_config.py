@@ -1,4 +1,7 @@
-"""Structured config carriers — ``DropPolicy`` + ``BufferConfig`` (M2.1) + ``FlusherConfig`` (M2.2) + ``ExporterConfig`` (M2.3) + ``RedactorConfig`` (M2.5).
+"""Structured config carriers.
+
+``DropPolicy`` + ``BufferConfig`` (M2.1) + ``FlusherConfig`` (M2.2) +
+``ExporterConfig`` (M2.3) + ``RedactorConfig`` (M2.5).
 
 Python idiom of the Java ``BeaconConfig`` (see
 ``beacon-sdk-java/src/main/java/io/beacon/sdk/config/BeaconConfig.java``), scoped
@@ -52,9 +55,7 @@ class BufferConfig:
     def __post_init__(self) -> None:
         # Mirror Java BoundedBuffer ctor: "capacity must be > 0".
         if self.buffer_capacity <= 0:
-            raise ValueError(
-                f"buffer_capacity must be > 0, got {self.buffer_capacity}"
-            )
+            raise ValueError(f"buffer_capacity must be > 0, got {self.buffer_capacity}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,13 +83,9 @@ class FlusherConfig:
     def __post_init__(self) -> None:
         # Mirror Java BatchFlusher ctor guards (BatchFlusher.java:47-52).
         if self.batch_max_records <= 0:
-            raise ValueError(
-                f"batch_max_records must be > 0, got {self.batch_max_records}"
-            )
+            raise ValueError(f"batch_max_records must be > 0, got {self.batch_max_records}")
         if self.flush_interval_ms <= 0:
-            raise ValueError(
-                f"flush_interval_ms must be > 0, got {self.flush_interval_ms}"
-            )
+            raise ValueError(f"flush_interval_ms must be > 0, got {self.flush_interval_ms}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,17 +128,13 @@ class ExporterConfig:
         if self.max_retries < 0:
             raise ValueError(f"max_retries must be >= 0, got {self.max_retries}")
         if self.backoff_base_ms <= 0:
-            raise ValueError(
-                f"backoff_base_ms must be > 0, got {self.backoff_base_ms}"
-            )
+            raise ValueError(f"backoff_base_ms must be > 0, got {self.backoff_base_ms}")
         if self.backoff_max_ms < self.backoff_base_ms:
             raise ValueError(
                 f"backoff_max_ms must be >= backoff_base_ms, got {self.backoff_max_ms}"
             )
         if self.transport not in ("grpc", "http"):
-            raise ValueError(
-                f"transport must be 'grpc' or 'http', got {self.transport!r}"
-            )
+            raise ValueError(f"transport must be 'grpc' or 'http', got {self.transport!r}")
 
 
 # Canonical always-on redaction baseline — MUST match the Java baseline
@@ -185,9 +178,7 @@ class RedactorConfig:
     def __post_init__(self) -> None:
         # Mirror the other carriers' > 0 guards (Java Redactor timeout budget).
         if self.redactor_timeout_ms <= 0:
-            raise ValueError(
-                f"redactor_timeout_ms must be > 0, got {self.redactor_timeout_ms}"
-            )
+            raise ValueError(f"redactor_timeout_ms must be > 0, got {self.redactor_timeout_ms}")
 
     def effective_keys_lower(self) -> frozenset[str]:
         """The ASCII-lowercased key set the ``Redactor`` matches against.

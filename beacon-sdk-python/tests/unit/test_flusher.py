@@ -145,9 +145,7 @@ def test_stop_joins_cleanly():
     dt = time.monotonic() - t0
     assert dt < 1.0, f"stop() must be bounded even @60000ms interval; took {dt}s"
     assert _wait_until(
-        lambda: not any(
-            t.name == _FLUSHER_THREAD_NAME for t in threading.enumerate()
-        ),
+        lambda: not any(t.name == _FLUSHER_THREAD_NAME for t in threading.enumerate()),
         timeout=0.5,
     ), "flusher thread survived stop()"
 
@@ -164,9 +162,7 @@ def test_sink_exception_is_swallowed():
         assert sink.calls >= 1
         # Thread still alive after the failing flush (exception swallowed).
         assert flusher.is_running
-        assert any(
-            t.name == _FLUSHER_THREAD_NAME for t in threading.enumerate()
-        )
+        assert any(t.name == _FLUSHER_THREAD_NAME for t in threading.enumerate())
     finally:
         flusher.stop()
 
@@ -255,9 +251,7 @@ def test_drain_and_stop_joins_worker_thread():
     flusher.drain_and_stop(5000)
     assert flusher.is_running is False
     assert _wait_until(
-        lambda: not any(
-            t.name == _FLUSHER_THREAD_NAME for t in threading.enumerate()
-        ),
+        lambda: not any(t.name == _FLUSHER_THREAD_NAME for t in threading.enumerate()),
         timeout=0.5,
     ), "flusher thread survived drain_and_stop()"
 

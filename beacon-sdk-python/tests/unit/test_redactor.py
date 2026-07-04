@@ -8,7 +8,8 @@ Each test maps to a phase success criterion / conformance gate:
  * Mapping body walked / str passthrough -> test_body_mapping_is_walked_str_body_passthrough
  * identity on no-match                   -> test_pass_through_preserves_identity
  * depth cap > 32 -> timeout              -> test_depth_cap_over_32_times_out
- * deadline timeout fail-safe            -> test_deadline_timeout_carries_original_and_increments_metric
+ * deadline timeout fail-safe
+   -> test_deadline_timeout_carries_original_and_increments_metric
  * timeout leaves record un-redacted     -> test_redactor_timeout_error_record_is_unredacted
 """
 
@@ -48,9 +49,7 @@ def _redactor(keys, timeout_ms=_HAPPY_TIMEOUT_MS, metrics=None) -> Redactor:
 def test_redacts_flat_matching_keys() -> None:
     # C10 shape in miniature: password + card.number redacted, order.id kept.
     r = _redactor({"password", "card.number"})
-    rec = _rec(
-        {"password": "hunter2", "card.number": "4111111111111111", "order.id": 9921}
-    )
+    rec = _rec({"password": "hunter2", "card.number": "4111111111111111", "order.id": 9921})
     out = r.redact(rec)
     a = out.attributes
     assert a["password"] == REDACTED

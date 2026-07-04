@@ -8,10 +8,10 @@ from beacon import severity
 from beacon.severity import (
     band_for,
     from_python_logging_level,
+    mapper,
     number_for,
     text_for,
 )
-from beacon.severity import mapper
 
 
 def test_number_for_each_band():

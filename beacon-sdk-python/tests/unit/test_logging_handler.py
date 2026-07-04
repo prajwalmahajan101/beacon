@@ -74,7 +74,9 @@ def test_raising_pipeline_never_propagates(monkeypatch) -> None:
     log = _logger("beacon.test.raise", handler)
 
     called = {"n": 0}
-    monkeypatch.setattr(handler, "handleError", lambda record: called.__setitem__("n", called["n"] + 1))
+    monkeypatch.setattr(
+        handler, "handleError", lambda record: called.__setitem__("n", called["n"] + 1)
+    )
 
     # A raising pipeline must NOT surface into the app's logging call.
     log.info("this must not raise")

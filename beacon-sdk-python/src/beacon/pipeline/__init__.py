@@ -1,4 +1,8 @@
-"""Pipeline layer — BoundedBuffer (M2.1) + BatchFlusher (M2.2) + Enricher/Redactor (M2.5) + EmitPipeline facade (M2.6)."""
+"""Pipeline layer.
+
+BoundedBuffer (M2.1) + BatchFlusher (M2.2) + Enricher/Redactor (M2.5) +
+EmitPipeline facade (M2.6).
+"""
 
 from .buffer import BoundedBuffer
 from .emit import BuiltEmitPipeline, EmitPipeline, build_emit_pipeline

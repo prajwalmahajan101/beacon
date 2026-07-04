@@ -53,6 +53,7 @@ class SdkMetrics:
 
     @property
     def enqueued(self) -> int:
+        """Current ``records_enqueued`` count."""
         with self._lock:
             return self._enqueued
 
@@ -67,6 +68,7 @@ class SdkMetrics:
 
     @property
     def dropped(self) -> int:
+        """Current ``records_dropped`` count."""
         with self._lock:
             return self._dropped
 
@@ -77,6 +79,7 @@ class SdkMetrics:
 
     @property
     def buffer_depth(self) -> int:
+        """Current ``buffer_depth`` gauge."""
         with self._lock:
             return self._buffer_depth
 
@@ -89,6 +92,7 @@ class SdkMetrics:
 
     @property
     def batches_flushed(self) -> int:
+        """Current ``batches_flushed`` count."""
         with self._lock:
             return self._batches_flushed
 
@@ -102,28 +106,37 @@ class SdkMetrics:
 
     @property
     def records_flushed(self) -> int:
+        """Current ``records_flushed`` count."""
         with self._lock:
             return self._records_flushed
 
     # ---- M2.3 surface — exporter / resilience path ---------------------
 
     def inc_exported(self, n: int) -> None:
-        """Add ``n`` to ``records_exported`` on a successful export (mirror Java ``incExported(int)``)."""
+        """Add ``n`` to ``records_exported`` on a successful export.
+
+        Mirror Java ``incExported(int)``.
+        """
         with self._lock:
             self._records_exported += n
 
     @property
     def records_exported(self) -> int:
+        """Current ``records_exported`` count."""
         with self._lock:
             return self._records_exported
 
     def inc_export_failure(self) -> None:
-        """Increment ``export_failures`` by 1 per failed delegate attempt (mirror Java ``incExportFailure``)."""
+        """Increment ``export_failures`` by 1 per failed delegate attempt.
+
+        Mirror Java ``incExportFailure``.
+        """
         with self._lock:
             self._export_failures += 1
 
     @property
     def export_failures(self) -> int:
+        """Current ``export_failures`` count."""
         with self._lock:
             return self._export_failures
 
@@ -134,17 +147,22 @@ class SdkMetrics:
 
     @property
     def fallback_writes(self) -> int:
+        """Current ``fallback_writes`` count."""
         with self._lock:
             return self._fallback_writes
 
     # ---- M2.5 surface — redactor path ----------------------------------
 
     def inc_redactor_timeout(self) -> None:
-        """Increment ``redactor_timeout_total`` by 1 on a per-record redaction-deadline expiry (mirror Java ``SdkMetrics.incRedactorTimeout``)."""
+        """Increment ``redactor_timeout_total`` on a per-record redaction-deadline expiry.
+
+        Mirror Java ``SdkMetrics.incRedactorTimeout``.
+        """
         with self._lock:
             self._redactor_timeouts += 1
 
     @property
     def redactor_timeout_total(self) -> int:
+        """Current ``redactor_timeout_total`` count."""
         with self._lock:
             return self._redactor_timeouts

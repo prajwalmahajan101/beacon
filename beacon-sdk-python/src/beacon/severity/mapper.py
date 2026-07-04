@@ -58,9 +58,7 @@ def band_for(otel_number: int) -> dict:
     Raises ``ValueError`` if the number is out of the legal 1..24 range (spec/01 §1.1).
     """
     if not 1 <= otel_number <= 24:
-        raise ValueError(
-            f"OTel severity_number must be in 1..24 (spec/01 §1.1); got {otel_number}"
-        )
+        raise ValueError(f"OTel severity_number must be in 1..24 (spec/01 §1.1); got {otel_number}")
     # _BANDS is sorted ascending; walk from highest anchor downward — Java parity.
     for b in reversed(_BANDS):
         if otel_number >= b["anchor"]:

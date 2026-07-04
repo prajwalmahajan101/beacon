@@ -78,9 +78,7 @@ def test_from_config_selects_stderr_and_file(tmp_path):
     stderr_sink = fallback_from_config(ExporterConfig(fallback_sink="stderr"), m)
     assert isinstance(stderr_sink, StderrFallbackSink)
 
-    file_sink = fallback_from_config(
-        ExporterConfig(fallback_sink=f"file:{tmp_path}/fb.log"), m
-    )
+    file_sink = fallback_from_config(ExporterConfig(fallback_sink=f"file:{tmp_path}/fb.log"), m)
     assert isinstance(file_sink, FileFallbackSink)
 
     # Unsupported spec -> ValueError. ExporterConfig itself doesn't validate the

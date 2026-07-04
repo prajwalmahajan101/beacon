@@ -2,10 +2,12 @@
 
 Each test maps to a Plan 04.6-01 Task 1 success criterion:
  * happy path — enrich -> redact -> buffer               -> test_emit_redacts_then_buffers
- * RedactorTimeoutError -> ORIGINAL to fallback, False   -> test_redactor_timeout_routes_original_to_fallback
+ * RedactorTimeoutError -> ORIGINAL to fallback, False
+   -> test_redactor_timeout_routes_original_to_fallback
  * enrich runs BEFORE redact (ordering)                  -> test_context_stamped_before_redaction
  * non-blocking on a full DROP_NEWEST buffer             -> test_emit_non_blocking_on_full_buffer
- * SHARED-BUFFER integration — emit reaches the sink     -> test_build_emit_pipeline_shares_buffer_with_flusher
+ * SHARED-BUFFER integration — emit reaches the sink
+   -> test_build_emit_pipeline_shares_buffer_with_flusher
 
 Every assertion is in-process, deterministic, and collector-free (the flusher's
 sink is a capturing stub injected via the build_pipeline(sink=...) seam).
@@ -68,7 +70,9 @@ class _CapturingSink:
         self.records.extend(batch)
 
 
-def _pipeline(buffer, *, timeout_ms=5, keys=("password",)) -> tuple[EmitPipeline, CapturingFallback, SdkMetrics]:
+def _pipeline(
+    buffer, *, timeout_ms=5, keys=("password",)
+) -> tuple[EmitPipeline, CapturingFallback, SdkMetrics]:
     metrics = SdkMetrics()
     cfg = RedactorConfig(redact_keys=keys, redact_defaults=False)
     redactor = Redactor(cfg.effective_keys_lower(), timeout_ms, metrics)

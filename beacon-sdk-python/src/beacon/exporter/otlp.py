@@ -100,9 +100,7 @@ class OtlpExporter:
 
     def __init__(self, endpoint: str, transport: str = "grpc") -> None:
         if transport not in ("grpc", "http"):
-            raise ValueError(
-                f"transport must be 'grpc' or 'http', got {transport!r}"
-            )
+            raise ValueError(f"transport must be 'grpc' or 'http', got {transport!r}")
         if transport == "grpc":
             otel_exporter = OtlpGrpcLogExporter(endpoint=endpoint)
         else:
@@ -111,9 +109,7 @@ class OtlpExporter:
         self._endpoint = endpoint
         self._transport = transport
         self._provider = LoggerProvider()
-        self._provider.add_log_record_processor(
-            SimpleLogRecordProcessor(otel_exporter)
-        )
+        self._provider.add_log_record_processor(SimpleLogRecordProcessor(otel_exporter))
         self._logger = self._provider.get_logger(INSTRUMENTATION_SCOPE)
 
     def accept(self, batch: list[LogRecord]) -> None:
@@ -135,9 +131,7 @@ class OtlpExporter:
             )
         ok = self._provider.force_flush(FLUSH_TIMEOUT_MS)
         if not ok:
-            raise OtlpExportError(
-                f"OTLP export failed for batch of {len(batch)} records"
-            )
+            raise OtlpExportError(f"OTLP export failed for batch of {len(batch)} records")
 
     def close(self) -> None:
         """Shut the LoggerProvider down (bounded). Mirror Java ``close()``."""
@@ -145,10 +139,12 @@ class OtlpExporter:
 
     @property
     def endpoint(self) -> str:
+        """Configured OTLP endpoint."""
         return self._endpoint
 
     @property
     def transport(self) -> str:
+        """Configured OTLP transport (``grpc`` or ``http``)."""
         return self._transport
 
 

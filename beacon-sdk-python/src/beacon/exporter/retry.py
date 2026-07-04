@@ -57,7 +57,7 @@ class RetryPolicy:
         return random.randint(0, ceiling)
 
     @classmethod
-    def from_config(cls, config: "ExporterConfig") -> "RetryPolicy":
+    def from_config(cls, config: ExporterConfig) -> RetryPolicy:
         """Build from an ``ExporterConfig`` (duck-typed at runtime).
 
         Delegated to by the M2.3 ``ResilientSink.of`` (Plan 02). ``config`` is
@@ -68,12 +68,15 @@ class RetryPolicy:
 
     @property
     def max_retries(self) -> int:
+        """Maximum number of retry attempts after the first."""
         return self._max_retries
 
     @property
     def base_ms(self) -> int:
+        """Base backoff in milliseconds (the pre-jitter unit)."""
         return self._base_ms
 
     @property
     def max_ms(self) -> int:
+        """Backoff ceiling in milliseconds."""
         return self._max_ms

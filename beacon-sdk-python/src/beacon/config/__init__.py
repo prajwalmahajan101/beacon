@@ -1,4 +1,8 @@
-"""Config layer — config-keys.yaml load surface (M2.0); DropPolicy + BufferConfig (M2.1); FlusherConfig (M2.2); ExporterConfig (M2.3); RedactorConfig (M2.5)."""
+"""Config layer.
+
+config-keys.yaml load surface (M2.0); DropPolicy + BufferConfig (M2.1);
+FlusherConfig (M2.2); ExporterConfig (M2.3); RedactorConfig (M2.5).
+"""
 
 from ._config import (
     BufferConfig,

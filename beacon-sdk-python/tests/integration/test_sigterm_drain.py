@@ -31,9 +31,7 @@ import pytest
 _CHILD = pathlib.Path(__file__).with_name("_sigterm_child.py")
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="SIGTERM semantics differ on Windows"
-)
+@pytest.mark.skipif(sys.platform == "win32", reason="SIGTERM semantics differ on Windows")
 def test_real_sigterm_drains_pending_to_fallback_file(tmp_path):
     """A real SIGTERM drains the child's pending records to a fallback FILE.
 

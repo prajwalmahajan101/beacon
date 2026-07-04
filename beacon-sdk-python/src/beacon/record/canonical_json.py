@@ -18,7 +18,8 @@ fractional digits using integer ``divmod`` + ``time.gmtime`` — never through
 from __future__ import annotations
 
 import time
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from .log_record import LogRecord
 
@@ -36,9 +37,7 @@ def serialize(record: LogRecord) -> str:
     parts.append(f'"schema_version":{record.schema_version}')
     parts.append(f',"timestamp":"{format_rfc3339_nano(record.timestamp_ns)}"')
     if record.observed_timestamp_ns is not None:
-        parts.append(
-            f',"observed_timestamp":"{format_rfc3339_nano(record.observed_timestamp_ns)}"'
-        )
+        parts.append(f',"observed_timestamp":"{format_rfc3339_nano(record.observed_timestamp_ns)}"')
     parts.append(f',"severity_number":{record.severity_number}')
     parts.append(f',"severity_text":{_encode_string(record.severity_text)}')
     parts.append(f',"body":{_encode_string(record.body)}')

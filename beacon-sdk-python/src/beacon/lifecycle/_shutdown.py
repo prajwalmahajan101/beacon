@@ -212,9 +212,7 @@ def build_pipeline(
     from beacon.pipeline import BatchFlusher, BoundedBuffer
 
     if buffer is None:
-        buffer = BoundedBuffer(
-            buffer_config.buffer_capacity, buffer_config.drop_policy, metrics
-        )
+        buffer = BoundedBuffer(buffer_config.buffer_capacity, buffer_config.drop_policy, metrics)
 
     if sink is None:
         # Real production sink: ResilientSink decorating a transport-only

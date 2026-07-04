@@ -37,9 +37,9 @@ See the M2.5 Python enricher ADR + Java ADR-0008 for the full rationale.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextvars import ContextVar
 from types import MappingProxyType
-from typing import Mapping
 
 # The shared empty frozen default. A single interned instance — ``clear_context``
 # resets to exactly this object (no per-call allocation).

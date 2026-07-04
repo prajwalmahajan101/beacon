@@ -2,8 +2,10 @@
 
 Each test maps to a Plan 04.4-02 success criterion:
  * no import side effects (no atexit/signal on import) -> test_import_has_no_side_effects
- * lazy main-thread SIGTERM install                    -> test_ensure_registered_installs_sigterm_on_main_thread
- * off-main-thread skip, no ValueError                 -> test_ensure_registered_skips_sigterm_off_main_thread
+ * lazy main-thread SIGTERM install
+   -> test_ensure_registered_installs_sigterm_on_main_thread
+ * off-main-thread skip, no ValueError
+   -> test_ensure_registered_skips_sigterm_off_main_thread
  * idempotent registration                             -> test_ensure_registered_is_idempotent
  * idempotent drain-once (double-fire convergence)     -> test_beacon_shutdown_drains_once
  * *args compat (atexit + signal call shapes)          -> test_beacon_shutdown_accepts_signal_args
@@ -23,13 +25,13 @@ import threading
 import pytest
 
 from beacon.config import BufferConfig, ExporterConfig, FlusherConfig
+from beacon.lifecycle import _shutdown as L
 from beacon.lifecycle import (
     beacon_shutdown,
     build_pipeline,
     ensure_shutdown_registered,
     register_flusher,
 )
-from beacon.lifecycle import _shutdown as L
 from beacon.metrics import SdkMetrics
 from beacon.record import LogRecord
 

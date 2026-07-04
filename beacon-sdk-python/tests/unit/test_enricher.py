@@ -7,7 +7,8 @@ Each test maps to a phase success criterion / conformance point:
  * W3C-hex validation (garbage refused) -> test_invalid_fallback_hex_refused
  * pre-stamped record wins              -> test_pre_stamped_record_wins
  * no-change -> identity pass-through    -> test_no_change_preserves_identity
- * async copy-on-spawn inheritance      -> test_async_task_inherits_parent_context (C11 async half, criterion #4)
+ * async copy-on-spawn inheritance      -> test_async_task_inherits_parent_context
+   (C11 async half, criterion #4)
  * async copy-on-spawn isolation        -> test_async_child_update_does_not_leak_to_parent
 
 No ``pytest-asyncio`` is configured (checked pyproject/conftest) — the async tests
