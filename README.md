@@ -97,13 +97,17 @@ reproduce steps: [`docs/benchmarks/sdk-overhead.md`](./docs/benchmarks/sdk-overh
 Both SDKs run their benchmark **nightly in CI at parity** (cron + `workflow_dispatch`), uploading
 machine-readable results as a 30-day artifact — the Java↔Python parity introduced in `v1.0-rc-sdk`:
 
-| Benchmark job | Result | Artifact |
-|---|---|---|
-| `jmh-nightly` (Java) | ✅ success | `jmh-results-<run_id>` (JSON + HTML + metadata) |
-| `python-bench-nightly` (Python) | ✅ success | `python-bench-results-<run_id>` (JSON + metadata) |
+| Benchmark job | CI | Measured p99 | Verdict |
+|---|---|---|---|
+| `jmh-nightly` (Java) | ✅ nightly + PR smoke | **6,360 ns** (≈6.4 µs) | ✅ ~157× under the 1 ms budget |
+| `python-bench-nightly` (Python) | ✅ nightly + PR smoke | **30,663 ns** (≈30.7 µs) | ✅ ~33× under the 1 ms budget |
 
-Every PR additionally runs a fast benchmark **smoke** (tiny iteration count) so a broken emit path
-fails the build before merge.
+**How good is that?** The emit path is effectively free relative to any real workload: Java adds
+~6 µs and Python ~31 µs of caller-thread latency at the 99th percentile, against a 1 ms budget — a
+**1–2 order-of-magnitude margin**. Batching, serialization, and network I/O all happen off-thread,
+so the caller never pays for them. Even Python's interpreted hot path (≈30× costlier per op than
+JIT'd Java, as expected) leaves ~33× of headroom. Each PR also runs a fast benchmark **smoke** (tiny
+iteration count) so a regression in the emit path fails the build before merge.
 
 ## Stack at a glance
 
