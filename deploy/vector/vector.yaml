@@ -1,0 +1,14 @@
+# Phase 5 / M3.0a placeholder — proves Vector boots healthy.
+# The real kafka -> elasticsearch pipeline is delivered in Phase 5.2 (M3.0c).
+api:
+  enabled: true
+  address: "0.0.0.0:8686"
+sources:
+  heartbeat:
+    type: demo_logs
+    format: json
+    interval: 60
+sinks:
+  out:
+    type: blackhole
+    inputs: [heartbeat]
