@@ -1,0 +1,133 @@
+# Beacon — M3.0a dev scaffold (Phase 5).
+#
+# Stands up the local ingest infrastructure: single-node KRaft Kafka +
+# single-node Elasticsearch 8.19 (security OFF, dev-only) + Vector 0.41.
+# Each service carries a Compose healthcheck that doubles as the smoke check —
+# `docker compose up -d --wait` blocks until all three are healthy (exit 0) and
+# `docker compose down -v` tears the stack down cleanly.
+#
+# SCOPE: this file is the M3.0a infra scaffold ONLY. It leaves clean seams for
+# later sub-phases and does NOT build them here:
+#   - The thin Spring Boot OTLP gateway is Phase 5.1 (see the commented `gateway`
+#     seam block at the bottom of this file).
+#   - The REAL Vector `kafka` source -> `elasticsearch` sink pipeline is Phase 5.2.
+#     `deploy/vector/vector.yaml` is a minimal demo_logs -> blackhole placeholder
+#     that only proves the Vector process boots healthy and its /health answers.
+#
+# Every image is pinned to an EXACT patch tag (no floating :8.19 / :0.41 / :latest).
+# Resolved digests (recorded 2026-07-07, feed ADR-0024 in plan 05-02):
+#   apache/kafka:3.9.2
+#     @sha256:05b4616e0702ef2729327705d54ad6b50ea70b271c4b730fabd2320789fb7b02
+#   docker.elastic.co/elasticsearch/elasticsearch:8.19.18
+#     @sha256:805d9a33ee81a522fbefaeb8ffe3ded9aba20af0f8c843f55ae01bad398d2db7
+#   timberio/vector:0.41.1-debian
+#     @sha256:87ef5d0a3f47ed6e415c9c6b84f7bfa53dbced55c00b75a974426a8a63cebc15
+
+networks:
+  beacon:
+    driver: bridge
+
+volumes:
+  kafka-data:
+  es-data:
+
+services:
+  kafka:
+    image: apache/kafka:3.9.2
+    container_name: beacon-kafka
+    networks: [beacon]
+    ports:
+      - "9092:9092" # HOST listener — dev tooling on localhost:9092
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # Three listeners: HOST (host tooling) + DOCKER (in-network) + CONTROLLER.
+      KAFKA_LISTENERS: HOST://0.0.0.0:9092,DOCKER://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      # THE dual-listener seam: advertise HOST as localhost (host clients) and
+      # DOCKER as the service name (gateway 5.1 + Vector 5.2 connect over kafka:29092).
+      # Advertising only localhost breaks in-network clients (RESEARCH Pitfall 1).
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: HOST:PLAINTEXT,DOCKER:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+      # Single-node replication (defaults assume 3 brokers -> topic creation hangs;
+      # RESEARCH Pitfall 2).
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # CLUSTER_ID intentionally UNSET: the official image auto-generates a cluster
+      # UUID and runs kafka-storage format on first boot (no manual step).
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.18
+    container_name: beacon-es
+    networks: [beacon]
+    ports:
+      - "9200:9200"
+    environment:
+      # security OFF REQUIRES single-node discovery (RESEARCH Pitfall 3), so Vector
+      # (5.2) talks plain HTTP http://elasticsearch:9200 with no auth/TLS wiring.
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+    ulimits:
+      memlock: { soft: -1, hard: -1 } # required when bootstrap.memory_lock=true
+    volumes:
+      # Data volume ONLY — do NOT bind-mount the ES config dir (RESEARCH Pitfall 4,
+      # the 8.19.3 gc.log startup bug). 8.19.18 is well past that regression anyway.
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      # yellow is correct for a single node — it can never reach green.
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  vector:
+    image: timberio/vector:0.41.1-debian # debian variant -> shell for the wget healthcheck (RESEARCH Pitfall 5)
+    container_name: beacon-vector
+    networks: [beacon]
+    ports:
+      - "8686:8686" # Vector observability API — /health probe target
+    volumes:
+      # Placeholder config for THIS phase (demo_logs -> blackhole + api). The real
+      # kafka -> elasticsearch pipeline lands in Phase 5.2.
+      - ./deploy/vector/vector.yaml:/etc/vector/vector.yaml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8686/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+# ---------------------------------------------------------------------------
+# Gateway seam — built in Phase 5.1 (M3.0b), the thin Spring Boot OTLP gateway.
+# Left as a documented, NON-running stub so 5.1 uncomments + builds it without
+# restructuring the compose topology. It connects over the DOCKER listener
+# (kafka:29092) and to ES over the in-network hostname.
+# ---------------------------------------------------------------------------
+#  gateway:
+#    build: ./sdk/...            # or examples/... — resolved in 5.1
+#    container_name: beacon-gateway
+#    networks: [beacon]
+#    ports:
+#      - "4317:4317"             # OTLP/gRPC
+#      - "4318:4318"             # OTLP/HTTP
+#    environment:
+#      BEACON_KAFKA_BOOTSTRAP: kafka:29092
+#      BEACON_ES: http://elasticsearch:9200
+#    depends_on:
+#      kafka:
+#        condition: service_healthy
