@@ -6,11 +6,15 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ### Added
 
+- M3.0a: committed `docker-compose.yml` (repo root) standing up the ingest dev skeleton — single-node KRaft `apache/kafka:3.9.2` (combined broker+controller, internal-topic RF=1) + Elasticsearch `docker.elastic.co/elasticsearch/elasticsearch:8.19.18` (single-node, `xpack.security.enabled=false`) + Vector `timberio/vector:0.41.1-debian`, each with a Compose healthcheck doubling as the smoke gate (`docker compose up -d --wait`). Kafka advertises a **dual listener** seam — `HOST://localhost:9092` for host tooling + `DOCKER://kafka:29092` for the in-network gateway (M3.0b) and indexer (M3.0c). Plus `deploy/vector/vector.yaml` placeholder (`demo_logs → blackhole` + API `/health`; the real Kafka→ES pipeline is deferred to M3.0c) and a commented `gateway:` service seam. Decision + version rationale in **ADR-0024**.
+
 ### Changed
 
 ### Fixed
 
 ### Verified
+
+- M3.0a: `docker compose up -d --wait` brings the stack up all-healthy and `docker compose down -v` tears it down cleanly — ES `_cluster/health` reaches `yellow` (correct single-node target), Vector `/health` returns ok (probed over bash `/dev/tcp`, since `0.41.1-debian` ships no wget/curl/busybox), and the Kafka broker API is reachable.
 
 ## [v1.0-rc-sdk] — 2026-07-05
 
