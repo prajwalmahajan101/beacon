@@ -96,7 +96,7 @@ services:
       start_period: 30s
 
   vector:
-    image: timberio/vector:0.41.1-debian # debian variant -> shell for the wget healthcheck (RESEARCH Pitfall 5)
+    image: timberio/vector:0.41.1-debian # debian variant -> ships bash for the /dev/tcp health probe (0.41.1 has no wget/curl/busybox)
     container_name: beacon-vector
     networks: [beacon]
     ports:
@@ -106,7 +106,8 @@ services:
       # kafka -> elasticsearch pipeline lands in Phase 5.2.
       - ./deploy/vector/vector.yaml:/etc/vector/vector.yaml:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8686/health || exit 1"]
+      # 0.41.1-debian has no wget/curl/busybox; bash /dev/tcp probes the API /health status line.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8686; printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3"]
       interval: 10s
       timeout: 5s
       retries: 6
