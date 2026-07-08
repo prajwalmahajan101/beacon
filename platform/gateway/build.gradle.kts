@@ -41,3 +41,21 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation(libs.assertj)
 }
+
+// Bundle the FROZEN contract schema into the jar so RecordValidator loads it from the
+// classpath (/schema/log-record.schema.json) — a build-time copy from the single source
+// of truth under contract/schema/, NOT a checked-in drift copy.
+tasks.named<ProcessResources>("processResources") {
+    from(rootProject.file("contract/schema/log-record.schema.json")) {
+        into("schema")
+    }
+}
+
+// Point the validator test at the contract's canonical example fixtures (single source of
+// truth) via an absolute path, so it resolves regardless of the test's working directory.
+tasks.named<Test>("test") {
+    systemProperty(
+        "beacon.contract.examples",
+        rootProject.file("contract/schema/examples").absolutePath,
+    )
+}
