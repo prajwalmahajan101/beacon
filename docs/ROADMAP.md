@@ -1,6 +1,6 @@
 # Beacon — Project Roadmap (M0 → M5)
 
-> **Status:** Drafted 2026-06-12 · last updated 2026-07-05 · M0 frozen · M1.0–M1.8 shipped (12/12 conformance green) · `v0.2-m1` cut · M2.0–M2.8 shipped · `v0.3-m2` cut · M3–M5 planned.
+> **Status:** Drafted 2026-06-12 · last updated 2026-07-08 · M0 frozen · M1.0–M1.8 shipped (12/12 conformance green) · `v0.2-m1` cut · M2.0–M2.8 shipped · `v0.3-m2` cut · **M3 in progress — M3.0a (ingest infra scaffold) shipped** · M3.0b → M5 planned.
 > **Authority:** This document is the **execution** roadmap. The PRD ([`../PRD.md`](../PRD.md)) is the **product/design** authority; PRD §26 is the original milestones sketch and is superseded by this document for numbering and scope. The README table at [`../README.md#roadmap`](../README.md#roadmap) is the at-a-glance summary and links here for detail.
 
 ---
@@ -12,7 +12,7 @@
 | **M0** | Telemetry contract (spec + schema + conformance suite, no SDK code) | ✅ Frozen 2026-06-05 (`v0.1-m0`) | Schema validates fixtures; harnesses collect cleanly in both languages | ≈1 wk |
 | **M1** | Java SDK — implements the contract, passes C1–C12 against the harness | ✅ 9 / 9 phases done (M1.0–M1.8); **12/12 conformance green**; **`v0.2-m1` tagged** | All 12 conformance scenarios green on the Java harness | shipped |
 | **M2** | Python SDK — same contract, same scenarios, identical config-key surface | ✅ Complete (M2.0–M2.8); **12/12 conformance green**; **v0.3-m2 tagged** | All 12 conformance scenarios green on the Python harness | shipped |
-| **M3** | Ingest pipeline — Gateway → Kafka → log indexer → Elasticsearch | ⬜ Planned | End-to-end log emit → searchable via API; DLQ + ILM | ≈2 wk |
+| **M3** | Ingest pipeline — Gateway → Kafka → Vector indexer → Elasticsearch | 🟡 In progress (M3.0a shipped; M3.0b next) | End-to-end log emit → searchable via API; DLQ + multi-tenancy + ILM | ≈2 wk |
 | **M4** | Query API + live tail + Beacon Console (React) | ⬜ Planned | Logs explorable via Console with full-text search + histogram | ≈2 wk |
 | **M5** | Platform hardening — RBAC, retention, PII redaction at the gateway, self-observability, Helm | ⬜ Planned | Helm deploy on K8s; RBAC + redaction + retention all wired | ≈2 wk |
 
@@ -106,21 +106,25 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 
 ---
 
-## M3 — Ingest pipeline ⬜ PLANNED
+## M3 — Ingest pipeline 🟡 IN PROGRESS
 
-**Goal:** Get records from the two SDKs (M1 + M2) into durable searchable storage end-to-end.
+**Goal:** Get records from the two SDKs (M1 + M2) into durable searchable storage end-to-end — SDK → Gateway → Kafka → Vector → Elasticsearch — hardened with DLQ, multi-tenancy, and ILM.
 
-**Anticipated scope:**
+M3.0 is split into **four executable slices** (5 → 5.3) for tighter scope: one testable slice + at most one ADR per phase. Requirements catalogue: [`./REQUIREMENTS.md`](./REQUIREMENTS.md) (INGEST-01 … INGEST-17).
 
-- **Gateway** — HTTP/gRPC OTLP ingress that authenticates the producer, applies tenancy + rate-limit at the edge, validates against the M0 schema, forwards to Kafka.
-- **Kafka** — single primary topic with partitioning by `resource.service.name`; DLQ for poison records; retention tuned for indexer catch-up windows.
-- **Log indexer** — Kafka consumer → Elasticsearch indexer with bulk-write + backpressure. Schema mappings explicit; `attributes.*` uses ES `flattened` type to bound mapping cardinality (per PRD §27).
-- **Elasticsearch** — index per day, ILM policy for hot→warm→cold→delete, three data nodes baseline.
-- **Operations**: DLQ replay tooling, indexer lag metric, RED metrics per ingress endpoint.
+| Phase | Scope | Key acceptance | Reqs | ADR | Status |
+|---|---|---|---|---|---|
+| **5 · M3.0a** | docker-compose dev topology; **Kafka KRaft 3.9.2 + ES 8.19 + Vector 0.41.1** pinned; dual advertised-listener seam | `docker compose up --wait` all-healthy; `down -v` clean; versions justified | — (infra) | **ADR-0024** | ✅ |
+| **5.1 · M3.0b** | **Gateway** — thin Spring Boot: OTLP gRPC+HTTP → M0 schema validate (4xx) → Kafka idempotent `acks=all`, response-after-write | valid → produce + response-after-ack; invalid → 4xx w/ reason; Kafka-down → 5xx (SDK fallback engages) | INGEST-01, -04 | **ADR-0025** (gateway build-vs-buy) | ⬜ |
+| **5.2 · M3.0c** | **Indexer** — Vector consumes Kafka → bulk-writes ES (skeleton: plain index, ES auto-maps) | record seeded to Kafka returned by ES `_search` within minutes; per-item bulk status logged | — | — (mechanical Vector config) | ⬜ |
+| **5.3 · M3.0d** | **Full E2E** — Testcontainers boots the stack, emits via real SDK; + Collector-fronted path; new `.github/workflows/ingest.yml` gate | E2E green for **both** Java + Python SDK; Collector→gateway path verified | INGEST-16 | — (glue + CI) | ⬜ |
+| **6 · M3.1** | **DLQ + idempotency + partition key** — composite key `(service.name, hash(trace_id)%N)`; offset-commit-after-write; error taxonomy | 4xx→DLQ no-retry, 5xx→backoff-then-DLQ; hot-partition detector; no acknowledged-record loss across restarts | INGEST-05,-06,-07,-08,-13,-14,-17 | ADR (partition key), ADR (error taxonomy + offset ordering) | ⬜ |
+| **7 · M3.2** | **Multi-tenancy** — API-key → tenant, `X-Scope-OrgID`, per-tenant edge rate limit | tenant stamped on every record before Kafka (no bypass path); 429 + `Retry-After` on backpressure | INGEST-02, -03, -15 | ADR (tenancy model: `X-Scope-OrgID` + shared-index) | ⬜ |
+| **8 · M3.3** | **ES storage layout** — data-stream index template + `flattened` attributes + ILM with explicit delete phase | 10k-unique-key stress passes (no `total_fields` trip); **p99 ingest→searchable ≤ 5s**; `_ilm/explain` healthy | INGEST-09,-10,-11,-12 | ADR (ES storage layout) | ⬜ |
 
-**Acceptance gate:**
-- An emit from Java OR Python SDK is searchable via ES query within X seconds (target ≤ 5 s p99).
-- Restart of any component (gateway, indexer, ES node) does not lose acknowledged records (Kafka durability guarantees).
+**Milestone acceptance gate:**
+- An emit from Java **or** Python SDK is searchable via ES query within **p99 ≤ 5 s**.
+- Restart of any component (gateway, indexer, ES node) does not lose acknowledged records (Kafka durability + offset-commit-after-write).
 - DLQ catches and isolates poison records without blocking the live stream.
 
 **Cross-references:** PRD §19 (transport), §22 (storage), §24 (indexer), §27 (mapping-explosion risk).
@@ -129,53 +133,56 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 
 ## M4 — Query API + Live tail + Console ⬜ PLANNED
 
-**Goal:** Make the stored data **explorable** by humans through a Beacon-branded console, plus live tail off Kafka for incident response.
+**Goal:** Make the stored data **explorable** by humans through a Beacon-branded console, plus live tail for incident response.
 
-**Anticipated scope:**
+| Phase | Scope | Key acceptance | Reqs | ADR | Status |
+|---|---|---|---|---|---|
+| **9 · M4.0** | **Query API** — REST over ES with a **restricted query AST** (filters, full-text, range, time-bucket aggs); raw ES DSL forbidden at the boundary; server-side tenant-filter injection; `search_after` pagination + facet allow-list | `service.name:checkout AND severity_number:>=17` over 7d → **p95 < 2 s**; tenant scope non-overridable by client | QUERY-01…05, -09, -11 | ADR (restricted AST + tenant injection + facet allow-list) | ⬜ |
+| **10 · M4.1** | **Live tail** — Server-Sent Events (not WebSocket); per-connection Kafka consumer; bounded send buffer + downsample-on-overflow | delivery **p95 < 1 s** emit→console; 10 slow clients don't OOM or back-pressure ingest; visible `lagging` signal on overflow | QUERY-06, -07, -08 | ADR (SSE transport + bounded buffer + downsample) | ⬜ |
+| **11 · M4.2** | **Console** — React + Vite 6 + shadcn + Tailwind 4 + TanStack Query + ECharts + Zustand; histogram strip, virtualized table (1k cap), record drawer, saved views | operator flow renders sub-second; 1k rows < 1 s; `search_after` "load more"; trace-pivot UI fate decided | QUERY-10, -12 | ADR (trace-pivot UI fate), ADR (console architecture) | ⬜ |
 
-- **Query service** — REST API on top of ES: filters, full-text search, time-bucketed aggregations, field-cardinality summary for the explorer's facet panel.
-- **Live tail** — WebSocket endpoint sourcing from Kafka (not ES; see PRD §C "live tail off Kafka" decision). Filters apply server-side; client gets a streaming JSON line per matching record.
-- **Console** — React + Vite + a chart library (probably ECharts or recharts) for the histogram. Single-page log explorer with a histogram strip, result table, expand-record drawer, and a saved-views feature.
-- **Auth surface** — bearer-token API; OIDC ready but actual provider integration is M5.
+**Milestone acceptance gate:**
+- Operator can search `service.name:checkout AND severity_number:>=17` across the last 7 days, get sub-2s response, click into a record, and see the canonical JSON.
+- Live tail: connect, apply a filter, see new records appear within 1 s of emission.
 
-**Acceptance gate:**
-- Operator can: search "service.name:checkout AND severity_number:>=17" across the last 7 days, get sub-second response, click into a record, see the canonical JSON.
-- Live tail: connect, apply a filter, see new records appear within 2 s of emission.
-
-**Cross-references:** PRD §25 (Console), §13 (user research).
+**Cross-references:** PRD §25 (Console), §13 (user research), §C (live-tail-off-Kafka decision).
 
 ---
 
 ## M5 — Platform hardening ⬜ PLANNED
 
-**Goal:** Make the platform deployable, multi-tenant-safe, and operationally healthy.
+**Goal:** Make the platform deployable, multi-tenant-safe, and operationally healthy — through to the `v1.0` cut.
 
-**Anticipated scope:**
+| Phase | Scope | Key acceptance | Reqs | ADR | Status |
+|---|---|---|---|---|---|
+| **12 · M5.0** | **RBAC** — `read-only` / `operator` / `admin` roles enforced on query API, live tail, facets, aggregations; attack-case test suite; field-level redaction at query time | non-admin tenant cannot read another tenant's records via **any** API path; smuggled-agg / projection / raw-DSL / live-tail-bypass all denied + audited | HARD-01, -02, -03 | ADR (RBAC model + attack-case taxonomy) | ⬜ |
+| **13 · M5.1** | **Self-observability** — every Beacon service emits into a **separate** meta-Beacon (no feedback loop); RED dashboards; OWASP Dependency-Check + Renovate in CI | high-severity dep CVEs block merge; self-emit circuit-breaker drops to 1% under incident; fallback file-sink floor verified | HARD-07, -08 | ADR (dogfood isolation + circuit-breaker) | ⬜ |
+| **14 · M5.2** | **Helm chart** — layered presets (`values-dev/staging/prod`); Strimzi + ECK as documented prereqs (not subcharts); `chart-testing` smoke test | `helm install beacon ./chart -f values-dev.yaml` brings up a working stack on fresh KinD in < 5 min; sample emit searchable | HARD-09, -10, -11 | ADR (Helm layout: presets + KinD acceptance) | ⬜ |
+| **15 · M5.3** | **OIDC + gateway-side PII redaction + audit log + `v1.0` cut** — Keycloak + Spring Security OAuth2 Resource Server; server-side `redact_keys` enforcement; tamper-evident audit log | misconfigured SDK cannot leak PII to ES (gateway scrubs); per-tenant retention overrides honored; `iss`/`aud`/`exp` validated; `v1.0` tagged | HARD-04, -05, -06, -12, -13, -14, -15 | ADR (OIDC), ADR (gateway-side redaction), ADR (audit log) | ⬜ |
 
-- **RBAC** — role + tenant scoping on the query API and the Console; read-only vs. operator vs. admin tiers.
-- **Retention** — ILM policies wired end-to-end + per-tenant retention overrides.
-- **PII redaction at the gateway** — server-side enforcement of the SDK's `redact_keys` config; final defense-in-depth layer.
-- **Self-observability** — every Beacon service emits its own OTel telemetry into a Beacon instance ("dogfood"); RED metrics dashboards.
-- **Helm chart** — opinionated K8s install (Kafka via operator, ES via ECK, gateway/indexer/query as Deployments, console as static assets behind ingress).
-- **OIDC integration** — wire Auth0/Keycloak/Cognito as concrete options behind the M4 bearer-token interface.
-
-**Acceptance gate:**
+**Milestone acceptance gate:**
 - `helm install beacon ./chart` brings up a working stack on a fresh K8s cluster.
 - A non-admin tenant cannot read another tenant's records via any API path.
 - PII tagged with `redact_keys` never reaches ES even if the SDK is misconfigured.
+- `v1.0` tagged with `CHANGELOG [v1.0]` + `docs/V1-COMPLETE.md` + GitHub Release.
 
 **Cross-references:** PRD §23 (security), §22 (storage retention), §28 (decision log).
+
+---
+
+> **Forward ADR numbering.** ADRs are numbered when **authored**, continuing the committed sequence (ADR-0001 … **ADR-0024** shipped; **ADR-0025** reserved for the M3.0b gateway build-vs-buy). Phases beyond M3.0b list anticipated ADRs **by topic** rather than by fixed number — the earlier `.planning` drafts pre-assigned numbers (ADR-0016 …) that are now taken by shipped ADRs, so those draft numbers are intentionally **not** carried here.
 
 ---
 
 ## Cross-references
 
 - **PRD/RFC:** [`../PRD.md`](../PRD.md) — product authority + technical design.
+- **Requirements catalogue:** [`./REQUIREMENTS.md`](./REQUIREMENTS.md) — v1/v2 requirement IDs (JSDK, PYSDK, INGEST, QUERY, HARD) + traceability.
 - **M0 freeze record:** [`../contract/M0-FROZEN.md`](../contract/M0-FROZEN.md).
-- **M1 detailed roadmap:** [`./M1-ROADMAP.md`](./M1-ROADMAP.md) (phase M1.0 → M1.8).
-- **ADRs:** [`./adr/`](./adr/) (0001 → 0009 cover M1.0–M1.7).
+- **M1 detailed roadmap:** [`./M1-ROADMAP.md`](./M1-ROADMAP.md) (phase M1.0 → M1.8); **M2:** [`./M2-ROADMAP.md`](./M2-ROADMAP.md).
+- **ADRs:** [`./adr/`](./adr/) (0001 → 0024 shipped; index in [`../CLAUDE.md#adr-index`](../CLAUDE.md#adr-index)).
 - **Conformance scenarios:** [`../contract/conformance/scenarios.yaml`](../contract/conformance/scenarios.yaml).
-- **Per-phase done definition:** [`../CONTRIBUTING.md#per-phase-done-definition`](../CONTRIBUTING.md#per-phase-done-definition).
+- **Phase workflow:** [`./PROCESS.md`](./PROCESS.md) — the direct per-phase workflow. **Done definition:** [`../CONTRIBUTING.md#per-phase-done-definition`](../CONTRIBUTING.md#per-phase-done-definition).
 - **Project guide for AI assistants + humans:** [`../CLAUDE.md`](../CLAUDE.md).
 
 ## Numbering note (supersedes PRD §26)
