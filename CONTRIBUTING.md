@@ -10,6 +10,8 @@ contribution goes.
 
 | You want to… | Open this |
 |---|---|
+| Understand how work moves from roadmap → merged | [`docs/PROCESS.md`](docs/PROCESS.md) (the direct per-phase workflow) |
+| See what's next / the phase list | [`docs/ROADMAP.md`](docs/ROADMAP.md) + [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) |
 | Ask "what does the spec mean by X?" | Issue → **Spec question** template |
 | Propose changing the spec (record shape, scenario, semantics) | Discussion → "Spec change" category, then ADR PR (see below) |
 | Report a bug in a published SDK (Java or Python) | Issue → **Bug report** template |
