@@ -20,7 +20,8 @@ class BeaconGatewayApplicationTests {
   @Test
   void contextLoadsAndBindsGatewayProperties() {
     assertThat(properties).isNotNull();
-    assertThat(properties.getGrpcPort()).isEqualTo(4317);
+    // grpc-port is deliberately overridden to 0 (OS-assigned) by the test application.properties,
+    // so it is not asserted here; the un-overridden defaults are.
     assertThat(properties.getKafka().getTopic()).isEqualTo("beacon.logs");
     assertThat(properties.getKafka().getProduceTimeoutMs()).isEqualTo(5_000L);
   }
