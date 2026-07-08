@@ -45,10 +45,10 @@ Requirements for v1.0 (M5 complete + tagged `v1.0`). Each maps to one roadmap ph
 
 ### Ingest — gateway, Kafka, indexer, Elasticsearch (M3)
 
-- [ ] **INGEST-01**: Gateway accepts OTLP/gRPC and OTLP/HTTP from M1/M2 SDKs; validates against `beacon-s0-contract/schema/log-record.schema.json`; rejects invalid records with 4xx + reason.
+- [x] **INGEST-01**: Gateway accepts OTLP/gRPC and OTLP/HTTP from M1/M2 SDKs; validates against `contract/schema/log-record.schema.json`; rejects invalid records (OTLP `partial_success` for the OTLP transports) with a reason. _(M3.0b)_
 - [ ] **INGEST-02**: Gateway authenticates each producer via API key; per-key tenant scope (`X-Scope-OrgID` propagated to record).
 - [ ] **INGEST-03**: Gateway enforces per-tenant rate-limit at the edge; backpressure returns 429 with `Retry-After`.
-- [ ] **INGEST-04**: Gateway forwards accepted records to Kafka as idempotent producer (acks=all); HTTP/gRPC response only returned after Kafka write completes.
+- [x] **INGEST-04**: Gateway forwards accepted records to Kafka as idempotent producer (acks=all); HTTP/gRPC response only returned after Kafka write completes. _(M3.0b)_
 - [ ] **INGEST-05**: Kafka deployment is KRaft-mode (no ZK) on Strimzi; primary topic has composite partition key `(service.name, hash(trace_id) % N)` with `N=4–8`; DLQ topic for poison records.
 - [ ] **INGEST-06**: Per-partition byte-rate alert fires when `max / avg > 1.5` (hot-partition detector).
 - [ ] **INGEST-07**: Indexer (Vector) consumes Kafka and bulk-writes to ES; offset committed only **after** ES write or DLQ publish (no commit-then-fail).
@@ -193,8 +193,8 @@ Every v1 REQ-ID maps to exactly one roadmap phase. See [`docs/ROADMAP.md`](ROADM
 | CI-PY-02 | Phase 4.8 — M2.8 | Satisfied — M2.8 |
 | CI-PY-03 | Phase 4.8 — M2.8 | Satisfied — M2.8 |
 | CI-PY-04 | Phase 4.8 — M2.8 | Satisfied — M2.8 |
-| INGEST-01 | Phase 5.1 — M3.0b | Pending |
-| INGEST-04 | Phase 5.1 — M3.0b | Pending |
+| INGEST-01 | Phase 5.1 — M3.0b | Done |
+| INGEST-04 | Phase 5.1 — M3.0b | Done |
 | INGEST-16 | Phase 5.3 — M3.0d | Pending |
 | INGEST-05 | Phase 6 — M3.1 | Pending |
 | INGEST-06 | Phase 6 — M3.1 | Pending |
