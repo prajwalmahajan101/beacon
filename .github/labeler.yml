@@ -1,0 +1,47 @@
+# Path-based auto-labels for PRs (actions/labeler v5). Labels map to the repo's
+# component layout so PRs can be filtered by area across M3+.
+sdk-java:
+  - changed-files:
+      - any-glob-to-any-file: "sdk/java/**"
+
+sdk-python:
+  - changed-files:
+      - any-glob-to-any-file: "sdk/python/**"
+
+gateway:
+  - changed-files:
+      - any-glob-to-any-file: "platform/gateway/**"
+
+contract:
+  - changed-files:
+      - any-glob-to-any-file: "contract/**"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+
+adr:
+  - changed-files:
+      - any-glob-to-any-file: "docs/adr/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "gradle/**"
+          - "**/*.gradle.kts"
+          - "gradlew"
+          - "gradlew.bat"
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/Dockerfile"
+          - "docker-compose.yml"
+          - ".dockerignore"
+          - "deploy/**"

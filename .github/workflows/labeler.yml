@@ -1,0 +1,22 @@
+name: labeler
+
+# Auto-labels PRs by changed paths (config: .github/labeler.yml). Uses
+# pull_request_target so the workflow + label config are read from the base
+# branch (main) and the token has write scope for fork PRs too — same trigger
+# posture as pr-title-lint.yml. Read-only over the code, write only to labels.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    name: Apply component labels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          sync-labels: true
