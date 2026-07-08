@@ -29,6 +29,16 @@ spotless = "7.0.2"
 # 4.x and supplies grpc-netty-shaded/stub/protobuf versions. See docs/adr/0025.
 otelProto = "1.10.0-alpha"
 grpc = "1.82.1"
+# Testcontainers override: the Spring Boot 3.3.5 BOM manages 1.19.8, which predates the
+# native org.testcontainers.kafka.KafkaContainer (KRaft, apache/kafka image). 1.20.x lets
+# the gateway ITs exercise the SAME apache/kafka:3.9.2 broker family as docker-compose
+# (ADR-0024) instead of the Confluent cp-kafka image. Test-scope only.
+testcontainers = "1.21.4"
+# docker-java pinned to the version Testcontainers 1.21.4 targets. The Spring Boot 3.3.5 BOM
+# otherwise forces docker-java 3.3.6, whose client sends the legacy API version 1.32 that Docker
+# Engine 25+ rejects ("client version 1.32 is too old"). 3.4.2 negotiates the API version with
+# the daemon. Test-scope only; explicit direct deps override spring-dependency-management.
+dockerJava = "3.4.2"
 
 [plugins]
 jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
@@ -79,3 +89,9 @@ grpc-bom = { module = "io.grpc:grpc-bom", version.ref = "grpc" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded" }
 grpc-stub = { module = "io.grpc:grpc-stub" }
 grpc-protobuf = { module = "io.grpc:grpc-protobuf" }
+
+# Gateway integration tests — Testcontainers pinned ahead of the Boot BOM (see testcontainers ver).
+testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "dockerJava" }
+docker-java-transport-zerodep = { module = "com.github.docker-java:docker-java-transport-zerodep", version.ref = "dockerJava" }

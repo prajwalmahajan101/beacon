@@ -37,8 +37,15 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.kafka:spring-kafka-test")
-    testImplementation("org.testcontainers:kafka")
-    testImplementation("org.testcontainers:junit-jupiter")
+    // Explicit versions (via catalog) override the Boot BOM's testcontainers 1.19.8 so the
+    // native apache/kafka KRaft container (org.testcontainers.kafka.KafkaContainer) is available.
+    testImplementation(libs.testcontainers.kafka)
+    testImplementation(libs.testcontainers.junit)
+    // Override the Boot BOM's docker-java 3.3.6 (which sends the legacy API version Docker 25+
+    // rejects) with the 3.4.2 that Testcontainers 1.21.4 targets. Explicit direct deps win over
+    // spring-dependency-management; declaring core + zerodep transport pulls api/transport too.
+    testImplementation(libs.docker.java.core)
+    testImplementation(libs.docker.java.transport.zerodep)
     testImplementation(libs.assertj)
 }
 
@@ -58,4 +65,10 @@ tasks.named<Test>("test") {
         "beacon.contract.examples",
         rootProject.file("contract/schema/examples").absolutePath,
     )
+    // Testcontainers integration tests need a Docker daemon. Modern Docker (Engine 25+) rejects
+    // docker-java's legacy fallback API version (1.32) with "client version is too old". docker-java
+    // reads the pinned version from the `api.version` SYSTEM PROPERTY (not the DOCKER_API_VERSION
+    // env var). 1.41 is supported by every Docker >= 20.10, so this is safe in CI and locally. Only
+    // consulted when a daemon is present; unit tests ignore it.
+    systemProperty("api.version", "1.41")
 }
