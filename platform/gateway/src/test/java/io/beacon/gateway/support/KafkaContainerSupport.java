@@ -8,8 +8,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -18,15 +16,23 @@ import org.testcontainers.utility.DockerImageName;
  * apache/kafka:3.9.2} KRaft container (same family as the docker-compose topology, ADR-0024) and
  * points {@code spring.kafka.bootstrap-servers} at it. Subclasses add {@code @SpringBootTest} with
  * whatever web environment they need.
+ *
+ * <p>Uses the Testcontainers <em>singleton container</em> pattern (started once in a static
+ * initializer, never explicitly stopped — Ryuk reaps it at JVM exit) rather than
+ * {@code @Testcontainers}/{@code @Container}. A JUnit-managed static container would be shared
+ * across all subclasses via inheritance and stopped by the first class's {@code afterAll}, leaving
+ * later classes (and cached Spring contexts) pointing at a dead broker.
  */
-@Testcontainers
 public abstract class KafkaContainerSupport {
 
   protected static final String TOPIC = "beacon.logs.test";
 
-  @Container
   protected static final KafkaContainer KAFKA =
       new KafkaContainer(DockerImageName.parse("apache/kafka:3.9.2"));
+
+  static {
+    KAFKA.start();
+  }
 
   @DynamicPropertySource
   static void kafkaProperties(DynamicPropertyRegistry registry) {
