@@ -14,6 +14,7 @@ import io.beacon.gateway.mapping.OtlpRecordMapper;
 import io.beacon.gateway.mapping.RecordMappingException;
 import io.beacon.gateway.validation.RecordValidator;
 import io.beacon.sdk.record.LogRecord;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.logs.v1.ResourceLogs;
@@ -21,10 +22,10 @@ import io.opentelemetry.proto.logs.v1.ScopeLogs;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -34,7 +35,14 @@ class IngestServiceTest {
   @Mock private OtlpRecordMapper mapper;
   @Mock private RecordValidator validator;
   @Mock private LogRecordProducer producer;
-  @InjectMocks private IngestService service;
+
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+  private IngestService service;
+
+  @BeforeEach
+  void setUp() {
+    service = new IngestService(mapper, validator, producer, meterRegistry);
+  }
 
   private static final LogRecord MAPPED =
       LogRecord.minimal(
@@ -58,6 +66,8 @@ class IngestServiceTest {
     ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
     verify(producer).produce(captor.capture());
     assertThat(captor.getValue()).hasSize(2);
+    assertThat(meterRegistry.counter("ingest.accepted").count()).isEqualTo(2.0);
+    assertThat(meterRegistry.counter("ingest.rejected").count()).isZero();
   }
 
   @Test

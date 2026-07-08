@@ -7,6 +7,8 @@ import io.beacon.gateway.mapping.RecordMappingException;
 import io.beacon.gateway.validation.RecordValidator;
 import io.beacon.sdk.record.CanonicalJson;
 import io.beacon.sdk.record.LogRecord;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.common.v1.InstrumentationScope;
 import io.opentelemetry.proto.logs.v1.ResourceLogs;
@@ -33,12 +35,21 @@ public class IngestService {
   private final OtlpRecordMapper mapper;
   private final RecordValidator validator;
   private final LogRecordProducer producer;
+  private final Counter acceptedCounter;
+  private final Counter rejectedCounter;
+  private final Counter kafkaFailureCounter;
 
   public IngestService(
-      OtlpRecordMapper mapper, RecordValidator validator, LogRecordProducer producer) {
+      OtlpRecordMapper mapper,
+      RecordValidator validator,
+      LogRecordProducer producer,
+      MeterRegistry meterRegistry) {
     this.mapper = mapper;
     this.validator = validator;
     this.producer = producer;
+    this.acceptedCounter = meterRegistry.counter("ingest.accepted");
+    this.rejectedCounter = meterRegistry.counter("ingest.rejected");
+    this.kafkaFailureCounter = meterRegistry.counter("ingest.kafka_failure");
   }
 
   public IngestResult ingest(ExportLogsServiceRequest request) {
@@ -79,6 +90,15 @@ public class IngestService {
     }
 
     int accepted = kafkaFailed ? 0 : valid.size();
+    if (accepted > 0) {
+      acceptedCounter.increment(accepted);
+    }
+    if (rejected > 0) {
+      rejectedCounter.increment(rejected);
+    }
+    if (kafkaFailed) {
+      kafkaFailureCounter.increment();
+    }
     return new IngestResult(accepted, rejected, reasons, kafkaFailed);
   }
 }
