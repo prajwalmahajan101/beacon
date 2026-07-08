@@ -46,8 +46,14 @@ public final class LogRecordProducer {
     }
     List<CompletableFuture<SendResult<String, String>>> futures =
         new ArrayList<>(canonicalValues.size());
-    for (String value : canonicalValues) {
-      futures.add(template.send(topic, value));
+    try {
+      for (String value : canonicalValues) {
+        futures.add(template.send(topic, value));
+      }
+    } catch (RuntimeException e) {
+      // send() blocks up to max.block.ms fetching metadata and throws synchronously (e.g.
+      // TimeoutException) when the broker is unreachable — surface it as a produce failure too.
+      throw new KafkaProduceException("failed to enqueue send to " + topic, e);
     }
     for (CompletableFuture<SendResult<String, String>> future : futures) {
       try {

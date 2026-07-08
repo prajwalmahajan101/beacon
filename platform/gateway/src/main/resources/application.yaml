@@ -19,6 +19,9 @@ spring:
         # the gateway's own produce-timeout-ms; keep it >= produce-timeout-ms.
         delivery.timeout.ms: 10000
         request.timeout.ms: 5000
+        # Bound the metadata wait inside send() so an unreachable broker fails fast (→ 5xx)
+        # instead of blocking the request thread for the 60s default.
+        max.block.ms: 5000
 
 server:
   # OTLP/HTTP transport (T7). The OTLP/gRPC transport binds beacon.gateway.grpc-port

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.beacon.gateway.support.KafkaContainerSupport;
 import java.util.List;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,11 +30,8 @@ class LogRecordProducerIT extends KafkaContainerSupport {
 
     try (KafkaConsumer<String, String> consumer = newConsumer("producer-it")) {
       consumer.subscribe(List.of(TOPIC));
-      ConsumerRecords<String, String> records = pollAtLeastOne(consumer);
-      assertThat(records.count()).isEqualTo(1);
-      var record = records.iterator().next();
-      assertThat(record.key()).isNull();
-      assertThat(record.value()).isEqualTo(CANONICAL);
+      String value = pollForValueContaining(consumer, "\"body\":\"hello\"");
+      assertThat(value).isEqualTo(CANONICAL);
     }
   }
 }

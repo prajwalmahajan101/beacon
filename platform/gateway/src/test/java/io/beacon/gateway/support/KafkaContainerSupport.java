@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -33,6 +32,8 @@ public abstract class KafkaContainerSupport {
   static void kafkaProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
     registry.add("beacon.gateway.kafka.topic", () -> TOPIC);
+    // Random management port so multiple cached web contexts don't clash on the fixed 9464.
+    registry.add("management.server.port", () -> "0");
   }
 
   /** A String/String consumer subscribed from the earliest offset. */
@@ -46,16 +47,22 @@ public abstract class KafkaContainerSupport {
     return new KafkaConsumer<>(props);
   }
 
-  /** Poll until at least one record arrives or the deadline elapses. */
-  protected static ConsumerRecords<String, String> pollAtLeastOne(
-      KafkaConsumer<String, String> consumer) {
+  /**
+   * Poll until a record whose value contains {@code needle} arrives, or the deadline elapses. Used
+   * instead of an exact record count because the topic is shared across integration tests.
+   *
+   * @return the matching value, or {@code null} if none arrived in time
+   */
+  protected static String pollForValueContaining(
+      KafkaConsumer<String, String> consumer, String needle) {
     long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
     while (System.nanoTime() < deadline) {
-      ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
-      if (!records.isEmpty()) {
-        return records;
+      for (var record : consumer.poll(Duration.ofMillis(500))) {
+        if (record.value().contains(needle)) {
+          return record.value();
+        }
       }
     }
-    return ConsumerRecords.empty();
+    return null;
   }
 }
