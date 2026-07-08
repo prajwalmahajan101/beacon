@@ -1,0 +1,64 @@
+name: gateway
+
+# Dedicated CI gate for the ingest gateway (:beacon-gateway). Runs on gateway
+# changes plus the inputs it builds against — its SDK dependency (:beacon-sdk-java),
+# the bundled contract schema, and the shared Gradle build. The Testcontainers ITs
+# need Docker, which ubuntu-latest provides.
+#
+# NOTE: this workflow's own path is intentionally NOT in the triggers below — the
+# :beacon-gateway project only exists once the gateway lands on main, so self-
+# triggering on a workflow-only edit would run :beacon-gateway:test against a tree
+# without the module. It fires on real gateway/source changes instead.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "platform/gateway/**"
+      - "sdk/java/core/**"
+      - "contract/schema/**"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+  pull_request:
+    branches: [main]
+    paths:
+      - "platform/gateway/**"
+      - "sdk/java/core/**"
+      - "contract/schema/**"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+
+jobs:
+  build:
+    name: Gateway build + ingest tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Spotless check (google-java-format)
+        run: ./gradlew :beacon-gateway:spotlessCheck --no-daemon
+
+      - name: Gateway build + tests (unit + Testcontainers Kafka ITs)
+        run: ./gradlew :beacon-gateway:test --no-daemon
+
+      - name: Upload gateway test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-test-report
+          path: platform/gateway/build/reports/tests/test
+          if-no-files-found: ignore
