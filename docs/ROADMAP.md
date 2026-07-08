@@ -170,7 +170,7 @@ M3.0 is split into **four executable slices** (5 → 5.3) for tighter scope: one
 
 ---
 
-> **Forward ADR numbering.** ADRs are numbered when **authored**, continuing the committed sequence (ADR-0001 … **ADR-0024** shipped; **ADR-0025** reserved for the M3.0b gateway build-vs-buy). Phases beyond M3.0b list anticipated ADRs **by topic** rather than by fixed number — the earlier `.planning` drafts pre-assigned numbers (ADR-0016 …) that are now taken by shipped ADRs, so those draft numbers are intentionally **not** carried here.
+> **Forward ADR numbering.** ADRs are numbered when **authored**, continuing the committed sequence (ADR-0001 … **ADR-0025** shipped; ADR-0025 is the M3.0b gateway build-vs-buy). Phases beyond M3.0b list anticipated ADRs **by topic** rather than by fixed number — the earlier `.planning` drafts pre-assigned numbers (ADR-0016 …) that are now taken by shipped ADRs, so those draft numbers are intentionally **not** carried here.
 
 ---
 
