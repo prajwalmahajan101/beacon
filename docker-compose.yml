@@ -114,21 +114,33 @@ services:
       start_period: 10s
 
 # ---------------------------------------------------------------------------
-# Gateway seam — built in Phase 5.1 (M3.0b), the thin Spring Boot OTLP gateway.
-# Left as a documented, NON-running stub so 5.1 uncomments + builds it without
-# restructuring the compose topology. It connects over the DOCKER listener
-# (kafka:29092) and to ES over the in-network hostname.
+# Gateway — Phase 5.1 (M3.0b), the thin Spring Boot OTLP gateway (ADR-0025).
+# Decodes OTLP (gRPC 4317 / HTTP 4318), validates against the frozen M0 schema,
+# and produces canonical M0 JSON to Kafka over the DOCKER listener (kafka:29092).
+# It does NOT touch Elasticsearch in 5.1 (Vector owns Kafka -> ES in Phase 5.2),
+# so the stale BEACON_ES from the seam is intentionally dropped.
 # ---------------------------------------------------------------------------
-#  gateway:
-#    build: ./sdk/...            # or examples/... — resolved in 5.1
-#    container_name: beacon-gateway
-#    networks: [beacon]
-#    ports:
-#      - "4317:4317"             # OTLP/gRPC
-#      - "4318:4318"             # OTLP/HTTP
-#    environment:
-#      BEACON_KAFKA_BOOTSTRAP: kafka:29092
-#      BEACON_ES: http://elasticsearch:9200
-#    depends_on:
-#      kafka:
-#        condition: service_healthy
+  gateway:
+    build:
+      # Repo root context — :beacon-gateway depends on :beacon-sdk-java and bundles the
+      # contract schema, so the whole Gradle tree must be visible to the build.
+      context: .
+      dockerfile: platform/gateway/Dockerfile
+    container_name: beacon-gateway
+    networks: [beacon]
+    ports:
+      - "4317:4317" # OTLP/gRPC
+      - "4318:4318" # OTLP/HTTP
+    environment:
+      BEACON_KAFKA_BOOTSTRAP: kafka:29092
+      BEACON_KAFKA_TOPIC: beacon.logs
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      # Actuator health on the internal management port (9464, not published).
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9464/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s

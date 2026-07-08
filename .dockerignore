@@ -1,0 +1,13 @@
+# Keep the Docker build context (repo root, used by platform/gateway/Dockerfile) lean:
+# never ship build outputs, VCS, IDE, or Gradle caches into the image build.
+**/build/
+**/.gradle/
+.git/
+.github/
+.journal/
+.code_assist/
+.remember/
+**/*.iml
+.idea/
+.vscode/
+docs/

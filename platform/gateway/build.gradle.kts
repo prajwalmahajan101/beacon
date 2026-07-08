@@ -49,6 +49,10 @@ dependencies {
     testImplementation(libs.assertj)
 }
 
+// The Docker image runs the executable bootJar; skip the plain library jar so build/libs holds
+// exactly one artifact (nothing depends on this module as a library).
+tasks.named<Jar>("jar") { enabled = false }
+
 // Bundle the FROZEN contract schema into the jar so RecordValidator loads it from the
 // classpath (/schema/log-record.schema.json) — a build-time copy from the single source
 // of truth under contract/schema/, NOT a checked-in drift copy.
