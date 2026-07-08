@@ -22,6 +22,13 @@ jmhPlugin = "0.7.2"
 springBoot = "3.3.5"
 jacksonDatabind = "2.18.0"
 spotless = "7.0.2"
+# M3.0b (Phase 5.1) — ingest gateway OTLP wire. opentelemetry-proto ships the OTLP
+# protobuf messages + generated gRPC LogsService stubs; its runtime is protobuf-java
+# 4.34.0 (its POM pins it), which wins over grpc-bom's slightly-lower protobuf so the
+# generated-code/runtime version check is satisfied. grpc-bom 1.82.1 targets protobuf
+# 4.x and supplies grpc-netty-shaded/stub/protobuf versions. See docs/adr/0025.
+otelProto = "1.10.0-alpha"
+grpc = "1.82.1"
 
 [plugins]
 jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
@@ -58,3 +65,17 @@ spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-aut
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "springBoot" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
 spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor", version.ref = "springBoot" }
+
+# M3.0b (Phase 5.1) — ingest gateway. Boot starters pinned to the same springBoot ref
+# as the adapter; spring-kafka / micrometer / testcontainers versions are supplied by
+# the Spring Boot BOM (imported automatically when the spring-boot plugin is applied).
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator", version.ref = "springBoot" }
+
+# OTLP wire — messages + gRPC stubs (otelProto) and the gRPC runtime (grpc-bom).
+# grpc modules carry no explicit version: platform(libs.grpc.bom) aligns them.
+otel-proto = { module = "io.opentelemetry.proto:opentelemetry-proto", version.ref = "otelProto" }
+grpc-bom = { module = "io.grpc:grpc-bom", version.ref = "grpc" }
+grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded" }
+grpc-stub = { module = "io.grpc:grpc-stub" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf" }

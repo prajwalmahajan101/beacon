@@ -34,3 +34,10 @@ project(":beacon-sdk-spring-adapter").projectDir = file("sdk/java/spring-adapter
 // end-to-end (JSDK-08). See examples/spring-boot-sample/README.md.
 include(":examples:spring-boot-sample")
 project(":examples:spring-boot-sample").projectDir = file("examples/spring-boot-sample")
+
+// M3.0b (Phase 5.1) — ingest gateway: the thin Spring Boot OTLP receiver that decodes
+// OTLP, validates against the frozen M0 schema, and produces canonical M0 JSON to Kafka.
+// Lives under platform/ — a new top-level home for runtime services, distinct from the
+// sdk/ umbrella (which ships to consumers). See docs/adr/0025.
+include(":beacon-gateway")
+project(":beacon-gateway").projectDir = file("platform/gateway")
