@@ -7,6 +7,22 @@ description = "Beacon SDK for Java — OTel-aligned logs/traces/metrics with res
 val libs = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
 dependencies {
+    // AnyValue — used by the real OtlpExporter.accept() path — lives in
+    // opentelemetry-api-incubator, which is only pulled TRANSITIVELY (via the OTLP logs
+    // exporter + the logback-appender instrumentation) and floats to a newer alpha than the
+    // SDK's sdk-logs/exporter-otlp line, NoClassDefFoundError-ing the exporter at runtime (the
+    // SDK's own tests never exercise accept(), so this stayed latent until the M3.0d E2E).
+    // Pin it strictly to the SDK's OTel line so the whole logs surface stays consistent for
+    // EVERY consumer (this constraint propagates through the SDK's runtime metadata). See
+    // .journal/M3.0d.md. Spring-Boot consumers must ALSO import the OTel BOM to stop Boot's
+    // dependency management downgrading the stable OTel artifacts (see the gateway build).
+    constraints {
+        implementation("io.opentelemetry:opentelemetry-api-incubator") {
+            version { strictly(libs.versions.otelAlpha.get()) }
+            because("keep AnyValue on the SDK's OTel line; a floating incubator skews the exporter")
+        }
+    }
+
     api(libs.otel.api)
     // M1.8 — SeverityMapper loads contract/spec/severity-table.json at class init
     // (cross-SDK contract artifact, Plan 03-02). Jackson is required on the SDK main classpath.
