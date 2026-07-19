@@ -1,0 +1,32 @@
+# OTel Collector (core) config — the M3.0d Collector-fronted ingest path (INGEST-16).
+#
+# Receives OTLP (gRPC 4317 / HTTP 4318) from an SDK and forwards it via OTLP/gRPC to
+# the Beacon gateway (gateway:4317). The gateway stays the single Kafka producer — the
+# Collector is a transparent agent-side proxy in front of it, proving Beacon works
+# behind the standard industry topology (PRD §13.1, ADR-0025).
+#
+# Only core components are used (otlp receiver + otlp exporter) so the small core image
+# suffices — the health_check extension lives in collector-contrib, so test readiness is
+# a TCP probe of the OTLP port rather than a health endpoint.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  # otlp_grpc is the current name for the gRPC OTLP exporter (the bare "otlp" alias is
+  # deprecated in collector 0.156.0).
+  otlp_grpc:
+    endpoint: gateway:4317
+    tls:
+      insecure: true # dev stack is plaintext (ADR-0024 security-off posture)
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      exporters: [otlp_grpc]
