@@ -51,6 +51,27 @@ dependencies {
     testImplementation(libs.assertj)
 }
 
+// The E2E (@Tag("e2e")) runs the SDK's real OtlpExporter on THIS module's test classpath. The
+// gateway applies Spring Boot dependency management, which downgrades OpenTelemetry to Boot's
+// managed 1.37.0, while opentelemetry-api-incubator (source of AnyValue, used by the OTLP logs
+// exporter) floats up to 1.44.1-alpha via the logback-appender — a version skew that
+// NoClassDefFoundErrors at emit. eachDependency (which overrides Spring DM, unlike an enforced
+// platform) realigns the whole io.opentelemetry surface to the SDK's compiled version on the TEST
+// classpaths only; opentelemetry-proto (the gateway's own OTLP wire, separately pinned) is left be.
+run {
+    val otelVer = libs.versions.otel.get()
+    listOf("testCompileClasspath", "testRuntimeClasspath").forEach { cfgName ->
+        configurations.named(cfgName).configure {
+            resolutionStrategy.eachDependency {
+                if (requested.group == "io.opentelemetry" && requested.name != "opentelemetry-proto") {
+                    useVersion(if (requested.name.endsWith("-incubator")) "$otelVer-alpha" else otelVer)
+                    because("align OTel to the SDK's $otelVer on the E2E test classpath (ADR-0011 pin)")
+                }
+            }
+        }
+    }
+}
+
 // The Docker image runs the executable bootJar; skip the plain library jar so build/libs holds
 // exactly one artifact (nothing depends on this module as a library).
 tasks.named<Jar>("jar") { enabled = false }
