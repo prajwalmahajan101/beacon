@@ -51,24 +51,17 @@ dependencies {
     testImplementation(libs.assertj)
 }
 
-// The E2E (@Tag("e2e")) runs the SDK's real OtlpExporter on THIS module's test classpath. The
-// gateway applies Spring Boot dependency management, which downgrades OpenTelemetry to Boot's
-// managed 1.37.0, while opentelemetry-api-incubator (source of AnyValue, used by the OTLP logs
-// exporter) floats up to 1.44.1-alpha via the logback-appender — a version skew that
-// NoClassDefFoundErrors at emit. eachDependency (which overrides Spring DM, unlike an enforced
-// platform) realigns the whole io.opentelemetry surface to the SDK's compiled version on the TEST
-// classpaths only; opentelemetry-proto (the gateway's own OTLP wire, separately pinned) is left be.
-run {
-    val otelVer = libs.versions.otel.get()
-    listOf("testCompileClasspath", "testRuntimeClasspath").forEach { cfgName ->
-        configurations.named(cfgName).configure {
-            resolutionStrategy.eachDependency {
-                if (requested.group == "io.opentelemetry" && requested.name != "opentelemetry-proto") {
-                    useVersion(if (requested.name.endsWith("-incubator")) "$otelVer-alpha" else otelVer)
-                    because("align OTel to the SDK's $otelVer on the E2E test classpath (ADR-0011 pin)")
-                }
-            }
-        }
+// The E2E (@Tag("e2e")) runs the SDK's real OtlpExporter on this module's classpath. The gateway
+// applies Spring Boot dependency management, whose BOM downgrades the stable OpenTelemetry
+// artifacts (exporter-otlp, sdk-logs, …) to Boot's managed 1.37.0 — skewing them from the SDK's
+// 1.42.0 and NoClassDefFoundError-ing the exporter (the incubator/AnyValue side is pinned in the
+// SDK core). Import the OTel BOM through Spring's own dependency management (which DOES override
+// Boot's managed versions, unlike a Gradle enforced platform) so the whole stable OTel surface
+// tracks the SDK's line. opentelemetry-proto (the gateway's separately-pinned OTLP wire) is not in
+// this BOM and is untouched.
+dependencyManagement {
+    imports {
+        mavenBom("io.opentelemetry:opentelemetry-bom:${libs.versions.otel.get()}")
     }
 }
 

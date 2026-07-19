@@ -9,6 +9,11 @@
 # docs/adr/0011-otel-sdk-version-policy.md for the policy
 # (review at every milestone; bump-or-justify).
 otel = "1.42.0"
+# The alpha line of the same OTel release — the incubator artifacts
+# (opentelemetry-api-incubator, home of AnyValue used by the OTLP logs exporter) are
+# versioned `<otel>-alpha`. Pinned so the incubator can't float off the SDK's OTel line
+# (a skew that NoClassDefFoundErrors the real exporter). Bump together with `otel`.
+otelAlpha = "1.42.0-alpha"
 otelInstrumentation = "2.10.0-alpha"
 junit = "5.11.0"
 jsonSchema = "1.5.0"
