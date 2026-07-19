@@ -1,0 +1,32 @@
+# Beacon — M3.0d Collector-fronted ingest overlay (Phase 5.3, INGEST-16).
+#
+# Layer ON TOP of the base stack, never alone:
+#   docker compose -f docker-compose.yml -f docker-compose.collector.yml up -d --wait
+#
+# Adds an OpenTelemetry Collector (core) in front of the gateway: it receives OTLP from
+# an SDK and forwards it via OTLP/gRPC to gateway:4317. The gateway stays the single
+# Kafka producer. Host ports 5317/5318 avoid clashing with the gateway's own 4317/4318.
+#
+# Image pinned to an exact patch (ADR-0024 discipline). Resolved digest (2026-07-19):
+#   otel/opentelemetry-collector:0.156.0
+#     @sha256:0beba82d63792511591522a8d582904b9a8ae81710357bfcab731607b8b0ffe2
+#
+# NOTE: the core collector image is distroless (no shell) and the health_check extension
+# is contrib-only, so this service carries NO compose healthcheck — `up --wait` treats it
+# as ready once running, and the E2E tests TCP-probe the OTLP port before emitting.
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector:0.156.0
+    container_name: beacon-otel-collector
+    networks: [beacon]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    ports:
+      - "5317:4317" # OTLP/gRPC in (host 5317 -> container 4317)
+      - "5318:4318" # OTLP/HTTP in (host 5318 -> container 4318)
+    volumes:
+      - ./deploy/collector/collector.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      # Forward target must be up first; the gateway owns the Kafka write.
+      gateway:
+        condition: service_healthy
