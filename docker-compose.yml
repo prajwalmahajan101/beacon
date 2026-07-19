@@ -6,13 +6,10 @@
 # `docker compose up -d --wait` blocks until all three are healthy (exit 0) and
 # `docker compose down -v` tears the stack down cleanly.
 #
-# SCOPE: this file is the M3.0a infra scaffold ONLY. It leaves clean seams for
-# later sub-phases and does NOT build them here:
-#   - The thin Spring Boot OTLP gateway is Phase 5.1 (see the commented `gateway`
-#     seam block at the bottom of this file).
-#   - The REAL Vector `kafka` source -> `elasticsearch` sink pipeline is Phase 5.2.
-#     `deploy/vector/vector.yaml` is a minimal demo_logs -> blackhole placeholder
-#     that only proves the Vector process boots healthy and its /health answers.
+# SCOPE: seeded as the M3.0a infra scaffold; the seams are now filled:
+#   - The thin Spring Boot OTLP gateway landed in Phase 5.1 (the `gateway` service).
+#   - The real Vector `kafka` source -> `elasticsearch` sink indexer landed in
+#     Phase 5.2 (`deploy/vector/vector.yaml`: beacon.logs -> the beacon-logs index).
 #
 # Every image is pinned to an EXACT patch tag (no floating :8.19 / :0.41 / :latest).
 # Resolved digests (recorded 2026-07-07, feed ADR-0024 in plan 05-02):
@@ -102,9 +99,16 @@ services:
     ports:
       - "8686:8686" # Vector observability API — /health probe target
     volumes:
-      # Placeholder config for THIS phase (demo_logs -> blackhole + api). The real
-      # kafka -> elasticsearch pipeline lands in Phase 5.2.
+      # The real kafka -> elasticsearch indexer pipeline (Phase 5.2 / M3.0c):
+      # consume beacon.logs -> bulk-write the beacon-logs ES index.
       - ./deploy/vector/vector.yaml:/etc/vector/vector.yaml:ro
+    depends_on:
+      # Start after both ends of the pipeline are healthy so Vector doesn't spin
+      # retrying an absent broker / ES on boot.
+      kafka:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     healthcheck:
       # 0.41.1-debian has no wget/curl/busybox; bash /dev/tcp probes the API /health status line.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8686; printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3"]
