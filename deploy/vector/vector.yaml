@@ -1,14 +1,52 @@
-# Phase 5 / M3.0a placeholder — proves Vector boots healthy.
-# The real kafka -> elasticsearch pipeline is delivered in Phase 5.2 (M3.0c).
+# Phase 5.2 / M3.0c — the real Kafka -> Elasticsearch indexer pipeline.
+#
+# Consumes canonical M0 JSON produced by the gateway (Phase 5.1) on the
+# `beacon.logs` topic and bulk-writes each record into the `beacon-logs`
+# Elasticsearch index. Skeleton by design: a single plain index with ES dynamic
+# mapping (no index template, no ILM — those are Phase 8 / M3.3).
+#
+# Vector talks to both over the compose `beacon` network's in-cluster names:
+# the Kafka DOCKER listener (kafka:29092) and ES over plain HTTP (security is OFF
+# in the dev stack, ADR-0024).
+
+# Vector observability API — the compose healthcheck probes /health over
+# bash /dev/tcp (the 0.41.1-debian image ships no wget/curl/busybox; M3.0a).
 api:
   enabled: true
   address: "0.0.0.0:8686"
+
 sources:
-  heartbeat:
-    type: demo_logs
-    format: json
-    interval: 60
+  # Canonical M0 JSON off Kafka.
+  #   log_namespace: true  -> the decoded JSON IS the event root; Kafka metadata
+  #                           (topic/partition/offset/message-timestamp) is routed
+  #                           to the metadata namespace instead of top-level fields.
+  #                           This keeps the ES doc a clean M0 record and avoids a
+  #                           collision between the Kafka message timestamp and the
+  #                           record's own `timestamp` field.
+  #   auto_offset_reset: earliest -> a record produced before this consumer connects
+  #                           is still indexed (the smoke script seeds, then asserts).
+  logs_in:
+    type: kafka
+    bootstrap_servers: "kafka:29092"
+    topics: ["beacon.logs"]
+    group_id: "beacon-indexer"
+    auto_offset_reset: "earliest"
+    log_namespace: true
+    decoding:
+      codec: "json"
+
 sinks:
-  out:
-    type: blackhole
-    inputs: [heartbeat]
+  # Bulk-index into a single plain index; ES auto-maps (skeleton).
+  # api_version pinned to v8 for the ES 8.19 dev node (no auto-detect surprise).
+  # Sink healthcheck is OFF — compose `depends_on: elasticsearch service_healthy`
+  # already gates startup ordering, so Vector needn't fail its own boot racing ES.
+  es_out:
+    type: elasticsearch
+    inputs: ["logs_in"]
+    endpoints: ["http://elasticsearch:9200"]
+    api_version: "v8"
+    mode: "bulk"
+    bulk:
+      index: "beacon-logs"
+    healthcheck:
+      enabled: false
