@@ -18,7 +18,6 @@
 services:
   otel-collector:
     image: otel/opentelemetry-collector:0.156.0
-    container_name: beacon-otel-collector
     networks: [beacon]
     command: ["--config=/etc/otelcol/config.yaml"]
     ports:

@@ -31,7 +31,6 @@ volumes:
 services:
   kafka:
     image: apache/kafka:3.9.2
-    container_name: beacon-kafka
     networks: [beacon]
     ports:
       - "9092:9092" # HOST listener — dev tooling on localhost:9092
@@ -67,7 +66,6 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.19.18
-    container_name: beacon-es
     networks: [beacon]
     ports:
       - "9200:9200"
@@ -94,7 +92,6 @@ services:
 
   vector:
     image: timberio/vector:0.41.1-debian # debian variant -> ships bash for the /dev/tcp health probe (0.41.1 has no wget/curl/busybox)
-    container_name: beacon-vector
     networks: [beacon]
     ports:
       - "8686:8686" # Vector observability API — /health probe target
@@ -130,7 +127,11 @@ services:
       # contract schema, so the whole Gradle tree must be visible to the build.
       context: .
       dockerfile: platform/gateway/Dockerfile
-    container_name: beacon-gateway
+    # Stable image tag so a pre-built image (`docker compose build gateway`) is reused across
+    # runs — including the Testcontainers E2E, which uses a random compose project name (without
+    # a fixed image name each E2E run would re-run the in-Docker Gradle build). `up` reuses this
+    # image if present; rebuild it after gateway changes.
+    image: beacon-gateway:local
     networks: [beacon]
     ports:
       - "4317:4317" # OTLP/gRPC
