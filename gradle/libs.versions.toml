@@ -93,5 +93,7 @@ grpc-protobuf = { module = "io.grpc:grpc-protobuf" }
 # Gateway integration tests — Testcontainers pinned ahead of the Boot BOM (see testcontainers ver).
 testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+# Core Testcontainers — provides ComposeContainer for the M3.0d full-stack E2E (local-compose mode).
+testcontainers-core = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "dockerJava" }
 docker-java-transport-zerodep = { module = "com.github.docker-java:docker-java-transport-zerodep", version.ref = "dockerJava" }
