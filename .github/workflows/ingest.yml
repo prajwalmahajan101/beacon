@@ -1,0 +1,111 @@
+name: ingest
+
+# M3.0d full-stack ingest E2E gate. Boots the REAL docker-compose stack (gateway + Kafka +
+# Vector + Elasticsearch, plus the OTel Collector overlay) via Testcontainers and drives BOTH
+# real SDKs end-to-end, asserting the emitted record is searchable in Elasticsearch:
+#   Java   -> :beacon-gateway:e2eTest      (direct + collector)
+#   Python -> platform/e2e pytest          (direct + collector)
+#
+# Runs on changes to anything in the ingest path (both SDKs, the gateway, the compose stack,
+# the Vector/collector config, the E2E project) plus the shared Gradle build. ubuntu-latest
+# provides Docker + `docker compose`, which Testcontainers' local-compose mode shells out to.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "platform/gateway/**"
+      - "platform/e2e/**"
+      - "sdk/java/core/**"
+      - "sdk/python/core/**"
+      - "deploy/**"
+      - "docker-compose.yml"
+      - "docker-compose.collector.yml"
+      - "contract/schema/**"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/ingest.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "platform/gateway/**"
+      - "platform/e2e/**"
+      - "sdk/java/core/**"
+      - "sdk/python/core/**"
+      - "deploy/**"
+      - "docker-compose.yml"
+      - "docker-compose.collector.yml"
+      - "contract/schema/**"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/ingest.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Full-stack ingest E2E (Java + Python SDK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Python 3.10 (floor)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      # Build the gateway image ONCE up front with a stable tag (beacon-gateway:local). Both
+      # E2Es use Testcontainers with a random compose project name, so without a pre-built
+      # stable-tagged image each run would re-run the in-Docker Gradle bootJar. Building here
+      # also keeps a build failure distinct from a test failure.
+      - name: Build gateway image
+        run: docker compose build gateway
+
+      - name: Java full-stack E2E (:beacon-gateway:e2eTest)
+        run: ./gradlew :beacon-gateway:e2eTest --no-daemon
+
+      - name: Python full-stack E2E (platform/e2e)
+        working-directory: platform/e2e
+        run: uv run pytest -v --junitxml=pytest-e2e.xml
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          echo "=== containers ==="
+          docker ps -a || true
+          echo "=== dangling beacon container logs (best-effort; TC tears down on stop) ==="
+          for c in $(docker ps -a --format '{{.Names}}' | grep -iE 'beacon|kafka|elasticsearch|vector|collector' || true); do
+            echo "--- $c ---"; docker logs --tail 100 "$c" 2>&1 || true
+          done
+
+      - name: Upload E2E reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingest-e2e-reports-${{ github.run_id }}
+          path: |
+            platform/gateway/build/reports/tests/e2eTest/**
+            platform/gateway/build/test-results/e2eTest/**
+            platform/e2e/pytest-e2e.xml
+          if-no-files-found: warn
