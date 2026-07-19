@@ -1,0 +1,22 @@
+[project]
+name = "beacon-ingest-e2e"
+version = "0.0.0"
+description = "M3.0d full-stack ingest E2E — the REAL Python SDK emits through the gateway (and via an OTel Collector) into Kafka -> Vector -> Elasticsearch, asserted searchable. pytest + Testcontainers docker-compose. Not published; the Python counterpart of :beacon-gateway:e2eTest. See docs/adr — none (glue + CI)."
+requires-python = ">=3.10"
+# Depends on the SDK by path so the E2E exercises the REAL emit pipeline (the Python
+# analogue of the Java E2E constructing the real BeaconSdk). Testcontainers drives the
+# real docker-compose stack; pytest is the runner.
+dependencies = ["beacon-sdk"]
+
+[dependency-groups]
+dev = ["pytest>=8", "testcontainers>=4.8"]
+
+[tool.uv]
+# Runnable test project, not an installable package.
+package = false
+
+[tool.uv.sources]
+beacon-sdk = { path = "../../sdk/python/core" }
+
+[tool.pytest.ini_options]
+markers = ["e2e: full-stack ingest E2E (boots the docker-compose stack; needs Docker)"]
