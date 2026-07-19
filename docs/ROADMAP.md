@@ -1,6 +1,6 @@
 # Beacon — Project Roadmap (M0 → M5)
 
-> **Status:** Drafted 2026-06-12 · last updated 2026-07-19 · M0 frozen · M1.0–M1.8 shipped (12/12 conformance green) · `v0.2-m1` cut · M2.0–M2.8 shipped · `v0.3-m2` cut · **M3 in progress — M3.0a (infra scaffold) + M3.0b (ingest gateway) + M3.0c (Vector indexer) shipped** · M3.0d → M5 planned.
+> **Status:** Drafted 2026-06-12 · last updated 2026-07-19 · M0 frozen · M1.0–M1.8 shipped (12/12 conformance green) · `v0.2-m1` cut · M2.0–M2.8 shipped · `v0.3-m2` cut · **M3 in progress — M3.0 complete (M3.0a infra + M3.0b gateway + M3.0c indexer + M3.0d full-stack E2E)** · M3.1 → M5 planned.
 > **Authority:** This document is the **execution** roadmap. The PRD ([`../PRD.md`](../PRD.md)) is the **product/design** authority; PRD §26 is the original milestones sketch and is superseded by this document for numbering and scope. The README table at [`../README.md#roadmap`](../README.md#roadmap) is the at-a-glance summary and links here for detail.
 
 ---
@@ -12,7 +12,7 @@
 | **M0** | Telemetry contract (spec + schema + conformance suite, no SDK code) | ✅ Frozen 2026-06-05 (`v0.1-m0`) | Schema validates fixtures; harnesses collect cleanly in both languages | ≈1 wk |
 | **M1** | Java SDK — implements the contract, passes C1–C12 against the harness | ✅ 9 / 9 phases done (M1.0–M1.8); **12/12 conformance green**; **`v0.2-m1` tagged** | All 12 conformance scenarios green on the Java harness | shipped |
 | **M2** | Python SDK — same contract, same scenarios, identical config-key surface | ✅ Complete (M2.0–M2.8); **12/12 conformance green**; **v0.3-m2 tagged** | All 12 conformance scenarios green on the Python harness | shipped |
-| **M3** | Ingest pipeline — Gateway → Kafka → Vector indexer → Elasticsearch | 🟡 In progress (M3.0a–M3.0c shipped; M3.0d next) | End-to-end log emit → searchable via API; DLQ + multi-tenancy + ILM | ≈2 wk |
+| **M3** | Ingest pipeline — Gateway → Kafka → Vector indexer → Elasticsearch | 🟡 In progress (M3.0 complete — a–d shipped; M3.1 next) | End-to-end log emit → searchable via API; DLQ + multi-tenancy + ILM | ≈2 wk |
 | **M4** | Query API + live tail + Beacon Console (React) | ⬜ Planned | Logs explorable via Console with full-text search + histogram | ≈2 wk |
 | **M5** | Platform hardening — RBAC, retention, PII redaction at the gateway, self-observability, Helm | ⬜ Planned | Helm deploy on K8s; RBAC + redaction + retention all wired | ≈2 wk |
 
@@ -117,7 +117,7 @@ M3.0 is split into **four executable slices** (5 → 5.3) for tighter scope: one
 | **5 · M3.0a** | docker-compose dev topology; **Kafka KRaft 3.9.2 + ES 8.19 + Vector 0.41.1** pinned; dual advertised-listener seam | `docker compose up --wait` all-healthy; `down -v` clean; versions justified | — (infra) | **ADR-0024** | ✅ |
 | **5.1 · M3.0b** | **Gateway** — thin Spring Boot: OTLP gRPC+HTTP → M0 schema validate (4xx) → Kafka idempotent `acks=all`, response-after-write | valid → produce + response-after-ack; invalid → 4xx w/ reason; Kafka-down → 5xx (SDK fallback engages) | INGEST-01, -04 | **ADR-0025** (gateway build-vs-buy) | ✅ |
 | **5.2 · M3.0c** | **Indexer** — Vector consumes Kafka → bulk-writes ES (skeleton: plain index, ES auto-maps) | record seeded to Kafka returned by ES `_search` within minutes; per-item bulk status logged | — | — (mechanical Vector config) | ✅ |
-| **5.3 · M3.0d** | **Full E2E** — Testcontainers boots the stack, emits via real SDK; + Collector-fronted path; new `.github/workflows/ingest.yml` gate | E2E green for **both** Java + Python SDK; Collector→gateway path verified | INGEST-16 | — (glue + CI) | ⬜ |
+| **5.3 · M3.0d** | **Full E2E** — Testcontainers boots the stack, emits via real SDK; + Collector-fronted path; new `.github/workflows/ingest.yml` gate | E2E green for **both** Java + Python SDK; Collector→gateway path verified | INGEST-16 | — (glue + CI) | ✅ |
 | **6 · M3.1** | **DLQ + idempotency + partition key** — composite key `(service.name, hash(trace_id)%N)`; offset-commit-after-write; error taxonomy | 4xx→DLQ no-retry, 5xx→backoff-then-DLQ; hot-partition detector; no acknowledged-record loss across restarts | INGEST-05,-06,-07,-08,-13,-14,-17 | ADR (partition key), ADR (error taxonomy + offset ordering) | ⬜ |
 | **7 · M3.2** | **Multi-tenancy** — API-key → tenant, `X-Scope-OrgID`, per-tenant edge rate limit | tenant stamped on every record before Kafka (no bypass path); 429 + `Retry-After` on backpressure | INGEST-02, -03, -15 | ADR (tenancy model: `X-Scope-OrgID` + shared-index) | ⬜ |
 | **8 · M3.3** | **ES storage layout** — data-stream index template + `flattened` attributes + ILM with explicit delete phase | 10k-unique-key stress passes (no `total_fields` trip); **p99 ingest→searchable ≤ 5s**; `_ilm/explain` healthy | INGEST-09,-10,-11,-12 | ADR (ES storage layout) | ⬜ |

@@ -56,11 +56,11 @@ Requirements for v1.0 (M5 complete + tagged `v1.0`). Each maps to one roadmap ph
 - [ ] **INGEST-09**: ES index template applied at indexer startup **before** first write; `attributes.*` mapped as `flattened`; `total_fields.limit: 2000`, `depth.limit: 5`; root `dynamic: strict`.
 - [ ] **INGEST-10**: Index template uses ES data streams (not raw indices + alias); ILM policy ships with explicit `delete` phase even if `min_age: 365d`; PR template requires diff to show delete phase.
 - [ ] **INGEST-11**: Stress test in CI: 10k unique attribute keys ingested without tripping `total_fields.limit`.
-- [ ] **INGEST-12**: End-to-end acceptance: emit from Java OR Python SDK is searchable via ES query within p99 ≤ 5 s.
+- [ ] **INGEST-12**: End-to-end acceptance: emit from Java OR Python SDK is searchable via ES query within p99 ≤ 5 s. _(functionally demonstrated in M3.0d — both SDKs' emits are searchable in ES via the E2E; the strict p99 ≤ 5 s measurement stays with the M3 milestone-close.)_
 - [ ] **INGEST-13**: Component restart (gateway, indexer, ES node) does not lose acknowledged records.
 - [ ] **INGEST-14**: DLQ catches and isolates poison records without blocking the live stream; replay tooling exists.
 - [ ] **INGEST-15**: Gateway rejects attribute keys matching UUID/random-id patterns to discourage caller-side mapping explosion.
-- [ ] **INGEST-16**: An OTel-Collector-fronted ingest path is verified end-to-end (Collector → Beacon Gateway) as an explicit M3 acceptance test.
+- [x] **INGEST-16**: An OTel-Collector-fronted ingest path is verified end-to-end (Collector → Beacon Gateway) as an explicit M3 acceptance test. _(M3.0d — both SDKs emit through `otel/opentelemetry-collector` → gateway → Kafka → Vector → ES; `:beacon-gateway:e2eTest` + `platform/e2e` pytest, gated by `ingest.yml`.)_
 - [ ] **INGEST-17**: Indexer lag metric + RED metrics per gateway endpoint published as platform telemetry.
 
 ### Query, live tail, console (M4)
