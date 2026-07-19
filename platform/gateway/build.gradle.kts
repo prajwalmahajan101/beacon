@@ -41,6 +41,8 @@ dependencies {
     // native apache/kafka KRaft container (org.testcontainers.kafka.KafkaContainer) is available.
     testImplementation(libs.testcontainers.kafka)
     testImplementation(libs.testcontainers.junit)
+    // ComposeContainer for the full-stack E2E (@Tag("e2e")) — boots the real docker-compose.yml.
+    testImplementation(libs.testcontainers.core)
     // Override the Boot BOM's docker-java 3.3.6 (which sends the legacy API version Docker 25+
     // rejects) with the 3.4.2 that Testcontainers 1.21.4 targets. Explicit direct deps win over
     // spring-dependency-management; declaring core + zerodep transport pulls api/transport too.
@@ -75,4 +77,37 @@ tasks.named<Test>("test") {
     // env var). 1.41 is supported by every Docker >= 20.10, so this is safe in CI and locally. Only
     // consulted when a daemon is present; unit tests ignore it.
     systemProperty("api.version", "1.41")
+    // The full-stack E2E (@Tag("e2e")) boots the WHOLE compose stack (gateway image build + Kafka +
+    // ES + Vector + Collector) — far heavier than the Kafka-only ITs. Keep it OUT of the default
+    // `test` task (so gateway.yml stays fast); it runs only via `:beacon-gateway:e2eTest` (ingest.yml).
+    useJUnitPlatform { excludeTags("e2e") }
+}
+
+// Dedicated task for the M3.0d full-stack E2E. Reuses the `test` source set (the E2E lives beside
+// the ITs so it can reuse OtlpRequests + the real :beacon-sdk-java on the classpath) but runs ONLY
+// @Tag("e2e") tests. Invoked by .github/workflows/ingest.yml.
+tasks.register<Test>("e2eTest") {
+    description = "Full-stack ingest E2E: real SDK -> gateway -> Kafka -> Vector -> ES (Testcontainers)."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("e2e") }
+    systemProperty("api.version", "1.41")
+    // The E2E resolves the compose files (docker-compose.yml + docker-compose.collector.yml) relative
+    // to the repo root, which is not the test's working directory.
+    systemProperty("beacon.repo.root", rootProject.projectDir.absolutePath)
+    // Booting real containers is never up-to-date; always re-run when asked.
+    outputs.upToDateWhen { false }
+}
+
+// Decouple the heavy full-stack E2E from the JaCoCo wiring the root convention applies to EVERY
+// Test task (jacocoTestReport dependsOn all Test tasks; every Test task is finalizedBy it). Left
+// alone, `:beacon-gateway:test` (gateway.yml) would drag in e2eTest, and `:beacon-gateway:e2eTest`
+// would drag in the IT suite. Restrict coverage to the IT `test` task and drop the E2E's jacoco
+// finalizer so each runs standalone.
+tasks.named<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoTestReport") {
+    setDependsOn(listOf(tasks.named("test")))
+}
+tasks.named<Test>("e2eTest") {
+    setFinalizedBy(emptyList<Any>())
 }
