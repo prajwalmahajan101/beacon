@@ -110,6 +110,8 @@ ADR index lives in [`../CLAUDE.md` § ADR index](../CLAUDE.md#adr-index) and poi
 
 **Goal:** Get records from the two SDKs (M1 + M2) into durable searchable storage end-to-end — SDK → Gateway → Kafka → Vector → Elasticsearch — hardened with DLQ, multi-tenancy, and ILM.
 
+**Detailed plan:** [`./M3-ROADMAP.md`](./M3-ROADMAP.md)
+
 M3.0 is split into **four executable slices** (5 → 5.3) for tighter scope: one testable slice + at most one ADR per phase. Requirements catalogue: [`./REQUIREMENTS.md`](./REQUIREMENTS.md) (INGEST-01 … INGEST-17).
 
 | Phase | Scope | Key acceptance | Reqs | ADR | Status |
