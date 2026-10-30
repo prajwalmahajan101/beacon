@@ -153,7 +153,7 @@ See `CONTRIBUTING.md` for the full flow.
 - Development process (direct per-phase workflow): [`docs/PROCESS.md`](docs/PROCESS.md)
 - Execution roadmap (M0 → M5, all sub-phases): [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - Requirements catalogue (JSDK/PYSDK/INGEST/QUERY/HARD + traceability): [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
-- Milestone roadmaps: [`docs/M1-ROADMAP.md`](docs/M1-ROADMAP.md) · [`docs/M2-ROADMAP.md`](docs/M2-ROADMAP.md)
+- Milestone roadmaps: [`docs/M1-ROADMAP.md`](docs/M1-ROADMAP.md) · [`docs/M2-ROADMAP.md`](docs/M2-ROADMAP.md) · [`docs/M3-ROADMAP.md`](docs/M3-ROADMAP.md)
 - Research snapshots (ecosystem + per-phase, incl. `PITFALLS.md`): [`docs/research/`](docs/research/)
 - Codebase maps (structure, conventions, testing): [`docs/codebase/`](docs/codebase/)
 - Product definition + v1.0-rc-sdk milestone audit: [`docs/PROJECT.md`](docs/PROJECT.md) · [`docs/v1.0-rc-sdk-milestone-audit.md`](docs/v1.0-rc-sdk-milestone-audit.md)
