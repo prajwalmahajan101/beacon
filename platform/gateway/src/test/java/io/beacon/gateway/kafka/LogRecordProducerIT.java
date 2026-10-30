@@ -2,8 +2,10 @@ package io.beacon.gateway.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.beacon.gateway.kafka.LogRecordProducer.KeyedRecord;
 import io.beacon.gateway.support.KafkaContainerSupport;
 import java.util.List;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,13 +27,31 @@ class LogRecordProducerIT extends KafkaContainerSupport {
   @Autowired private LogRecordProducer producer;
 
   @Test
-  void producesCanonicalJsonReadBackByAConsumer() {
-    producer.produce(List.of(CANONICAL));
+  void producesKeyedRecordReadBackByAConsumer() {
+    producer.produce(List.of(new KeyedRecord("svc|", CANONICAL)));
 
     try (KafkaConsumer<String, String> consumer = newConsumer("producer-it")) {
       consumer.subscribe(List.of(TOPIC));
       String value = pollForValueContaining(consumer, "\"body\":\"hello\"");
       assertThat(value).isEqualTo(CANONICAL);
+    }
+  }
+
+  @Test
+  void sameKeysLandOnSamePartition() {
+    String key = "checkout|abc123";
+    String partitionCanonical = CANONICAL.replace("\"hello\"", "\"partition-test\"");
+    producer.produce(List.of(
+        new KeyedRecord(key, partitionCanonical),
+        new KeyedRecord(key, partitionCanonical)));
+
+    try (KafkaConsumer<String, String> consumer = newConsumer("partition-it")) {
+      consumer.subscribe(List.of(TOPIC));
+      List<ConsumerRecord<String, String>> records =
+          pollRecordsContaining(consumer, "\"body\":\"partition-test\"", 2);
+      assertThat(records).hasSize(2);
+      assertThat(records.get(0).partition()).isEqualTo(records.get(1).partition());
+      assertThat(records.get(0).key()).isEqualTo(key);
     }
   }
 }
