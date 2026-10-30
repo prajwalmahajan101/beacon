@@ -2,6 +2,7 @@ package io.beacon.gateway.service;
 
 import io.beacon.gateway.kafka.KafkaProduceException;
 import io.beacon.gateway.kafka.LogRecordProducer;
+import io.beacon.gateway.kafka.LogRecordProducer.KeyedRecord;
 import io.beacon.gateway.mapping.OtlpRecordMapper;
 import io.beacon.gateway.mapping.RecordMappingException;
 import io.beacon.gateway.validation.RecordValidator;
@@ -16,6 +17,7 @@ import io.opentelemetry.proto.logs.v1.ScopeLogs;
 import io.opentelemetry.proto.resource.v1.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
@@ -53,7 +55,7 @@ public class IngestService {
   }
 
   public IngestResult ingest(ExportLogsServiceRequest request) {
-    List<String> valid = new ArrayList<>();
+    List<KeyedRecord> valid = new ArrayList<>();
     List<String> reasons = new ArrayList<>();
     int rejected = 0;
 
@@ -67,7 +69,7 @@ public class IngestService {
             String json = CanonicalJson.serialize(record);
             List<String> failures = validator.validate(json);
             if (failures.isEmpty()) {
-              valid.add(json);
+              valid.add(new KeyedRecord(partitionKey(record), json));
             } else {
               rejected++;
               reasons.addAll(failures);
@@ -100,5 +102,18 @@ public class IngestService {
       kafkaFailureCounter.increment();
     }
     return new IngestResult(accepted, rejected, reasons, kafkaFailed);
+  }
+
+  /**
+   * Composite partition key: {@code service.name|trace_id}. Kafka's default partitioner hashes this
+   * to a partition, giving locality per service while spreading across partitions via the trace_id
+   * component (INGEST-05).
+   */
+  static String partitionKey(LogRecord record) {
+    Map<String, Object> resource = record.resource();
+    Object serviceName = resource != null ? resource.get("service.name") : null;
+    String svc = serviceName != null ? serviceName.toString() : "unknown";
+    String traceId = record.traceId() != null ? record.traceId() : "";
+    return svc + "|" + traceId;
   }
 }

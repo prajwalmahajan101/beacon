@@ -53,6 +53,9 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Default partition count for auto-created topics (INGEST-05: 8 partitions for
+      # the composite partition key to spread across).
+      KAFKA_NUM_PARTITIONS: 8
       # CLUSTER_ID intentionally UNSET: the official image auto-generates a cluster
       # UUID and runs kafka-storage format on first boot (no manual step).
     volumes:

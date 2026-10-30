@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import io.beacon.gateway.kafka.KafkaProduceException;
 import io.beacon.gateway.kafka.LogRecordProducer;
+import io.beacon.gateway.kafka.LogRecordProducer.KeyedRecord;
 import io.beacon.gateway.mapping.OtlpRecordMapper;
 import io.beacon.gateway.mapping.RecordMappingException;
 import io.beacon.gateway.validation.RecordValidator;
@@ -63,7 +64,8 @@ class IngestServiceTest {
     assertThat(result.rejected()).isZero();
     assertThat(result.kafkaFailed()).isFalse();
 
-    ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<KeyedRecord>> captor = ArgumentCaptor.forClass(List.class);
     verify(producer).produce(captor.capture());
     assertThat(captor.getValue()).hasSize(2);
     assertThat(meterRegistry.counter("ingest.accepted").count()).isEqualTo(2.0);
@@ -84,7 +86,8 @@ class IngestServiceTest {
     assertThat(result.reasons()).containsExactly("severity_number: must be <= 24");
     assertThat(result.kafkaFailed()).isFalse();
 
-    ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<KeyedRecord>> captor = ArgumentCaptor.forClass(List.class);
     verify(producer).produce(captor.capture());
     assertThat(captor.getValue()).hasSize(1);
   }
@@ -124,6 +127,29 @@ class IngestServiceTest {
     assertThat(result.rejected()).isZero();
     assertThat(result.kafkaFailed()).isFalse();
     verify(producer, never()).produce(any());
+  }
+
+  @Test
+  void partitionKeyUsesServiceNameAndTraceId() {
+    LogRecord withTrace =
+        LogRecord.builder()
+            .timestamp(Instant.parse("2026-06-02T10:15:30Z"))
+            .severityNumber(9)
+            .severityText("INFO")
+            .body("b")
+            .resource(Map.of("service.name", "checkout"))
+            .traceId("abc123")
+            .build();
+    assertThat(IngestService.partitionKey(withTrace)).isEqualTo("checkout|abc123");
+
+    LogRecord noTrace =
+        LogRecord.minimal(
+            Instant.parse("2026-06-02T10:15:30Z"), 9, "INFO", "b", Map.of("service.name", "api"));
+    assertThat(IngestService.partitionKey(noTrace)).isEqualTo("api|");
+
+    LogRecord noService =
+        LogRecord.minimal(Instant.parse("2026-06-02T10:15:30Z"), 9, "INFO", "b", Map.of());
+    assertThat(IngestService.partitionKey(noService)).isEqualTo("unknown|");
   }
 
   private static ExportLogsServiceRequest requestWith(int n) {

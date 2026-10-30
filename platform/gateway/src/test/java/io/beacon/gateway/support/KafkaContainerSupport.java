@@ -1,9 +1,12 @@
 package io.beacon.gateway.support;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -70,5 +73,23 @@ public abstract class KafkaContainerSupport {
       }
     }
     return null;
+  }
+
+  /**
+   * Poll until {@code count} records whose value contains {@code needle} arrive, returning the full
+   * {@link ConsumerRecord}s (key, value, partition, offset).
+   */
+  protected static List<ConsumerRecord<String, String>> pollRecordsContaining(
+      KafkaConsumer<String, String> consumer, String needle, int count) {
+    List<ConsumerRecord<String, String>> matched = new ArrayList<>();
+    long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
+    while (matched.size() < count && System.nanoTime() < deadline) {
+      for (var record : consumer.poll(Duration.ofMillis(500))) {
+        if (record.value().contains(needle)) {
+          matched.add(record);
+        }
+      }
+    }
+    return matched;
   }
 }
