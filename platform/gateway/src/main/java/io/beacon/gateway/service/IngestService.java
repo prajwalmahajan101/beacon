@@ -82,6 +82,12 @@ public class IngestService {
         for (io.opentelemetry.proto.logs.v1.LogRecord otlp : scopeLogs.getLogRecordsList()) {
           try {
             LogRecord record = mapper.map(resource, scope, otlp);
+            List<String> badKeys = checkAttributeKeys(record);
+            if (!badKeys.isEmpty()) {
+              rejected++;
+              reasons.addAll(badKeys);
+              continue;
+            }
             String json = CanonicalJson.serialize(record);
             List<String> failures = validator.validate(json);
             if (failures.isEmpty()) {
@@ -131,5 +137,19 @@ public class IngestService {
     String svc = serviceName != null ? serviceName.toString() : "unknown";
     String traceId = record.traceId() != null ? record.traceId() : "";
     return svc + "|" + traceId;
+  }
+
+  static List<String> checkAttributeKeys(LogRecord record) {
+    Map<String, Object> attrs = record.attributes();
+    if (attrs == null || attrs.isEmpty()) {
+      return List.of();
+    }
+    List<String> bad = new ArrayList<>();
+    for (String key : attrs.keySet()) {
+      if (UUID_KEY.matcher(key).matches()) {
+        bad.add("attribute key rejected: UUID-shaped key '" + key + "'");
+      }
+    }
+    return bad;
   }
 }
