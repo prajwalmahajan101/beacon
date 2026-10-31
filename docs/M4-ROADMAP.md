@@ -1,6 +1,6 @@
 # M4 — Query API + Live Tail + Console: Roadmap
 
-**Status:** Drafted 2026-10-31 · M4.0–M4.2 ⬜ planned · **Predecessor:** [M3 complete (`v0.4-m3`)](./M3-ROADMAP.md) · **Acceptance bar:** operator searches `service.name:checkout AND severity_number:>=17` over 7 days, gets sub-2s response, clicks into a record, sees canonical JSON; live tail delivers new records within 1 s of emission.
+**Status:** Drafted 2026-10-31 · M4.1–M4.3 ⬜ planned · **Predecessor:** [M3 complete (`v0.4-m3`)](./M3-ROADMAP.md) · **Acceptance bar:** operator searches `service.name:checkout AND severity_number:>=17` over 7 days, gets sub-2s response, clicks into a record, sees canonical JSON; live tail delivers new records within 1 s of emission.
 
 ---
 
@@ -20,18 +20,18 @@
 
 | ID | Requirement | Phase | Status |
 |---|---|---|---|
-| QUERY-01 | REST query API with restricted query AST; raw ES DSL forbidden at boundary | M4.0 | ⬜ |
-| QUERY-02 | Tenant scope injected server-side; non-overridable by client | M4.0 | ⬜ |
-| QUERY-03 | `search_after` cursor pagination (not offset) | M4.0 | ⬜ |
-| QUERY-04 | `/facets` endpoint — top-N values per field with allow-list + cardinality cap | M4.0 | ⬜ |
-| QUERY-05 | Search latency p95 < 2 s on last-24h time range | M4.0 | ⬜ |
-| QUERY-06 | Live tail via Server-Sent Events; per-connection Kafka consumer; server-side filter | M4.1 | ⬜ |
-| QUERY-07 | Per-connection bounded send buffer; downsample-on-overflow; visible `lagging` signal | M4.1 | ⬜ |
-| QUERY-08 | Live tail delivery latency p95 < 1 s emit→console | M4.1 | ⬜ |
-| QUERY-09 | Bearer-token auth on query API; OIDC-drop-in-compatible token format | M4.0 | ⬜ |
-| QUERY-10 | React Console: histogram strip, virtualized table (1k cap), record drawer, saved views | M4.2 | ⬜ |
-| QUERY-11 | Operator-flow acceptance: search → sub-second → click record → JSON view | M4.0 | ⬜ |
-| QUERY-12 | Trace-pivot UI fate decided and documented as ADR | M4.2 | ⬜ |
+| QUERY-01 | REST query API with restricted query AST; raw ES DSL forbidden at boundary | M4.1 | ⬜ |
+| QUERY-02 | Tenant scope injected server-side; non-overridable by client | M4.1 | ⬜ |
+| QUERY-03 | `search_after` cursor pagination (not offset) | M4.1 | ⬜ |
+| QUERY-04 | `/facets` endpoint — top-N values per field with allow-list + cardinality cap | M4.1 | ⬜ |
+| QUERY-05 | Search latency p95 < 2 s on last-24h time range | M4.1 | ⬜ |
+| QUERY-06 | Live tail via Server-Sent Events; per-connection Kafka consumer; server-side filter | M4.2 | ⬜ |
+| QUERY-07 | Per-connection bounded send buffer; downsample-on-overflow; visible `lagging` signal | M4.2 | ⬜ |
+| QUERY-08 | Live tail delivery latency p95 < 1 s emit→console | M4.2 | ⬜ |
+| QUERY-09 | Bearer-token auth on query API; OIDC-drop-in-compatible token format | M4.1 | ⬜ |
+| QUERY-10 | React Console: histogram strip, virtualized table (1k cap), record drawer, saved views | M4.3 | ⬜ |
+| QUERY-11 | Operator-flow acceptance: search → sub-second → click record → JSON view | M4.1 | ⬜ |
+| QUERY-12 | Trace-pivot UI fate decided and documented as ADR | M4.3 | ⬜ |
 
 ---
 
@@ -126,14 +126,14 @@ Same as M1/M2/M3 — the project-wide definition from [`CONTRIBUTING.md` § Per-
 1. Code + tests green on the feature branch.
 2. CHANGELOG entry.
 3. ADR (when the phase made a non-trivial architectural call).
-4. `.journal/M4.<N>.md` entry (six canonical sections).
+4. `.journal/M4.<N>.md` entry (six canonical sections, N starts at 1).
 5. PR merged (atomic commits, Conventional Commits, CI green).
 
 ---
 
 ## Phase breakdown
 
-### M4.0 — Query API ⬜
+### M4.1 — Query API ⬜
 
 **Scope:** A stateless Spring Boot REST service that translates a restricted query AST into ES queries, with server-side tenant scoping and `search_after` pagination. This is the backend for the Console's search and facet panels.
 
@@ -152,7 +152,7 @@ Same as M1/M2/M3 — the project-wide definition from [`CONTRIBUTING.md` § Per-
 
 **Requirements:** QUERY-01, -02, -03, -04, -05, -09, -11
 **ADR (anticipated):** ADR-0029 — restricted query AST, tenant injection, facet allow-list
-**Journal:** `.journal/M4.0.md`
+**Journal:** `.journal/M4.1.md`
 **Key decisions to make:**
 - Query AST format: simple flat JSON (PRD Appendix C style) vs a recursive expression tree. Flat is simpler for v1; expression tree needed only if nested boolean logic is required.
 - Virtual threads (`spring.threads.virtual.enabled=true`) vs WebFlux. Research recommends virtual threads (simpler, equivalent throughput).
@@ -162,7 +162,7 @@ Same as M1/M2/M3 — the project-wide definition from [`CONTRIBUTING.md` § Per-
 
 ---
 
-### M4.1 — Live tail ⬜
+### M4.2 — Live tail ⬜
 
 **Scope:** Real-time log streaming from Kafka to the Console via Server-Sent Events. Isolated from the search read path (tail reads Kafka, search reads ES).
 
@@ -178,7 +178,7 @@ Same as M1/M2/M3 — the project-wide definition from [`CONTRIBUTING.md` § Per-
 
 **Requirements:** QUERY-06, -07, -08
 **ADR (anticipated):** ADR-0030 — SSE transport, bounded buffer, downsample strategy
-**Journal:** `.journal/M4.1.md`
+**Journal:** `.journal/M4.2.md`
 **Key decisions to make:**
 - Consumer group strategy: unique group per connection (simplest, reads all partitions) vs shared group with partition assignment. Unique group for v1 — simpler, and connection count is low (operators, not end-users).
 - Downsample algorithm: random drop vs reservoir sampling vs keep-latest. Keep-latest with `lagging` signal — operators want the newest records, not a random sample.
@@ -188,7 +188,7 @@ Same as M1/M2/M3 — the project-wide definition from [`CONTRIBUTING.md` § Per-
 
 ---
 
-### M4.2 — Console ⬜
+### M4.3 — Console ⬜
 
 **Scope:** A React single-page app that provides the log explorer UI, connecting to the Query API for search and the live tail SSE endpoint for real-time streaming.
 
@@ -204,7 +204,7 @@ Same as M1/M2/M3 — the project-wide definition from [`CONTRIBUTING.md` § Per-
 
 **Requirements:** QUERY-10, -12
 **ADR (anticipated):** ADR-0031 — trace-pivot UI fate; ADR-0032 — console architecture (tech stack, state management, routing)
-**Journal:** `.journal/M4.2.md`
+**Journal:** `.journal/M4.3.md`
 **Key decisions to make:**
 - Trace-pivot fate: drop vs stub vs minimal trace ingest. Research leans stub-and-disable.
 - Routing: `react-router` vs file-based. `react-router` v7 (simple, no framework lock-in).
@@ -219,16 +219,16 @@ Same as M1/M2/M3 — the project-wide definition from [`CONTRIBUTING.md` § Per-
 
 | # | Decision | Default recommendation | Resolves in |
 |---|---|---|---|
-| 1 | Query AST format: flat JSON vs recursive expression tree | Flat JSON (PRD Appendix C style) for v1 | M4.0 |
-| 2 | Virtual threads vs WebFlux for query service | Virtual threads (`spring.threads.virtual.enabled=true`) | M4.0 |
-| 3 | Auth module sharing: shared lib vs duplicate | Shared `:beacon-auth-common` Gradle module | M4.0 |
-| 4 | ES client: `elasticsearch-java` vs `RestHighLevelClient` | `elasticsearch-java` 8.19 (official, non-deprecated) | M4.0 |
-| 5 | Live tail consumer group strategy | Unique group per connection (simplest for v1) | M4.1 |
-| 6 | Downsample algorithm on buffer overflow | Keep-latest + `lagging` signal | M4.1 |
-| 7 | Live tail filter language | Simple field + text substring for v1 | M4.1 |
-| 8 | Trace-pivot UI fate | Stub-and-disable (grayed-out placeholder) | M4.2 |
-| 9 | Console static files: embedded in Spring Boot vs nginx | Embedded in query service jar | M4.2 |
-| 10 | Console routing library | `react-router` v7 | M4.2 |
+| 1 | Query AST format: flat JSON vs recursive expression tree | Flat JSON (PRD Appendix C style) for v1 | M4.1 |
+| 2 | Virtual threads vs WebFlux for query service | Virtual threads (`spring.threads.virtual.enabled=true`) | M4.1 |
+| 3 | Auth module sharing: shared lib vs duplicate | Shared `:beacon-auth-common` Gradle module | M4.1 |
+| 4 | ES client: `elasticsearch-java` vs `RestHighLevelClient` | `elasticsearch-java` 8.19 (official, non-deprecated) | M4.1 |
+| 5 | Live tail consumer group strategy | Unique group per connection (simplest for v1) | M4.2 |
+| 6 | Downsample algorithm on buffer overflow | Keep-latest + `lagging` signal | M4.2 |
+| 7 | Live tail filter language | Simple field + text substring for v1 | M4.2 |
+| 8 | Trace-pivot UI fate | Stub-and-disable (grayed-out placeholder) | M4.3 |
+| 9 | Console static files: embedded in Spring Boot vs nginx | Embedded in query service jar | M4.3 |
+| 10 | Console routing library | `react-router` v7 | M4.3 |
 
 ---
 
