@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import socket
+import subprocess
 import time
 import urllib.request
 import uuid
@@ -35,8 +36,10 @@ from testcontainers.compose import DockerCompose
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ES = "http://localhost:9200"
 INDEX = "beacon-logs"
+REJECTED_INDEX = "beacon-logs-rejected"
 GATEWAY_GRPC = "http://localhost:4317"  # gateway OTLP/gRPC (http:// => insecure)
 COLLECTOR_GRPC = "http://localhost:5317"  # collector OTLP/gRPC -> gateway
+KAFKA_BOOTSTRAP = "localhost:9092"
 SEARCH_TIMEOUT_S = 90
 READY_TIMEOUT_S = 240
 
@@ -70,6 +73,88 @@ def test_python_sdk_through_collector_is_searchable(stack):
     marker = f"python-collector-{uuid.uuid4()}"
     _emit_via_sdk(COLLECTOR_GRPC, marker)
     _assert_searchable(marker)
+
+
+@pytest.mark.e2e
+def test_poison_record_lands_in_rejected_index(stack):
+    """INGEST-08/14: a record that passes Kafka but fails ES mapping lands in the rejected
+    index, not silently dropped. Injects a non-JSON poison record directly into the
+    beacon.logs topic (bypassing the gateway validator) and asserts it appears in
+    beacon-logs-rejected."""
+    marker = f"poison-{uuid.uuid4()}"
+    poison = f"NOT-JSON-{marker}"
+    _produce_raw_to_kafka(poison)
+    _assert_searchable_in(REJECTED_INDEX, marker)
+
+
+@pytest.mark.e2e
+def test_valid_record_not_in_rejected_index(stack):
+    """Complement of the poison test: a valid record lands in beacon-logs, NOT in
+    beacon-logs-rejected."""
+    marker = f"valid-{uuid.uuid4()}"
+    _emit_via_sdk(GATEWAY_GRPC, marker)
+    _assert_searchable(marker)
+    time.sleep(5)
+    hits = _count_hits(REJECTED_INDEX, marker)
+    assert hits == 0, f"valid record found in rejected index (hits={hits})"
+
+
+def _produce_raw_to_kafka(value: str) -> None:
+    """Inject a raw value into beacon.logs via the Kafka container's console producer."""
+    subprocess.run(
+        [
+            "docker", "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
+            "exec", "-T", "kafka",
+            "/opt/kafka/bin/kafka-console-producer.sh",
+            "--bootstrap-server", "localhost:9092",
+            "--topic", "beacon.logs",
+        ],
+        input=value.encode(),
+        timeout=15,
+        check=True,
+        cwd=str(REPO_ROOT),
+    )
+
+
+def _assert_searchable_in(index: str, needle: str) -> None:
+    """Poll until a record containing ``needle`` appears in the given ES index."""
+    query = json.dumps({"query": {"match_phrase": {"message": needle}}}).encode()
+    deadline = time.time() + SEARCH_TIMEOUT_S
+    hits = 0
+    while time.time() < deadline:
+        _http("POST", f"{ES}/{index}/_refresh")
+        body = _http("POST", f"{ES}/{index}/_search", query)
+        if body:
+            hits = json.loads(body).get("hits", {}).get("total", {}).get("value", 0)
+            if hits >= 1:
+                return
+        # Also try raw text search since poison records aren't structured JSON
+        body2 = _http(
+            "POST",
+            f"{ES}/{index}/_search",
+            json.dumps({"query": {"query_string": {"query": f"*{needle}*"}}}).encode(),
+        )
+        if body2:
+            hits2 = json.loads(body2).get("hits", {}).get("total", {}).get("value", 0)
+            if hits2 >= 1:
+                return
+        time.sleep(2)
+    raise AssertionError(
+        f"record with needle '{needle}' not found in ES index '{index}' "
+        f"within {SEARCH_TIMEOUT_S}s (hits={hits})"
+    )
+
+
+def _count_hits(index: str, needle: str) -> int:
+    _http("POST", f"{ES}/{index}/_refresh")
+    body = _http(
+        "POST",
+        f"{ES}/{index}/_search",
+        json.dumps({"query": {"query_string": {"query": f"*{needle}*"}}}).encode(),
+    )
+    if not body:
+        return 0
+    return json.loads(body).get("hits", {}).get("total", {}).get("value", 0)
 
 
 def _emit_via_sdk(endpoint: str, marker: str) -> None:
