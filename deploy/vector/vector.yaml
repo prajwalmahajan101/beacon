@@ -25,7 +25,6 @@ sources:
     auto_offset_reset: "earliest"
     decoding:
       codec: bytes
-    headers_key: "kafka_headers"
 
 transforms:
   parse_json:
@@ -43,12 +42,7 @@ transforms:
       } else {
         # Valid M0 JSON — replace the entire event with the parsed record,
         # stripping Kafka metadata (topic/partition/offset) that log_namespace:false adds.
-        # Preserve tenant header before overwriting the event.
-        tenant_id = .kafka_headers."X-Scope-OrgID" ?? null
         . = parsed
-        if tenant_id != null {
-          .tenant_id = tenant_id
-        }
       }
 
   route_valid:
