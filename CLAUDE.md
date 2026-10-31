@@ -99,6 +99,7 @@ beacon/
 - [ADR-0024](docs/adr/0024-m3-component-baseline-docker-compose-dev-topology.md) — M3 component baseline (Kafka KRaft 3.9.2, Vector 0.41.1, ES 8.19.x) + docker-compose dev topology; dual advertised-listener Kafka seam; single-node ES security-off dev posture (M3.0a).
 - [ADR-0025](docs/adr/0025-ingest-gateway-build-vs-buy.md) — Ingest gateway build-vs-buy: thin Spring Boot service (`platform/gateway`, `:beacon-gateway`) over a bare OTel Collector (needs request-scoped 4xx + Kafka-ack-gated response); OTLP-in / canonical-M0-JSON-out (reuses SDK `LogRecord`/`CanonicalJson`/`SeverityMapper`); `schema_version` injection; invalid→OTLP `partial_success`, Kafka-down→5xx/`UNAVAILABLE`; OTLP/HTTP (4318) + gRPC (4317) delegating to one `IngestService` (M3.0b).
 - [ADR-0026](docs/adr/0026-ingest-dlq-partition-key-error-taxonomy.md) — Ingest DLQ, composite partition key (`service.name|trace_id`, 8 partitions), and error taxonomy; Vector bytes codec + remap DLQ routing (dual sink: Kafka DLQ topic + ES rejected index); offset-commit-after-write via Vector acknowledgements; hot-partition detector + DLQ replay scripts; gateway RED metrics (`ingest.duration` Timer) (M3.1).
+- [ADR-0027](docs/adr/0027-multi-tenancy-gateway-layer.md) — Multi-tenancy: API-key auth (`Authorization: Bearer`), `X-Scope-OrgID` Kafka header tenant stamping, token-bucket per-tenant rate limiting, UUID attribute key rejection; shared ES index + query-time tenant filter; YAML config (database-backed deferred to M5) (M3.2).
 
 ## Workflow conventions (READ before editing)
 

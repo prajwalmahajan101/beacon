@@ -1,5 +1,6 @@
 package io.beacon.gateway.transport.grpc;
 
+import io.beacon.gateway.auth.ApiKeyAuthInterceptor;
 import io.beacon.gateway.service.IngestResult;
 import io.beacon.gateway.service.IngestService;
 import io.grpc.Status;
@@ -30,7 +31,8 @@ public final class OtlpGrpcLogsService extends LogsServiceGrpc.LogsServiceImplBa
   public void export(
       ExportLogsServiceRequest request,
       StreamObserver<ExportLogsServiceResponse> responseObserver) {
-    IngestResult result = ingestService.ingest(request);
+    String tenantId = ApiKeyAuthInterceptor.TENANT_ID_KEY.get();
+    IngestResult result = ingestService.ingest(request, tenantId);
     if (result.kafkaFailed()) {
       responseObserver.onError(
           Status.UNAVAILABLE

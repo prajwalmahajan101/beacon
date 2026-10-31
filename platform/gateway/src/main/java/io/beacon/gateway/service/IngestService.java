@@ -19,6 +19,7 @@ import io.opentelemetry.proto.resource.v1.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
 /**
@@ -34,6 +35,10 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class IngestService {
+
+  static final Pattern UUID_KEY =
+      Pattern.compile(
+          "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 
   private final OtlpRecordMapper mapper;
   private final RecordValidator validator;
@@ -58,10 +63,14 @@ public class IngestService {
   }
 
   public IngestResult ingest(ExportLogsServiceRequest request) {
-    return durationTimer.record(() -> doIngest(request));
+    return ingest(request, null);
   }
 
-  private IngestResult doIngest(ExportLogsServiceRequest request) {
+  public IngestResult ingest(ExportLogsServiceRequest request, String tenantId) {
+    return durationTimer.record(() -> doIngest(request, tenantId));
+  }
+
+  private IngestResult doIngest(ExportLogsServiceRequest request, String tenantId) {
     List<KeyedRecord> valid = new ArrayList<>();
     List<String> reasons = new ArrayList<>();
     int rejected = 0;
@@ -73,10 +82,16 @@ public class IngestService {
         for (io.opentelemetry.proto.logs.v1.LogRecord otlp : scopeLogs.getLogRecordsList()) {
           try {
             LogRecord record = mapper.map(resource, scope, otlp);
+            List<String> badKeys = checkAttributeKeys(record);
+            if (!badKeys.isEmpty()) {
+              rejected++;
+              reasons.addAll(badKeys);
+              continue;
+            }
             String json = CanonicalJson.serialize(record);
             List<String> failures = validator.validate(json);
             if (failures.isEmpty()) {
-              valid.add(new KeyedRecord(partitionKey(record), json));
+              valid.add(new KeyedRecord(partitionKey(record), json, tenantId));
             } else {
               rejected++;
               reasons.addAll(failures);
@@ -122,5 +137,19 @@ public class IngestService {
     String svc = serviceName != null ? serviceName.toString() : "unknown";
     String traceId = record.traceId() != null ? record.traceId() : "";
     return svc + "|" + traceId;
+  }
+
+  static List<String> checkAttributeKeys(LogRecord record) {
+    Map<String, Object> attrs = record.attributes();
+    if (attrs == null || attrs.isEmpty()) {
+      return List.of();
+    }
+    List<String> bad = new ArrayList<>();
+    for (String key : attrs.keySet()) {
+      if (UUID_KEY.matcher(key).matches()) {
+        bad.add("attribute key rejected: UUID-shaped key '" + key + "'");
+      }
+    }
+    return bad;
   }
 }

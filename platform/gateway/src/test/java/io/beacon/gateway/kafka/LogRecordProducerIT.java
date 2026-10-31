@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.beacon.gateway.kafka.LogRecordProducer.KeyedRecord;
 import io.beacon.gateway.support.KafkaContainerSupport;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.header.Header;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,7 +30,7 @@ class LogRecordProducerIT extends KafkaContainerSupport {
 
   @Test
   void producesKeyedRecordReadBackByAConsumer() {
-    producer.produce(List.of(new KeyedRecord("svc|", CANONICAL)));
+    producer.produce(List.of(new KeyedRecord("svc|", CANONICAL, null)));
 
     try (KafkaConsumer<String, String> consumer = newConsumer("producer-it")) {
       consumer.subscribe(List.of(TOPIC));
@@ -43,7 +45,8 @@ class LogRecordProducerIT extends KafkaContainerSupport {
     String partitionCanonical = CANONICAL.replace("\"hello\"", "\"partition-test\"");
     producer.produce(
         List.of(
-            new KeyedRecord(key, partitionCanonical), new KeyedRecord(key, partitionCanonical)));
+            new KeyedRecord(key, partitionCanonical, null),
+            new KeyedRecord(key, partitionCanonical, null)));
 
     try (KafkaConsumer<String, String> consumer = newConsumer("partition-it")) {
       consumer.subscribe(List.of(TOPIC));
@@ -52,6 +55,22 @@ class LogRecordProducerIT extends KafkaContainerSupport {
       assertThat(records).hasSize(2);
       assertThat(records.get(0).partition()).isEqualTo(records.get(1).partition());
       assertThat(records.get(0).key()).isEqualTo(key);
+    }
+  }
+
+  @Test
+  void producedRecordCarriesTenantHeader() {
+    String tenantCanonical = CANONICAL.replace("\"hello\"", "\"tenant-header-test\"");
+    producer.produce(List.of(new KeyedRecord("svc|", tenantCanonical, "acme")));
+
+    try (KafkaConsumer<String, String> consumer = newConsumer("tenant-header-it")) {
+      consumer.subscribe(List.of(TOPIC));
+      List<ConsumerRecord<String, String>> records =
+          pollRecordsContaining(consumer, "\"body\":\"tenant-header-test\"", 1);
+      assertThat(records).hasSize(1);
+      Header header = records.get(0).headers().lastHeader("X-Scope-OrgID");
+      assertThat(header).isNotNull();
+      assertThat(new String(header.value(), StandardCharsets.UTF_8)).isEqualTo("acme");
     }
   }
 }

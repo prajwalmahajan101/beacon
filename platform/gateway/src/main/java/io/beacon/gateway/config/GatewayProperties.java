@@ -1,5 +1,6 @@
 package io.beacon.gateway.config;
 
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -19,6 +20,10 @@ public class GatewayProperties {
 
   private final Kafka kafka = new Kafka();
 
+  private List<Tenant> tenants = List.of();
+
+  private int defaultRateLimit = 1000;
+
   public int getGrpcPort() {
     return grpcPort;
   }
@@ -29,6 +34,22 @@ public class GatewayProperties {
 
   public Kafka getKafka() {
     return kafka;
+  }
+
+  public List<Tenant> getTenants() {
+    return tenants;
+  }
+
+  public void setTenants(List<Tenant> tenants) {
+    this.tenants = tenants;
+  }
+
+  public int getDefaultRateLimit() {
+    return defaultRateLimit;
+  }
+
+  public void setDefaultRateLimit(int defaultRateLimit) {
+    this.defaultRateLimit = defaultRateLimit;
   }
 
   /** Kafka destination + produce-path timing for the gateway's synchronous producer. */
@@ -58,6 +79,42 @@ public class GatewayProperties {
 
     public void setProduceTimeoutMs(long produceTimeoutMs) {
       this.produceTimeoutMs = produceTimeoutMs;
+    }
+  }
+
+  /** A tenant identified by an API key, with an optional per-tenant rate limit override. */
+  public static class Tenant {
+
+    private String apiKey;
+    private String tenantId;
+    private Integer rateLimit;
+
+    public String getApiKey() {
+      return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+      this.apiKey = apiKey;
+    }
+
+    public String getTenantId() {
+      return tenantId;
+    }
+
+    public void setTenantId(String tenantId) {
+      this.tenantId = tenantId;
+    }
+
+    public Integer getRateLimit() {
+      return rateLimit;
+    }
+
+    public void setRateLimit(Integer rateLimit) {
+      this.rateLimit = rateLimit;
+    }
+
+    public int effectiveRateLimit(int defaultRateLimit) {
+      return rateLimit != null ? rateLimit : defaultRateLimit;
     }
   }
 }

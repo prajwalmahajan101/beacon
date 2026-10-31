@@ -1,12 +1,14 @@
 package io.beacon.gateway.kafka;
 
 import io.beacon.gateway.config.GatewayProperties;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
@@ -48,7 +50,12 @@ public final class LogRecordProducer {
     List<CompletableFuture<SendResult<String, String>>> futures = new ArrayList<>(records.size());
     try {
       for (KeyedRecord record : records) {
-        futures.add(template.send(topic, record.key(), record.value()));
+        ProducerRecord<String, String> pr =
+            new ProducerRecord<>(topic, null, record.key(), record.value());
+        if (record.tenantId() != null) {
+          pr.headers().add("X-Scope-OrgID", record.tenantId().getBytes(StandardCharsets.UTF_8));
+        }
+        futures.add(template.send(pr));
       }
     } catch (RuntimeException e) {
       throw new KafkaProduceException("failed to enqueue send to " + topic, e);
@@ -71,5 +78,5 @@ public final class LogRecordProducer {
    * @param key composite key ({@code service.name + "|" + trace_id}), never null
    * @param value canonical M0 JSON string
    */
-  public record KeyedRecord(String key, String value) {}
+  public record KeyedRecord(String key, String value, String tenantId) {}
 }

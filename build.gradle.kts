@@ -50,7 +50,7 @@ subprojects {
     extensions.configure<com.diffplug.gradle.spotless.SpotlessExtension> {
         java {
             target("src/**/*.java")
-            googleJavaFormat("1.28.0")  // supports JDK 17–25 launcher JVMs; required because Gradle launcher may be 21+ on dev/CI machines
+            googleJavaFormat("1.28.0")
             removeUnusedImports()
             trimTrailingWhitespace()
             endWithNewline()
