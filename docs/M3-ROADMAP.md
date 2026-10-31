@@ -23,19 +23,19 @@
 | INGEST-02 | API-key auth → tenant scope (`X-Scope-OrgID`) | M3.2 | ✅ |
 | INGEST-03 | Per-tenant rate limit, 429 + `Retry-After` | M3.2 | ✅ |
 | INGEST-04 | Idempotent Kafka producer (`acks=all`), response-after-write | M3.0b | ✅ |
-| INGEST-05 | KRaft Kafka, composite partition key, DLQ topic | M3.1 | ⬜ |
-| INGEST-06 | Hot-partition detector (`max/avg > 1.5`) | M3.1 | ⬜ |
-| INGEST-07 | Offset committed only after ES write or DLQ publish | M3.1 | ⬜ |
-| INGEST-08 | Error taxonomy: 4xx→DLQ no retry, 5xx→backoff then DLQ | M3.1 | ⬜ |
+| INGEST-05 | KRaft Kafka, composite partition key, DLQ topic | M3.1 | ✅ |
+| INGEST-06 | Hot-partition detector (`max/avg > 1.5`) | M3.1 | ✅ |
+| INGEST-07 | Offset committed only after ES write or DLQ publish | M3.1 | ✅ |
+| INGEST-08 | Error taxonomy: 4xx→DLQ no retry, 5xx→backoff then DLQ | M3.1 | ✅ |
 | INGEST-09 | ES index template, `flattened` attributes, `total_fields` cap | M3.3 | ✅ |
 | INGEST-10 | Data streams + ILM with explicit delete phase | M3.3 | ✅ |
 | INGEST-11 | 10k-unique-key stress test (no `total_fields` trip) | M3.3 | ✅ |
 | INGEST-12 | p99 ingest→searchable ≤ 5 s | M3.3 | ✅ |
-| INGEST-13 | Component restart does not lose acknowledged records | M3.1 | ⬜ |
-| INGEST-14 | DLQ catches poison records, replay tooling exists | M3.1 | ⬜ |
+| INGEST-13 | Component restart does not lose acknowledged records | M3.1 | ✅ |
+| INGEST-14 | DLQ catches poison records, replay tooling exists | M3.1 | ✅ |
 | INGEST-15 | UUID/random-id attribute key rejection | M3.2 | ✅ |
 | INGEST-16 | OTel Collector → Gateway path verified E2E | M3.0d | ✅ |
-| INGEST-17 | Indexer lag + RED metrics as platform telemetry | M3.1 | ⬜ |
+| INGEST-17 | Indexer lag + RED metrics as platform telemetry | M3.1 | ✅ |
 
 ---
 
