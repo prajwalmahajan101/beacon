@@ -6,6 +6,12 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ### Added
 
+- M3.3: **ES index template** — explicit mappings for all M0 root fields, `attributes` as `flattened` type, `total_fields.limit: 2000`, `depth.limit: 5`, root `dynamic: strict`; seeded by `deploy/elasticsearch/init-templates.sh` one-shot container (INGEST-09).
+- M3.3: **data streams + ILM** — `beacon-logs` data stream with `beacon-logs-policy` (hot→warm 7d, delete 90d); Vector `bulk.action: create` + `@timestamp` stamp for data stream compatibility (INGEST-10).
+- M3.3: **10k-key stress test** — E2E test emits 50 records with 200 unique attribute keys each (10k total), proves `flattened` absorbs them without tripping `total_fields.limit` (INGEST-11).
+- M3.3: **p99 milestone acceptance gate** — E2E emits 20 records sequentially, measures wall-clock ingest→searchable latency, asserts p99 ≤ 5 s (INGEST-12).
+- M3.3: **tenant_id extraction** — Vector extracts `X-Scope-OrgID` Kafka header into ES `tenant_id` field; re-lands the M3.2 carry-forward with VRL local-variable fix.
+- M3.3: `docs/adr/0028-es-storage-layout-data-streams-flattened-ilm.md` — ES storage layout ADR.
 - M3.2: **API-key authentication** — `Authorization: Bearer <key>` maps to tenant via YAML config; 401 on missing/invalid key (INGEST-02).
 - M3.2: **tenant stamping** — `X-Scope-OrgID` Kafka record header; Vector extracts to `tenant_id` for ES query-time filtering (INGEST-02).
 - M3.2: **per-tenant rate limiting** — token bucket, default 1000 rec/sec, 429 + `Retry-After` / gRPC `RESOURCE_EXHAUSTED` (INGEST-03).
@@ -23,10 +29,14 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ### Changed
 
+- M3.3: `deploy/vector/vector.yaml` — `bulk.action: create` for data stream compat, `@timestamp` stamp from M0 `timestamp`, `headers_key: "kafka_headers"` + tenant_id extraction from `X-Scope-OrgID` header.
+- M3.3: `docker-compose.yml` — `es-init` one-shot service (`curlimages/curl:8.11.1`) seeds ILM policy + component template + index templates before Vector starts.
 - M3.1: `deploy/vector/vector.yaml` — replaced `codec: json` with `bytes` + remap/filter transforms + DLQ sinks; original M3.0c skeleton pipeline superseded.
 - M3.1: `docker-compose.yml` — `KAFKA_NUM_PARTITIONS: 8` for composite partition key.
 
 ### Verified
+
+- M3.3: INGEST-09 (index template), INGEST-10 (data streams + ILM), INGEST-11 (10k-key stress), INGEST-12 (p99 ≤ 5 s) — all verified. Java E2E 5/5 green (`esIndexTemplateApplied`, `tenKUniqueAttributeKeysDoNotTripFieldLimit`, `p99IngestToSearchableUnderFiveSeconds`, `javaSdkDirectToGatewayIsSearchable`, `javaSdkThroughCollectorIsSearchable`). Python E2E 10/10 green (2 SDK, 2 poison, 3 restart, 1 tenant extraction, 1 valid-not-rejected, 1 DLQ replay). M3 milestone acceptance gate passed.
 
 - M3.1: `./gradlew :beacon-gateway:test` green (36 tests); `docker compose up --wait` all-healthy; poison non-JSON lands in `beacon-logs-rejected` + `beacon.logs.dlq`; valid records clean in `beacon-logs`; 3/3 restart resilience E2E tests pass (Vector, gateway, ES); `check-partition-skew.sh --docker` runs clean; `ingest.duration` timer visible on `/actuator/metrics`.
 
