@@ -18,7 +18,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
@@ -158,6 +161,54 @@ class IngestE2ETest {
     assertThat(fieldCount)
         .as("mapping field count (flattened absorbs attribute keys)")
         .isLessThan(50);
+  }
+
+  @Test
+  void p99IngestToSearchableUnderFiveSeconds() throws Exception {
+    int sampleCount = 20;
+    Duration perRecordTimeout = Duration.ofSeconds(30);
+    List<Duration> latencies = new ArrayList<>();
+
+    for (int i = 0; i < sampleCount; i++) {
+      String marker = "p99-" + i + "-" + UUID.randomUUID();
+      Instant start = Instant.now();
+      emitViaSdk(GATEWAY_GRPC, marker);
+
+      // Tight poll loop: 500ms intervals until searchable
+      String query = "{\"query\":{\"match_phrase\":{\"body\":\"" + marker + "\"}}}";
+      Instant deadline = start.plus(perRecordTimeout);
+      boolean found = false;
+      while (Instant.now().isBefore(deadline)) {
+        send("POST", ES + "/" + INDEX + "/_refresh", null);
+        String body = send("POST", ES + "/" + INDEX + "/_search", query);
+        if (body != null) {
+          long hits = MAPPER.readTree(body).path("hits").path("total").path("value").asLong(0);
+          if (hits >= 1) {
+            found = true;
+            break;
+          }
+        }
+        Thread.sleep(500);
+      }
+      Duration elapsed = Duration.between(start, Instant.now());
+      latencies.add(elapsed);
+      assertThat(found)
+          .as("record %d searchable within %s (took %s)", i, perRecordTimeout, elapsed)
+          .isTrue();
+    }
+
+    Collections.sort(latencies);
+    // p99 of 20 samples = index 19 (the worst)
+    Duration p99 = latencies.get(sampleCount - 1);
+    Duration p50 = latencies.get(sampleCount / 2);
+
+    System.out.printf(
+        "INGEST-12 p99=%s  p50=%s  min=%s  max=%s  (n=%d)%n",
+        p99, p50, latencies.get(0), latencies.get(sampleCount - 1), sampleCount);
+
+    assertThat(p99.toMillis())
+        .as("p99 ingest-to-searchable latency (INGEST-12 acceptance gate: ≤5s)")
+        .isLessThanOrEqualTo(5000);
   }
 
   @Test
