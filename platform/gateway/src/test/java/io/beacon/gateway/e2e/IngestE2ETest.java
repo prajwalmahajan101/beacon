@@ -86,6 +86,46 @@ class IngestE2ETest {
   }
 
   @Test
+  void esIndexTemplateApplied() throws Exception {
+    // Emit a probe record so the data stream materializes (created on first write)
+    String probe = "template-probe-" + UUID.randomUUID();
+    emitViaSdk(GATEWAY_GRPC, probe);
+    assertSearchable(probe);
+
+    // Data stream exists
+    String ds = send("GET", ES + "/_data_stream/beacon-logs", null);
+    assertThat(ds).as("beacon-logs data stream exists").isNotNull();
+    assertThat(MAPPER.readTree(ds).path("data_streams").size())
+        .as("data stream count")
+        .isGreaterThanOrEqualTo(1);
+
+    // Attributes mapped as flattened
+    String mapping = send("GET", ES + "/beacon-logs/_mapping", null);
+    assertThat(mapping).isNotNull();
+    var mappingTree = MAPPER.readTree(mapping);
+    var firstIndex = mappingTree.fields().next().getValue();
+    String attrType =
+        firstIndex
+            .path("mappings")
+            .path("properties")
+            .path("attributes")
+            .path("type")
+            .asText("");
+    assertThat(attrType).as("attributes field type").isEqualTo("flattened");
+
+    // Settings: total_fields.limit and depth.limit
+    String settings = send("GET", ES + "/beacon-logs/_settings", null);
+    assertThat(settings).isNotNull();
+    var settingsTree = MAPPER.readTree(settings);
+    var firstSettings = settingsTree.fields().next().getValue().path("settings").path("index");
+    String totalFields =
+        firstSettings.path("mapping").path("total_fields").path("limit").asText("");
+    String depthLimit = firstSettings.path("mapping").path("depth").path("limit").asText("");
+    assertThat(totalFields).as("total_fields.limit").isEqualTo("2000");
+    assertThat(depthLimit).as("depth.limit").isEqualTo("5");
+  }
+
+  @Test
   void javaSdkDirectToGatewayIsSearchable() throws Exception {
     String marker = "java-direct-" + UUID.randomUUID();
     emitViaSdk(GATEWAY_GRPC, marker);
