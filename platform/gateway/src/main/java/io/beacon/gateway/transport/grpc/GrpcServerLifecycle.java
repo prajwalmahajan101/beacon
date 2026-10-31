@@ -1,5 +1,6 @@
 package io.beacon.gateway.transport.grpc;
 
+import io.beacon.gateway.auth.ApiKeyAuthInterceptor;
 import io.beacon.gateway.config.GatewayProperties;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -24,19 +25,29 @@ public final class GrpcServerLifecycle implements SmartLifecycle {
 
   private final int configuredPort;
   private final OtlpGrpcLogsService logsService;
+  private final ApiKeyAuthInterceptor authInterceptor;
 
   private Server server;
   private volatile boolean running;
 
-  public GrpcServerLifecycle(GatewayProperties properties, OtlpGrpcLogsService logsService) {
+  public GrpcServerLifecycle(
+      GatewayProperties properties,
+      OtlpGrpcLogsService logsService,
+      ApiKeyAuthInterceptor authInterceptor) {
     this.configuredPort = properties.getGrpcPort();
     this.logsService = logsService;
+    this.authInterceptor = authInterceptor;
   }
 
   @Override
   public void start() {
     try {
-      server = ServerBuilder.forPort(configuredPort).addService(logsService).build().start();
+      server =
+          ServerBuilder.forPort(configuredPort)
+              .intercept(authInterceptor)
+              .addService(logsService)
+              .build()
+              .start();
       running = true;
       log.info("OTLP/gRPC server listening on port {}", server.getPort());
     } catch (IOException e) {
