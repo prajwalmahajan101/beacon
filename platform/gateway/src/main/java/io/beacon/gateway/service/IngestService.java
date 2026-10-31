@@ -10,6 +10,7 @@ import io.beacon.sdk.record.CanonicalJson;
 import io.beacon.sdk.record.LogRecord;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.common.v1.InstrumentationScope;
 import io.opentelemetry.proto.logs.v1.ResourceLogs;
@@ -40,6 +41,7 @@ public class IngestService {
   private final Counter acceptedCounter;
   private final Counter rejectedCounter;
   private final Counter kafkaFailureCounter;
+  private final Timer durationTimer;
 
   public IngestService(
       OtlpRecordMapper mapper,
@@ -52,9 +54,14 @@ public class IngestService {
     this.acceptedCounter = meterRegistry.counter("ingest.accepted");
     this.rejectedCounter = meterRegistry.counter("ingest.rejected");
     this.kafkaFailureCounter = meterRegistry.counter("ingest.kafka_failure");
+    this.durationTimer = meterRegistry.timer("ingest.duration");
   }
 
   public IngestResult ingest(ExportLogsServiceRequest request) {
+    return durationTimer.record(() -> doIngest(request));
+  }
+
+  private IngestResult doIngest(ExportLogsServiceRequest request) {
     List<KeyedRecord> valid = new ArrayList<>();
     List<String> reasons = new ArrayList<>();
     int rejected = 0;
