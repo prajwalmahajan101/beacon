@@ -182,9 +182,9 @@ def test_dlq_replay_reprocesses_records(stack):
             "--bootstrap-server", "localhost:9092",
             "--topic", "beacon.logs.dlq",
             "--from-beginning",
-            "--timeout-ms", "15000",
+            "--timeout-ms", "10000",
         ],
-        capture_output=True, timeout=30, cwd=str(REPO_ROOT),
+        capture_output=True, timeout=60, cwd=str(REPO_ROOT),
     )
     dlq_records = dlq_read.stdout
     assert len(dlq_records) > 0, "no records read from DLQ topic"
@@ -215,10 +215,10 @@ def _assert_in_dlq_topic(needle: str) -> None:
             "--bootstrap-server", "localhost:9092",
             "--topic", "beacon.logs.dlq",
             "--from-beginning",
-            "--timeout-ms", "15000",
+            "--timeout-ms", "10000",
         ],
         capture_output=True,
-        timeout=30,
+        timeout=60,
         cwd=str(REPO_ROOT),
     )
     output = result.stdout.decode(errors="replace")
