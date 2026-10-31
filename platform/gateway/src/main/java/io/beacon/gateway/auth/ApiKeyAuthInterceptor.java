@@ -53,7 +53,14 @@ public class ApiKeyAuthInterceptor implements ServerInterceptor {
       return new ServerCall.Listener<>() {};
     }
 
-    Context ctx = Context.current().withValue(TENANT_ID_KEY, tenant.get().getTenantId());
+    String tenantId = tenant.get().getTenantId();
+    int limit = tenant.get().effectiveRateLimit(defaultRateLimit);
+    if (!rateLimiter.tryAcquire(tenantId, limit)) {
+      call.close(Status.RESOURCE_EXHAUSTED.withDescription("rate limit exceeded"), new Metadata());
+      return new ServerCall.Listener<>() {};
+    }
+
+    Context ctx = Context.current().withValue(TENANT_ID_KEY, tenantId);
     return Contexts.interceptCall(ctx, call, headers, next);
   }
 }

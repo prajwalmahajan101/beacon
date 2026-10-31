@@ -52,7 +52,15 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
       return;
     }
 
-    request.setAttribute(TENANT_ID_ATTR, tenant.get().getTenantId());
+    String tenantId = tenant.get().getTenantId();
+    int limit = tenant.get().effectiveRateLimit(defaultRateLimit);
+    if (!rateLimiter.tryAcquire(tenantId, limit)) {
+      response.setIntHeader("Retry-After", (int) rateLimiter.retryAfterSeconds(tenantId, limit));
+      response.sendError(429);
+      return;
+    }
+
+    request.setAttribute(TENANT_ID_ATTR, tenantId);
     filterChain.doFilter(request, response);
   }
 }
