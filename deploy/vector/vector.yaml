@@ -1,52 +1,86 @@
-# Phase 5.2 / M3.0c — the real Kafka -> Elasticsearch indexer pipeline.
+# M3.0c+M3.1 — Kafka -> Elasticsearch indexer with DLQ routing.
 #
-# Consumes canonical M0 JSON produced by the gateway (Phase 5.1) on the
-# `beacon.logs` topic and bulk-writes each record into the `beacon-logs`
-# Elasticsearch index. Skeleton by design: a single plain index with ES dynamic
-# mapping (no index template, no ILM — those are Phase 8 / M3.3).
+# Consumes canonical M0 JSON produced by the gateway on the `beacon.logs` topic.
+# Valid JSON records are bulk-written to the `beacon-logs` ES index. Records that
+# fail JSON decode (poison records injected directly into Kafka, bypassing the
+# gateway validator) are routed to BOTH `beacon.logs.dlq` Kafka topic AND the
+# `beacon-logs-rejected` ES index for operational visibility (INGEST-08, INGEST-14).
 #
-# Vector talks to both over the compose `beacon` network's in-cluster names:
-# the Kafka DOCKER listener (kafka:29092) and ES over plain HTTP (security is OFF
-# in the dev stack, ADR-0024).
+# End-to-end acknowledgements are enabled on the ES sink so Vector holds Kafka
+# offset commits until ES confirms the write (INGEST-07 prep).
 
-# Vector observability API — the compose healthcheck probes /health over
-# bash /dev/tcp (the 0.41.1-debian image ships no wget/curl/busybox; M3.0a).
 api:
   enabled: true
   address: "0.0.0.0:8686"
 
 sources:
-  # Canonical M0 JSON off Kafka.
-  #   log_namespace: true  -> the decoded JSON IS the event root; Kafka metadata
-  #                           (topic/partition/offset/message-timestamp) is routed
-  #                           to the metadata namespace instead of top-level fields.
-  #                           This keeps the ES doc a clean M0 record and avoids a
-  #                           collision between the Kafka message timestamp and the
-  #                           record's own `timestamp` field.
-  #   auto_offset_reset: earliest -> a record produced before this consumer connects
-  #                           is still indexed (the smoke script seeds, then asserts).
   logs_in:
     type: kafka
     bootstrap_servers: "kafka:29092"
     topics: ["beacon.logs"]
     group_id: "beacon-indexer"
     auto_offset_reset: "earliest"
-    log_namespace: true
     decoding:
-      codec: "json"
+      codec: bytes
+
+transforms:
+  parse_json:
+    type: remap
+    inputs: ["logs_in"]
+    source: |
+      raw = string!(.message)
+      parsed, err = parse_json(raw)
+      if err != null {
+        # Poison record — keep raw message + error metadata for DLQ routing.
+        .raw_message = raw
+        .error = to_string(err)
+        .dlq_reason = "json_decode_failure"
+        del(.message)
+      } else {
+        # Valid M0 JSON — replace the entire event with the parsed record,
+        # stripping Kafka metadata (topic/partition/offset) that log_namespace:false adds.
+        . = parsed
+      }
+
+  route_valid:
+    type: filter
+    inputs: ["parse_json"]
+    condition: '!exists(.dlq_reason)'
+
+  route_dlq:
+    type: filter
+    inputs: ["parse_json"]
+    condition: 'exists(.dlq_reason)'
 
 sinks:
-  # Bulk-index into a single plain index; ES auto-maps (skeleton).
-  # api_version pinned to v8 for the ES 8.19 dev node (no auto-detect surprise).
-  # Sink healthcheck is OFF — compose `depends_on: elasticsearch service_healthy`
-  # already gates startup ordering, so Vector needn't fail its own boot racing ES.
   es_out:
     type: elasticsearch
-    inputs: ["logs_in"]
+    inputs: ["route_valid"]
     endpoints: ["http://elasticsearch:9200"]
     api_version: "v8"
     mode: "bulk"
     bulk:
       index: "beacon-logs"
+    healthcheck:
+      enabled: false
+    acknowledgements:
+      enabled: true
+
+  dlq_kafka:
+    type: kafka
+    inputs: ["route_dlq"]
+    bootstrap_servers: "kafka:29092"
+    topic: "beacon.logs.dlq"
+    encoding:
+      codec: json
+
+  dlq_es:
+    type: elasticsearch
+    inputs: ["route_dlq"]
+    endpoints: ["http://elasticsearch:9200"]
+    api_version: "v8"
+    mode: "bulk"
+    bulk:
+      index: "beacon-logs-rejected"
     healthcheck:
       enabled: false

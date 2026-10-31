@@ -88,6 +88,16 @@ def test_poison_record_lands_in_rejected_index(stack):
 
 
 @pytest.mark.e2e
+def test_poison_record_also_in_dlq_topic(stack):
+    """INGEST-14: poison records land in the beacon.logs.dlq Kafka topic for replay."""
+    marker = f"dlq-topic-{uuid.uuid4()}"
+    poison = f"NOT-JSON-{marker}"
+    _produce_raw_to_kafka(poison)
+    time.sleep(10)
+    _assert_in_dlq_topic(marker)
+
+
+@pytest.mark.e2e
 def test_valid_record_not_in_rejected_index(stack):
     """Complement of the poison test: a valid record lands in beacon-logs, NOT in
     beacon-logs-rejected."""
@@ -97,6 +107,29 @@ def test_valid_record_not_in_rejected_index(stack):
     time.sleep(5)
     hits = _count_hits(REJECTED_INDEX, marker)
     assert hits == 0, f"valid record found in rejected index (hits={hits})"
+
+
+def _assert_in_dlq_topic(needle: str) -> None:
+    """Read from beacon.logs.dlq and assert a record containing ``needle`` exists."""
+    result = subprocess.run(
+        [
+            "docker", "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
+            "exec", "-T", "kafka",
+            "/opt/kafka/bin/kafka-console-consumer.sh",
+            "--bootstrap-server", "localhost:9092",
+            "--topic", "beacon.logs.dlq",
+            "--from-beginning",
+            "--timeout-ms", "15000",
+        ],
+        capture_output=True,
+        timeout=30,
+        cwd=str(REPO_ROOT),
+    )
+    output = result.stdout.decode(errors="replace")
+    assert needle in output, (
+        f"needle '{needle}' not found in beacon.logs.dlq "
+        f"(got {len(output)} bytes, returncode={result.returncode})"
+    )
 
 
 def _produce_raw_to_kafka(value: str) -> None:
