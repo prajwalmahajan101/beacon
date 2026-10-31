@@ -44,60 +44,56 @@ class BeaconAutoConfigurationTest {
   void wiringRegistersBeaconSdkBean() {
     runner
         .withPropertyValues("beacon.endpoint=http://localhost:4317")
-        .run(
-            ctx -> {
-              assertThat(ctx).hasSingleBean(BeaconSdk.class);
-              BeaconSdk sdk = ctx.getBean(BeaconSdk.class);
-              assertThat(sdk.config().endpoint()).isEqualTo("http://localhost:4317");
-            });
+        .run(ctx -> {
+          assertThat(ctx).hasSingleBean(BeaconSdk.class);
+          BeaconSdk sdk = ctx.getBean(BeaconSdk.class);
+          assertThat(sdk.config().endpoint()).isEqualTo("http://localhost:4317");
+        });
   }
 
   @Test
   void wiringRegistersBeaconLogbackAppenderAndAttachesItToRoot() {
     runner
         .withPropertyValues("beacon.endpoint=http://localhost:4317")
-        .run(
-            ctx -> {
-              assertThat(ctx).hasSingleBean(BeaconLogbackAppender.class);
+        .run(ctx -> {
+          assertThat(ctx).hasSingleBean(BeaconLogbackAppender.class);
 
-              LoggerContext lctx = (LoggerContext) LoggerFactory.getILoggerFactory();
-              Logger root = lctx.getLogger(Logger.ROOT_LOGGER_NAME);
-              assertThat(root.getAppender("beacon"))
-                  .as("BeaconLogbackAppender must be programmatically attached to root")
-                  .isNotNull();
-            });
+          LoggerContext lctx = (LoggerContext) LoggerFactory.getILoggerFactory();
+          Logger root = lctx.getLogger(Logger.ROOT_LOGGER_NAME);
+          assertThat(root.getAppender("beacon"))
+              .as("BeaconLogbackAppender must be programmatically attached to root")
+              .isNotNull();
+        });
   }
 
   @Test
   void wiringRegistersBeaconTaskDecorator() {
     runner
         .withPropertyValues("beacon.endpoint=http://localhost:4317")
-        .run(
-            ctx -> {
-              assertThat(ctx).hasBean("beaconTaskDecorator");
-              BeaconTaskDecorator decorator =
-                  ctx.getBean("beaconTaskDecorator", BeaconTaskDecorator.class);
-              Runnable raw =
-                  () -> {
-                    /* no-op */
-                  };
-              Runnable wrapped = decorator.decorate(raw);
-              assertThat(wrapped)
-                  .as("BeaconExecutors.wrap returns a wrapping Runnable, not the raw one")
-                  .isNotSameAs(raw);
-            });
+        .run(ctx -> {
+          assertThat(ctx).hasBean("beaconTaskDecorator");
+          BeaconTaskDecorator decorator =
+              ctx.getBean("beaconTaskDecorator", BeaconTaskDecorator.class);
+          Runnable raw =
+              () -> {
+                /* no-op */
+              };
+          Runnable wrapped = decorator.decorate(raw);
+          assertThat(wrapped)
+              .as("BeaconExecutors.wrap returns a wrapping Runnable, not the raw one")
+              .isNotSameAs(raw);
+        });
   }
 
   @Test
   void beaconDisabledSkipsAllBeans() {
     runner
         .withPropertyValues("beacon.enabled=false", "beacon.endpoint=http://localhost:4317")
-        .run(
-            ctx -> {
-              assertThat(ctx).doesNotHaveBean(BeaconSdk.class);
-              assertThat(ctx).doesNotHaveBean(BeaconLogbackAppender.class);
-              assertThat(ctx).doesNotHaveBean(BeaconTaskDecorator.class);
-            });
+        .run(ctx -> {
+          assertThat(ctx).doesNotHaveBean(BeaconSdk.class);
+          assertThat(ctx).doesNotHaveBean(BeaconLogbackAppender.class);
+          assertThat(ctx).doesNotHaveBean(BeaconTaskDecorator.class);
+        });
   }
 
   @Test
@@ -105,13 +101,12 @@ class BeaconAutoConfigurationTest {
     runner
         .withPropertyValues("beacon.endpoint=http://localhost:4317")
         .withUserConfiguration(UserSdkConfig.class)
-        .run(
-            ctx -> {
-              assertThat(ctx).hasSingleBean(BeaconSdk.class);
-              BeaconSdk sdk = ctx.getBean(BeaconSdk.class);
-              // User config sets a sentinel endpoint distinct from the auto-config one.
-              assertThat(sdk.config().endpoint()).isEqualTo("user://override");
-            });
+        .run(ctx -> {
+          assertThat(ctx).hasSingleBean(BeaconSdk.class);
+          BeaconSdk sdk = ctx.getBean(BeaconSdk.class);
+          // User config sets a sentinel endpoint distinct from the auto-config one.
+          assertThat(sdk.config().endpoint()).isEqualTo("user://override");
+        });
   }
 
   @Test
@@ -119,14 +114,13 @@ class BeaconAutoConfigurationTest {
     runner
         .withPropertyValues("beacon.endpoint=http://localhost:4317")
         .withUserConfiguration(UserDecoratorConfig.class)
-        .run(
-            ctx -> {
-              // User's named bean wins; the starter's BeaconTaskDecorator type bean is absent.
-              assertThat(ctx).hasBean("beaconTaskDecorator");
-              Object bean = ctx.getBean("beaconTaskDecorator");
-              assertThat(bean).isInstanceOf(TaskDecorator.class);
-              assertThat(bean).isNotInstanceOf(BeaconTaskDecorator.class);
-            });
+        .run(ctx -> {
+          // User's named bean wins; the starter's BeaconTaskDecorator type bean is absent.
+          assertThat(ctx).hasBean("beaconTaskDecorator");
+          Object bean = ctx.getBean("beaconTaskDecorator");
+          assertThat(bean).isInstanceOf(TaskDecorator.class);
+          assertThat(bean).isNotInstanceOf(BeaconTaskDecorator.class);
+        });
   }
 
   @Configuration
