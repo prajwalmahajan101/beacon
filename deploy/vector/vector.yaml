@@ -43,6 +43,8 @@ transforms:
         # Valid M0 JSON — replace the entire event with the parsed record,
         # stripping Kafka metadata (topic/partition/offset) that log_namespace:false adds.
         . = parsed
+        # Data streams require @timestamp; the M0 canonical JSON has "timestamp".
+        ."@timestamp" = .timestamp
       }
 
   route_valid:
@@ -64,6 +66,7 @@ sinks:
     mode: "bulk"
     bulk:
       index: "beacon-logs"
+      action: "create"
     healthcheck:
       enabled: false
     acknowledgements:
