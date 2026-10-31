@@ -41,9 +41,9 @@ class LogRecordProducerIT extends KafkaContainerSupport {
   void sameKeysLandOnSamePartition() {
     String key = "checkout|abc123";
     String partitionCanonical = CANONICAL.replace("\"hello\"", "\"partition-test\"");
-    producer.produce(List.of(
-        new KeyedRecord(key, partitionCanonical),
-        new KeyedRecord(key, partitionCanonical)));
+    producer.produce(
+        List.of(
+            new KeyedRecord(key, partitionCanonical), new KeyedRecord(key, partitionCanonical)));
 
     try (KafkaConsumer<String, String> consumer = newConsumer("partition-it")) {
       consumer.subscribe(List.of(TOPIC));
