@@ -30,6 +30,7 @@ import org.springframework.test.context.DynamicPropertySource;
 class GrpcAuthIT extends KafkaContainerSupport {
 
   private static final String VALID_KEY = "test-key-1";
+  private static final String RATE_LIMITED_KEY = "test-key-rl";
 
   @Autowired private GrpcServerLifecycle grpcServer;
 
@@ -39,6 +40,9 @@ class GrpcAuthIT extends KafkaContainerSupport {
   static void tenantConfig(DynamicPropertyRegistry registry) {
     registry.add("beacon.gateway.tenants[0].api-key", () -> VALID_KEY);
     registry.add("beacon.gateway.tenants[0].tenant-id", () -> "tenant-a");
+    registry.add("beacon.gateway.tenants[1].api-key", () -> RATE_LIMITED_KEY);
+    registry.add("beacon.gateway.tenants[1].tenant-id", () -> "tenant-rl");
+    registry.add("beacon.gateway.tenants[1].rate-limit", () -> "1");
   }
 
   @AfterEach
@@ -82,6 +86,19 @@ class GrpcAuthIT extends KafkaContainerSupport {
       assertThat(header).isNotNull();
       assertThat(new String(header.value(), StandardCharsets.UTF_8)).isEqualTo("tenant-a");
     }
+  }
+
+  @Test
+  void rateLimitedTenantGetsResourceExhausted() {
+    stub("Bearer " + RATE_LIMITED_KEY).export(OtlpRequests.valid("grpc-rl-first"));
+    if (channel != null) {
+      channel.shutdownNow();
+      channel = null;
+    }
+    assertThatThrownBy(
+            () -> stub("Bearer " + RATE_LIMITED_KEY).export(OtlpRequests.valid("grpc-rl-second")))
+        .isInstanceOf(StatusRuntimeException.class)
+        .hasMessageContaining("RESOURCE_EXHAUSTED");
   }
 
   private LogsServiceGrpc.LogsServiceBlockingStub stub(String authValue) {

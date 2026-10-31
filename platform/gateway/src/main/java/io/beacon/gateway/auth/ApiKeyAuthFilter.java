@@ -18,9 +18,16 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
   private static final String BEARER_PREFIX = "Bearer ";
 
   private final TenantResolver resolver;
+  private final TenantRateLimiter rateLimiter;
+  private final int defaultRateLimit;
 
-  public ApiKeyAuthFilter(TenantResolver resolver) {
+  public ApiKeyAuthFilter(
+      TenantResolver resolver,
+      TenantRateLimiter rateLimiter,
+      io.beacon.gateway.config.GatewayProperties properties) {
     this.resolver = resolver;
+    this.rateLimiter = rateLimiter;
+    this.defaultRateLimit = properties.getDefaultRateLimit();
   }
 
   @Override

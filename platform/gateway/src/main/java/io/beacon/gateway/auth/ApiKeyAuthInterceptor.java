@@ -19,9 +19,16 @@ public class ApiKeyAuthInterceptor implements ServerInterceptor {
   private static final String BEARER_PREFIX = "Bearer ";
 
   private final TenantResolver resolver;
+  private final TenantRateLimiter rateLimiter;
+  private final int defaultRateLimit;
 
-  public ApiKeyAuthInterceptor(TenantResolver resolver) {
+  public ApiKeyAuthInterceptor(
+      TenantResolver resolver,
+      TenantRateLimiter rateLimiter,
+      io.beacon.gateway.config.GatewayProperties properties) {
     this.resolver = resolver;
+    this.rateLimiter = rateLimiter;
+    this.defaultRateLimit = properties.getDefaultRateLimit();
   }
 
   @Override

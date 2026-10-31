@@ -25,6 +25,7 @@ class HttpAuthIT extends KafkaContainerSupport {
 
   private static final MediaType PROTOBUF = MediaType.parseMediaType("application/x-protobuf");
   private static final String VALID_KEY = "test-key-1";
+  private static final String RATE_LIMITED_KEY = "test-key-rl";
 
   @Autowired private TestRestTemplate rest;
 
@@ -32,6 +33,9 @@ class HttpAuthIT extends KafkaContainerSupport {
   static void tenantConfig(DynamicPropertyRegistry registry) {
     registry.add("beacon.gateway.tenants[0].api-key", () -> VALID_KEY);
     registry.add("beacon.gateway.tenants[0].tenant-id", () -> "tenant-a");
+    registry.add("beacon.gateway.tenants[1].api-key", () -> RATE_LIMITED_KEY);
+    registry.add("beacon.gateway.tenants[1].tenant-id", () -> "tenant-rl");
+    registry.add("beacon.gateway.tenants[1].rate-limit", () -> "1");
   }
 
   @Test
@@ -74,6 +78,15 @@ class HttpAuthIT extends KafkaContainerSupport {
       assertThat(header).isNotNull();
       assertThat(new String(header.value(), StandardCharsets.UTF_8)).isEqualTo("tenant-a");
     }
+  }
+
+  @Test
+  void rateLimitedTenantGets429() {
+    post(OtlpRequests.valid("rl-first").toByteArray(), "Bearer " + RATE_LIMITED_KEY);
+    ResponseEntity<byte[]> second =
+        post(OtlpRequests.valid("rl-second").toByteArray(), "Bearer " + RATE_LIMITED_KEY);
+    assertThat(second.getStatusCode().value()).isEqualTo(429);
+    assertThat(second.getHeaders().getFirst("Retry-After")).isNotNull();
   }
 
   private ResponseEntity<byte[]> post(byte[] payload, String authHeader) {
