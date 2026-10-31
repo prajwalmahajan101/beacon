@@ -18,6 +18,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
@@ -123,6 +124,40 @@ class IngestE2ETest {
     String depthLimit = firstSettings.path("mapping").path("depth").path("limit").asText("");
     assertThat(totalFields).as("total_fields.limit").isEqualTo("2000");
     assertThat(depthLimit).as("depth.limit").isEqualTo("5");
+  }
+
+  @Test
+  void tenKUniqueAttributeKeysDoNotTripFieldLimit() throws Exception {
+    String marker = "stress-10k-" + UUID.randomUUID();
+    int batchCount = 50;
+    int keysPerBatch = 200; // 50 * 200 = 10,000 unique keys
+
+    BeaconConfig cfg = BeaconConfig.defaults();
+    SdkMetrics metrics = new SdkMetrics();
+    try (OtlpExporter exporter = new OtlpExporter(GATEWAY_GRPC, OtlpExporter.Transport.GRPC)) {
+      BatchSink sink = ResilientSink.of(exporter, cfg, metrics);
+      BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(sink).build();
+      for (int batch = 0; batch < batchCount; batch++) {
+        Map<String, Object> attrs = new HashMap<>();
+        for (int k = 0; k < keysPerBatch; k++) {
+          attrs.put("stress_key_" + batch + "_" + k, "v");
+        }
+        String body = (batch == batchCount - 1) ? marker : "stress-batch-" + batch;
+        sdk.emit(LogRecord.minimal(Instant.now(), 9, "INFO", body, attrs));
+      }
+      sdk.close();
+    }
+
+    assertSearchable(marker);
+
+    // Field count in the mapping should be low (root fields only, not 10k attribute fields)
+    String mapping = send("GET", ES + "/beacon-logs/_mapping", null);
+    assertThat(mapping).isNotNull();
+    int fieldCount = MAPPER.readTree(mapping).fields().next().getValue()
+        .path("mappings").path("properties").size();
+    assertThat(fieldCount)
+        .as("mapping field count (flattened absorbs attribute keys)")
+        .isLessThan(50);
   }
 
   @Test
