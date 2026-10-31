@@ -98,6 +98,60 @@ def test_poison_record_also_in_dlq_topic(stack):
 
 
 @pytest.mark.e2e
+def test_vector_restart_no_record_loss(stack):
+    """INGEST-13: restart Vector mid-stream, no acknowledged records lost."""
+    markers_before = [f"vec-pre-{uuid.uuid4()}" for _ in range(3)]
+    for m in markers_before:
+        _emit_via_sdk(GATEWAY_GRPC, m)
+    for m in markers_before:
+        _assert_searchable(m)
+
+    _restart_service("vector")
+
+    markers_after = [f"vec-post-{uuid.uuid4()}" for _ in range(3)]
+    for m in markers_after:
+        _emit_via_sdk(GATEWAY_GRPC, m)
+    for m in markers_before + markers_after:
+        _assert_searchable(m)
+
+
+@pytest.mark.e2e
+def test_gateway_restart_no_record_loss(stack):
+    """INGEST-13: restart gateway mid-stream, no acknowledged records lost."""
+    markers_before = [f"gw-pre-{uuid.uuid4()}" for _ in range(3)]
+    for m in markers_before:
+        _emit_via_sdk(GATEWAY_GRPC, m)
+    for m in markers_before:
+        _assert_searchable(m)
+
+    _restart_service("gateway")
+
+    markers_after = [f"gw-post-{uuid.uuid4()}" for _ in range(3)]
+    for m in markers_after:
+        _emit_via_sdk(GATEWAY_GRPC, m)
+    for m in markers_before + markers_after:
+        _assert_searchable(m)
+
+
+@pytest.mark.e2e
+def test_es_restart_no_record_loss(stack):
+    """INGEST-13: restart ES mid-stream, no acknowledged records lost."""
+    markers_before = [f"es-pre-{uuid.uuid4()}" for _ in range(3)]
+    for m in markers_before:
+        _emit_via_sdk(GATEWAY_GRPC, m)
+    for m in markers_before:
+        _assert_searchable(m)
+
+    _restart_service("elasticsearch")
+
+    markers_after = [f"es-post-{uuid.uuid4()}" for _ in range(3)]
+    for m in markers_after:
+        _emit_via_sdk(GATEWAY_GRPC, m)
+    for m in markers_before + markers_after:
+        _assert_searchable(m)
+
+
+@pytest.mark.e2e
 def test_valid_record_not_in_rejected_index(stack):
     """Complement of the poison test: a valid record lands in beacon-logs, NOT in
     beacon-logs-rejected."""
@@ -130,6 +184,27 @@ def _assert_in_dlq_topic(needle: str) -> None:
         f"needle '{needle}' not found in beacon.logs.dlq "
         f"(got {len(output)} bytes, returncode={result.returncode})"
     )
+
+
+def _restart_service(service: str) -> None:
+    """Restart a compose service and wait until it reports healthy."""
+    subprocess.run(
+        ["docker", "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
+         "restart", service],
+        timeout=60, check=True, cwd=str(REPO_ROOT),
+    )
+    deadline = time.time() + 120
+    while time.time() < deadline:
+        result = subprocess.run(
+            ["docker", "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
+             "ps", service, "--format", "{{.Health}}"],
+            capture_output=True, timeout=10, cwd=str(REPO_ROOT),
+        )
+        health = result.stdout.decode().strip()
+        if health == "healthy":
+            return
+        time.sleep(3)
+    raise RuntimeError(f"service '{service}' not healthy within 120s after restart")
 
 
 def _produce_raw_to_kafka(value: str) -> None:
