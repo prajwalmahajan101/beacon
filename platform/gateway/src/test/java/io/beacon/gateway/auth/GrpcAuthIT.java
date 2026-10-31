@@ -13,7 +13,12 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.MetadataUtils;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceResponse;
 import io.opentelemetry.proto.collector.logs.v1.LogsServiceGrpc;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.header.Header;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +67,21 @@ class GrpcAuthIT extends KafkaContainerSupport {
     ExportLogsServiceResponse response =
         stub("Bearer " + VALID_KEY).export(OtlpRequests.valid("grpc-good-key"));
     assertThat(response).isNotNull();
+  }
+
+  @Test
+  void validKeyStampsTenantOnKafkaRecord() {
+    stub("Bearer " + VALID_KEY).export(OtlpRequests.valid("grpc-tenant-stamp"));
+
+    try (KafkaConsumer<String, String> consumer = newConsumer("grpc-tenant-stamp-it")) {
+      consumer.subscribe(List.of(TOPIC));
+      List<ConsumerRecord<String, String>> records =
+          pollRecordsContaining(consumer, "grpc-tenant-stamp", 1);
+      assertThat(records).hasSize(1);
+      Header header = records.get(0).headers().lastHeader("X-Scope-OrgID");
+      assertThat(header).isNotNull();
+      assertThat(new String(header.value(), StandardCharsets.UTF_8)).isEqualTo("tenant-a");
+    }
   }
 
   private LogsServiceGrpc.LogsServiceBlockingStub stub(String authValue) {

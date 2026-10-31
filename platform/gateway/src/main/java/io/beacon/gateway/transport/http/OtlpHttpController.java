@@ -1,11 +1,13 @@
 package io.beacon.gateway.transport.http;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.beacon.gateway.auth.ApiKeyAuthFilter;
 import io.beacon.gateway.service.IngestResult;
 import io.beacon.gateway.service.IngestService;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsPartialSuccess;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +39,7 @@ public final class OtlpHttpController {
   }
 
   @PostMapping(path = "/v1/logs", consumes = PROTOBUF, produces = PROTOBUF)
-  public ResponseEntity<byte[]> ingest(@RequestBody byte[] body) {
+  public ResponseEntity<byte[]> ingest(@RequestBody byte[] body, HttpServletRequest httpRequest) {
     ExportLogsServiceRequest request;
     try {
       request = ExportLogsServiceRequest.parseFrom(body);
@@ -45,7 +47,8 @@ public final class OtlpHttpController {
       return ResponseEntity.badRequest().build();
     }
 
-    IngestResult result = ingestService.ingest(request);
+    String tenantId = (String) httpRequest.getAttribute(ApiKeyAuthFilter.TENANT_ID_ATTR);
+    IngestResult result = ingestService.ingest(request, tenantId);
     if (result.kafkaFailed()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
     }

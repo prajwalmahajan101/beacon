@@ -58,10 +58,14 @@ public class IngestService {
   }
 
   public IngestResult ingest(ExportLogsServiceRequest request) {
-    return durationTimer.record(() -> doIngest(request));
+    return ingest(request, null);
   }
 
-  private IngestResult doIngest(ExportLogsServiceRequest request) {
+  public IngestResult ingest(ExportLogsServiceRequest request, String tenantId) {
+    return durationTimer.record(() -> doIngest(request, tenantId));
+  }
+
+  private IngestResult doIngest(ExportLogsServiceRequest request, String tenantId) {
     List<KeyedRecord> valid = new ArrayList<>();
     List<String> reasons = new ArrayList<>();
     int rejected = 0;
@@ -76,7 +80,7 @@ public class IngestService {
             String json = CanonicalJson.serialize(record);
             List<String> failures = validator.validate(json);
             if (failures.isEmpty()) {
-              valid.add(new KeyedRecord(partitionKey(record), json));
+              valid.add(new KeyedRecord(partitionKey(record), json, tenantId));
             } else {
               rejected++;
               reasons.addAll(failures);

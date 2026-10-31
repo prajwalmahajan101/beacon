@@ -4,7 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.beacon.gateway.support.KafkaContainerSupport;
 import io.beacon.gateway.support.OtlpRequests;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.header.Header;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -55,6 +59,21 @@ class HttpAuthIT extends KafkaContainerSupport {
     ResponseEntity<byte[]> response =
         post(OtlpRequests.valid("good-key").toByteArray(), "Bearer " + VALID_KEY);
     assertThat(response.getStatusCode().value()).isEqualTo(200);
+  }
+
+  @Test
+  void validKeyStampsTenantOnKafkaRecord() {
+    post(OtlpRequests.valid("http-tenant-stamp").toByteArray(), "Bearer " + VALID_KEY);
+
+    try (KafkaConsumer<String, String> consumer = newConsumer("http-tenant-stamp-it")) {
+      consumer.subscribe(List.of(TOPIC));
+      List<ConsumerRecord<String, String>> records =
+          pollRecordsContaining(consumer, "http-tenant-stamp", 1);
+      assertThat(records).hasSize(1);
+      Header header = records.get(0).headers().lastHeader("X-Scope-OrgID");
+      assertThat(header).isNotNull();
+      assertThat(new String(header.value(), StandardCharsets.UTF_8)).isEqualTo("tenant-a");
+    }
   }
 
   private ResponseEntity<byte[]> post(byte[] payload, String authHeader) {

@@ -71,5 +71,5 @@ public final class LogRecordProducer {
    * @param key composite key ({@code service.name + "|" + trace_id}), never null
    * @param value canonical M0 JSON string
    */
-  public record KeyedRecord(String key, String value) {}
+  public record KeyedRecord(String key, String value, String tenantId) {}
 }
