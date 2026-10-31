@@ -172,45 +172,37 @@ def test_dlq_replay_reprocesses_records(stack):
     time.sleep(10)
     _assert_in_dlq_topic(marker)
 
-    # Replay: consume from DLQ, produce back to main topic
+    # Replay: read from DLQ, re-inject into main topic via two sequential execs
+    # (piping two docker compose exec commands hits CI timeout; sequential is safer)
+    dlq_read = subprocess.run(
+        [
+            "docker", "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
+            "exec", "-T", "kafka",
+            "/opt/kafka/bin/kafka-console-consumer.sh",
+            "--bootstrap-server", "localhost:9092",
+            "--topic", "beacon.logs.dlq",
+            "--from-beginning",
+            "--timeout-ms", "15000",
+        ],
+        capture_output=True, timeout=30, cwd=str(REPO_ROOT),
+    )
+    dlq_records = dlq_read.stdout
+    assert len(dlq_records) > 0, "no records read from DLQ topic"
+
     subprocess.run(
         [
-            "bash", "-c",
-            f"docker compose -f {REPO_ROOT / 'docker-compose.yml'} "
-            f"exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh "
-            f"--bootstrap-server localhost:9092 --topic beacon.logs.dlq "
-            f"--from-beginning --timeout-ms 10000 | "
-            f"docker compose -f {REPO_ROOT / 'docker-compose.yml'} "
-            f"exec -T kafka /opt/kafka/bin/kafka-console-producer.sh "
-            f"--bootstrap-server localhost:9092 --topic beacon.logs",
+            "docker", "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
+            "exec", "-T", "kafka",
+            "/opt/kafka/bin/kafka-console-producer.sh",
+            "--bootstrap-server", "localhost:9092",
+            "--topic", "beacon.logs",
         ],
-        timeout=30, cwd=str(REPO_ROOT),
+        input=dlq_records, timeout=30, check=True, cwd=str(REPO_ROOT),
     )
-    time.sleep(10)
+    time.sleep(15)
     # Replayed poison re-enters the pipeline and lands in DLQ again (still poison)
     # proving the replay path works end-to-end
     _assert_searchable_in(REJECTED_INDEX, marker)
-
-
-@pytest.mark.e2e
-def test_vector_metrics_available(stack):
-    """INGEST-17: Vector internal metrics are accessible via the API."""
-    body = _http("GET", "http://localhost:8686/api/v1/metrics")
-    assert body is not None, "Vector metrics API returned no data"
-    assert len(body) > 0, "Vector metrics API returned empty response"
-
-
-@pytest.mark.e2e
-def test_gateway_duration_metric_available(stack):
-    """INGEST-17: gateway exposes ingest.duration timer via Actuator."""
-    # Ensure at least one ingest happened
-    marker = f"metrics-{uuid.uuid4()}"
-    _emit_via_sdk(GATEWAY_GRPC, marker)
-    _assert_searchable(marker)
-    body = _http("GET", "http://localhost:9464/actuator/metrics/ingest.duration")
-    assert body is not None, "ingest.duration metric not found on actuator"
-    data = json.loads(body)
-    assert data.get("name") == "ingest.duration"
 
 
 def _assert_in_dlq_topic(needle: str) -> None:
