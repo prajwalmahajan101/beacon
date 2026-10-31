@@ -6,6 +6,11 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ### Added
 
+- M3.2: **API-key authentication** — `Authorization: Bearer <key>` maps to tenant via YAML config; 401 on missing/invalid key (INGEST-02).
+- M3.2: **tenant stamping** — `X-Scope-OrgID` Kafka record header; Vector extracts to `tenant_id` for ES query-time filtering (INGEST-02).
+- M3.2: **per-tenant rate limiting** — token bucket, default 1000 rec/sec, 429 + `Retry-After` / gRPC `RESOURCE_EXHAUSTED` (INGEST-03).
+- M3.2: **attribute key rejection** — UUID v4-shaped attribute keys rejected in `partial_success` (INGEST-15).
+- M3.2: `docs/adr/0027-multi-tenancy-gateway-layer.md` — tenancy model ADR.
 - M3.1: **composite partition key** — `service.name|trace_id` key on every Kafka produce (INGEST-05); Kafka topic default 8 partitions; records from the same service land consistently on the same partition.
 - M3.1: **DLQ routing** — Vector remap transform with `bytes` codec routes JSON decode failures to `beacon.logs.dlq` Kafka topic AND `beacon-logs-rejected` ES index (INGEST-08, INGEST-14). Poison records carry `raw_message`, `error`, `dlq_reason`.
 - M3.1: **offset-commit-after-write** — Vector holds Kafka offset commits until ES confirms the bulk write via `acknowledgements.enabled: true` (INGEST-07).

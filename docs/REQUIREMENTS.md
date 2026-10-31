@@ -46,8 +46,8 @@ Requirements for v1.0 (M5 complete + tagged `v1.0`). Each maps to one roadmap ph
 ### Ingest — gateway, Kafka, indexer, Elasticsearch (M3)
 
 - [x] **INGEST-01**: Gateway accepts OTLP/gRPC and OTLP/HTTP from M1/M2 SDKs; validates against `contract/schema/log-record.schema.json`; rejects invalid records (OTLP `partial_success` for the OTLP transports) with a reason. _(M3.0b)_
-- [ ] **INGEST-02**: Gateway authenticates each producer via API key; per-key tenant scope (`X-Scope-OrgID` propagated to record).
-- [ ] **INGEST-03**: Gateway enforces per-tenant rate-limit at the edge; backpressure returns 429 with `Retry-After`.
+- [x] **INGEST-02**: Gateway authenticates each producer via API key; per-key tenant scope (`X-Scope-OrgID` propagated to record). _(M3.2)_
+- [x] **INGEST-03**: Gateway enforces per-tenant rate-limit at the edge; backpressure returns 429 with `Retry-After`. _(M3.2)_
 - [x] **INGEST-04**: Gateway forwards accepted records to Kafka as idempotent producer (acks=all); HTTP/gRPC response only returned after Kafka write completes. _(M3.0b)_
 - [ ] **INGEST-05**: Kafka deployment is KRaft-mode (no ZK) on Strimzi; primary topic has composite partition key `(service.name, hash(trace_id) % N)` with `N=4–8`; DLQ topic for poison records.
 - [ ] **INGEST-06**: Per-partition byte-rate alert fires when `max / avg > 1.5` (hot-partition detector).
@@ -59,7 +59,7 @@ Requirements for v1.0 (M5 complete + tagged `v1.0`). Each maps to one roadmap ph
 - [ ] **INGEST-12**: End-to-end acceptance: emit from Java OR Python SDK is searchable via ES query within p99 ≤ 5 s. _(functionally demonstrated in M3.0d — both SDKs' emits are searchable in ES via the E2E; the strict p99 ≤ 5 s measurement stays with the M3 milestone-close.)_
 - [ ] **INGEST-13**: Component restart (gateway, indexer, ES node) does not lose acknowledged records.
 - [ ] **INGEST-14**: DLQ catches and isolates poison records without blocking the live stream; replay tooling exists.
-- [ ] **INGEST-15**: Gateway rejects attribute keys matching UUID/random-id patterns to discourage caller-side mapping explosion.
+- [x] **INGEST-15**: Gateway rejects attribute keys matching UUID/random-id patterns to discourage caller-side mapping explosion. _(M3.2)_
 - [x] **INGEST-16**: An OTel-Collector-fronted ingest path is verified end-to-end (Collector → Beacon Gateway) as an explicit M3 acceptance test. _(M3.0d — both SDKs emit through `otel/opentelemetry-collector` → gateway → Kafka → Vector → ES; `:beacon-gateway:e2eTest` + `platform/e2e` pytest, gated by `ingest.yml`.)_
 - [ ] **INGEST-17**: Indexer lag metric + RED metrics per gateway endpoint published as platform telemetry.
 
@@ -203,9 +203,9 @@ Every v1 REQ-ID maps to exactly one roadmap phase. See [`docs/ROADMAP.md`](ROADM
 | INGEST-13 | Phase 6 — M3.1 | Pending |
 | INGEST-14 | Phase 6 — M3.1 | Pending |
 | INGEST-17 | Phase 6 — M3.1 | Pending |
-| INGEST-02 | Phase 7 — M3.2 | Pending |
-| INGEST-03 | Phase 7 — M3.2 | Pending |
-| INGEST-15 | Phase 7 — M3.2 | Pending |
+| INGEST-02 | Phase 7 — M3.2 | Done |
+| INGEST-03 | Phase 7 — M3.2 | Done |
+| INGEST-15 | Phase 7 — M3.2 | Done |
 | INGEST-09 | Phase 8 — M3.3 | Pending |
 | INGEST-10 | Phase 8 — M3.3 | Pending |
 | INGEST-11 | Phase 8 — M3.3 | Pending |

@@ -20,8 +20,8 @@
 | ID | Requirement | Phase | Status |
 |---|---|---|---|
 | INGEST-01 | Gateway accepts OTLP/gRPC + HTTP, validates, rejects invalid with reason | M3.0b | ✅ |
-| INGEST-02 | API-key auth → tenant scope (`X-Scope-OrgID`) | M3.2 | ⬜ |
-| INGEST-03 | Per-tenant rate limit, 429 + `Retry-After` | M3.2 | ⬜ |
+| INGEST-02 | API-key auth → tenant scope (`X-Scope-OrgID`) | M3.2 | ✅ |
+| INGEST-03 | Per-tenant rate limit, 429 + `Retry-After` | M3.2 | ✅ |
 | INGEST-04 | Idempotent Kafka producer (`acks=all`), response-after-write | M3.0b | ✅ |
 | INGEST-05 | KRaft Kafka, composite partition key, DLQ topic | M3.1 | ⬜ |
 | INGEST-06 | Hot-partition detector (`max/avg > 1.5`) | M3.1 | ⬜ |
@@ -33,7 +33,7 @@
 | INGEST-12 | p99 ingest→searchable ≤ 5 s | M3.3 | ⬜ |
 | INGEST-13 | Component restart does not lose acknowledged records | M3.1 | ⬜ |
 | INGEST-14 | DLQ catches poison records, replay tooling exists | M3.1 | ⬜ |
-| INGEST-15 | UUID/random-id attribute key rejection | M3.2 | ⬜ |
+| INGEST-15 | UUID/random-id attribute key rejection | M3.2 | ✅ |
 | INGEST-16 | OTel Collector → Gateway path verified E2E | M3.0d | ✅ |
 | INGEST-17 | Indexer lag + RED metrics as platform telemetry | M3.1 | ⬜ |
 
@@ -197,23 +197,21 @@ Same as M1/M2 — the project-wide definition from [`CONTRIBUTING.md` § Per-pha
 
 ---
 
-### M3.2 — Multi-tenancy ⬜
+### M3.2 — Multi-tenancy ✅
 
 **Scope:** Tenant isolation at the gateway layer.
 
 **Deliverables:**
 
-1. **API-key authentication** — each producer presents an API key; gateway maps key → tenant ID. Invalid/missing key → 401.
-2. **Tenant stamping** — `X-Scope-OrgID` header propagated into the record before Kafka produce. No bypass path: every record in Kafka carries a tenant ID.
-3. **Per-tenant rate limiting** — edge rate limit enforced at the gateway. Exceeded → 429 with `Retry-After` header. SDK retry/backoff (M1 ADR-0005, M2 ADR-0016) engages naturally.
-4. **Attribute key rejection** — gateway rejects attribute keys matching UUID/random-id patterns to prevent caller-side mapping explosion in ES.
+1. **API-key authentication** — `Authorization: Bearer <key>` header; `TenantResolver` maps key → tenant from YAML config. Invalid/missing key → 401 / `UNAUTHENTICATED`. Empty tenant list = open mode (backward compat).
+2. **Tenant stamping** — `X-Scope-OrgID` Kafka record header (M0 JSON untouched). Vector extracts to `tenant_id` field for ES query-time filtering.
+3. **Per-tenant rate limiting** — `TenantRateLimiter` token bucket per tenant (default 1000 rec/sec, per-key override). Exceeded → 429 + `Retry-After` / gRPC `RESOURCE_EXHAUSTED`.
+4. **Attribute key rejection** — UUID v4 pattern check on `record.attributes()` keys; matching records rejected in `partial_success`.
 
 **Requirements:** INGEST-02, -03, -15
-**ADR (anticipated):** Tenancy model (`X-Scope-OrgID` + shared index vs per-tenant index)
-**Key decisions to make:**
-- API key storage: in-memory config vs database-backed vs external IdP (pre-OIDC; M5.3 adds OIDC).
-- Rate limit algorithm: token bucket vs sliding window.
-- Shared index with tenant-ID filter vs per-tenant index (cost/complexity tradeoff; shared index likely wins for v1).
+**ADR:** [ADR-0027](./adr/0027-multi-tenancy-gateway-layer.md)
+**Journal:** [`.journal/M3.2.md`](../.journal/M3.2.md)
+**Decisions locked:** `Authorization: Bearer` header; in-memory YAML config (database-backed deferred to M5); Kafka header only (no record mutation); token bucket; shared ES index + tenant filter; UUID-only key rejection.
 
 ---
 
