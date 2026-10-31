@@ -152,6 +152,38 @@ def test_es_restart_no_record_loss(stack):
 
 
 @pytest.mark.e2e
+def test_tenant_id_extracted_from_kafka_header(stack):
+    """M3.2 carry-forward: Vector extracts X-Scope-OrgID Kafka header into tenant_id."""
+    marker = f"tenant-extract-{uuid.uuid4()}"
+    tenant = "tenant-alpha"
+    record = json.dumps({
+        "schema_version": 1,
+        "timestamp": "2026-10-31T12:00:00Z",
+        "severity_number": 9,
+        "severity_text": "INFO",
+        "body": marker,
+        "resource": {"service.name": "tenant-test", "telemetry.sdk.language": "python"},
+        "attributes": {},
+    })
+    _produce_raw_to_kafka_with_header("X-Scope-OrgID", tenant, record)
+    _assert_searchable(marker)
+
+    # Verify tenant_id field in the ES document
+    _http("POST", f"{ES}/{INDEX}/_refresh")
+    body = _http(
+        "POST",
+        f"{ES}/{INDEX}/_search",
+        json.dumps({"query": {"match_phrase": {"body": marker}}}).encode(),
+    )
+    assert body is not None
+    hits = json.loads(body)["hits"]["hits"]
+    assert len(hits) >= 1
+    assert hits[0]["_source"].get("tenant_id") == tenant, (
+        f"expected tenant_id='{tenant}', got {hits[0]['_source'].get('tenant_id')}"
+    )
+
+
+@pytest.mark.e2e
 def test_valid_record_not_in_rejected_index(stack):
     """Complement of the poison test: a valid record lands in beacon-logs, NOT in
     beacon-logs-rejected."""
@@ -260,6 +292,27 @@ def _produce_raw_to_kafka(value: str) -> None:
             "--topic", "beacon.logs",
         ],
         input=value.encode(),
+        timeout=15,
+        check=True,
+        cwd=str(REPO_ROOT),
+    )
+
+
+def _produce_raw_to_kafka_with_header(header_key: str, header_value: str, value: str) -> None:
+    """Inject a value into beacon.logs with a Kafka header via console producer."""
+    # Format: header_key:header_value|payload (using | as headers.delimiter)
+    line = f"{header_key}:{header_value}|{value}"
+    subprocess.run(
+        [
+            "docker", "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
+            "exec", "-T", "kafka",
+            "/opt/kafka/bin/kafka-console-producer.sh",
+            "--bootstrap-server", "localhost:9092",
+            "--topic", "beacon.logs",
+            "--property", "parse.headers=true",
+            "--property", "headers.delimiter=|",
+        ],
+        input=line.encode(),
         timeout=15,
         check=True,
         cwd=str(REPO_ROOT),

@@ -1,6 +1,6 @@
 # M3 — Ingest Pipeline: Roadmap
 
-**Status:** Drafted 2026-10-30 · M3.0a–d ✅ shipped (infra + gateway + indexer + full-stack E2E) · M3.1–M3.3 ⬜ planned · **Predecessor:** [M2 complete (`v0.3-m2`)](./M2-ROADMAP.md) · **Acceptance bar:** end-to-end emit from Java **or** Python SDK is searchable via ES query within p99 ≤ 5 s; DLQ isolates poison records; component restart does not lose acknowledged records.
+**Status:** Drafted 2026-10-30 · M3.0a–d ✅ shipped (infra + gateway + indexer + full-stack E2E) · M3.1 ✅ · M3.2 ✅ · M3.3 ✅ · **Predecessor:** [M2 complete (`v0.3-m2`)](./M2-ROADMAP.md) · **Acceptance bar:** end-to-end emit from Java **or** Python SDK is searchable via ES query within p99 ≤ 5 s; DLQ isolates poison records; component restart does not lose acknowledged records. **M3 milestone acceptance gate passed.**
 
 ---
 
@@ -27,10 +27,10 @@
 | INGEST-06 | Hot-partition detector (`max/avg > 1.5`) | M3.1 | ⬜ |
 | INGEST-07 | Offset committed only after ES write or DLQ publish | M3.1 | ⬜ |
 | INGEST-08 | Error taxonomy: 4xx→DLQ no retry, 5xx→backoff then DLQ | M3.1 | ⬜ |
-| INGEST-09 | ES index template, `flattened` attributes, `total_fields` cap | M3.3 | ⬜ |
-| INGEST-10 | Data streams + ILM with explicit delete phase | M3.3 | ⬜ |
-| INGEST-11 | 10k-unique-key stress test (no `total_fields` trip) | M3.3 | ⬜ |
-| INGEST-12 | p99 ingest→searchable ≤ 5 s | M3.3 | ⬜ |
+| INGEST-09 | ES index template, `flattened` attributes, `total_fields` cap | M3.3 | ✅ |
+| INGEST-10 | Data streams + ILM with explicit delete phase | M3.3 | ✅ |
+| INGEST-11 | 10k-unique-key stress test (no `total_fields` trip) | M3.3 | ✅ |
+| INGEST-12 | p99 ingest→searchable ≤ 5 s | M3.3 | ✅ |
 | INGEST-13 | Component restart does not lose acknowledged records | M3.1 | ⬜ |
 | INGEST-14 | DLQ catches poison records, replay tooling exists | M3.1 | ⬜ |
 | INGEST-15 | UUID/random-id attribute key rejection | M3.2 | ✅ |
@@ -215,24 +215,23 @@ Same as M1/M2 — the project-wide definition from [`CONTRIBUTING.md` § Per-pha
 
 ---
 
-### M3.3 — ES storage layout ⬜
+### M3.3 — ES storage layout ✅
 
-**Scope:** Production-grade Elasticsearch index design — from auto-mapped to explicitly templated.
+**Scope:** Production-grade Elasticsearch index design — from auto-mapped to explicitly templated. Plus M3.2 carry-forward (Vector tenant_id extraction).
 
 **Deliverables:**
 
-1. **Index template** — applied at indexer startup before first write. Root fields explicitly mapped; `attributes.*` as `flattened` type (prevents mapping explosion). `total_fields.limit: 2000`, `depth.limit: 5`, root `dynamic: strict`.
-2. **Data streams** — migrate from raw indices to ES data streams (time-series optimized, automatic rollover).
-3. **ILM policy** — hot → warm → cold → delete lifecycle. Explicit `delete` phase even if `min_age: 365d`. PR template requires diff to show delete phase.
-4. **Stress test** — CI test: ingest 10k unique attribute keys without tripping `total_fields.limit` (proves `flattened` mapping works).
-5. **p99 measurement** — prove p99 ingest→searchable ≤ 5 s under load. This is the M3 milestone acceptance gate.
+1. **Index template** — `deploy/elasticsearch/init-templates.sh` seeds ES via `es-init` docker-compose service before Vector starts. Root fields explicitly mapped; `attributes.*` as `flattened` type. `total_fields.limit: 2000`, `depth.limit: 5`, root `dynamic: strict`. `tenant_id` mapped as `keyword`.
+2. **Data streams** — `beacon-logs` data stream with automatic rollover. Vector uses `bulk.action: create` + `@timestamp` stamp from M0 `timestamp`.
+3. **ILM policy** — `beacon-logs-policy`: hot (rollover 1d/50gb) → warm (7d, shrink to 1 shard) → delete (90d). Explicit `delete` phase.
+4. **Stress test** — `tenKUniqueAttributeKeysDoNotTripFieldLimit()` E2E: 50 records × 200 unique attribute keys = 10k. Flattened absorbs all.
+5. **p99 measurement** — `p99IngestToSearchableUnderFiveSeconds()` E2E: 20 records sequential, p99 ≤ 5 s. M3 milestone acceptance gate passed.
+6. **Tenant_id extraction** (M3.2 carry-forward) — Vector `headers_key: "kafka_headers"` + VRL local-variable capture of `X-Scope-OrgID` before event overwrite.
 
 **Requirements:** INGEST-09, -10, -11, -12
-**ADR (anticipated):** ES storage layout (data streams, `flattened` attributes, ILM policy)
-**Key decisions to make:**
-- `flattened` vs `object` for nested attributes (flattened loses per-field aggregation but prevents explosion — right tradeoff for v1).
-- ILM tier timing: hot→warm at 7d? 30d? Configurable per-tenant in M5.
-- Data stream naming: `beacon-logs` vs `beacon-logs-{tenant}` (depends on M3.2 tenancy decision).
+**ADR:** [ADR-0028](./adr/0028-es-storage-layout-data-streams-flattened-ilm.md)
+**Journal:** [`.journal/M3.3.md`](../.journal/M3.3.md)
+**Decisions locked:** `flattened` for attributes (v1 tradeoff); single data stream `beacon-logs` (tenant filter at query time per ADR-0027); ILM hot→warm 7d, delete 90d (dev defaults, M5 per-tenant); `dynamic: strict` at root.
 
 ---
 

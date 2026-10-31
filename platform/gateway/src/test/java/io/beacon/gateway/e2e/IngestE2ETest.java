@@ -18,6 +18,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
@@ -83,6 +87,128 @@ class IngestE2ETest {
     if (stack != null) {
       stack.stop();
     }
+  }
+
+  @Test
+  void esIndexTemplateApplied() throws Exception {
+    // Emit a probe record so the data stream materializes (created on first write)
+    String probe = "template-probe-" + UUID.randomUUID();
+    emitViaSdk(GATEWAY_GRPC, probe);
+    assertSearchable(probe);
+
+    // Data stream exists
+    String ds = send("GET", ES + "/_data_stream/beacon-logs", null);
+    assertThat(ds).as("beacon-logs data stream exists").isNotNull();
+    assertThat(MAPPER.readTree(ds).path("data_streams").size())
+        .as("data stream count")
+        .isGreaterThanOrEqualTo(1);
+
+    // Attributes mapped as flattened
+    String mapping = send("GET", ES + "/beacon-logs/_mapping", null);
+    assertThat(mapping).isNotNull();
+    var mappingTree = MAPPER.readTree(mapping);
+    var firstIndex = mappingTree.fields().next().getValue();
+    String attrType =
+        firstIndex
+            .path("mappings")
+            .path("properties")
+            .path("attributes")
+            .path("type")
+            .asText("");
+    assertThat(attrType).as("attributes field type").isEqualTo("flattened");
+
+    // Settings: total_fields.limit and depth.limit
+    String settings = send("GET", ES + "/beacon-logs/_settings", null);
+    assertThat(settings).isNotNull();
+    var settingsTree = MAPPER.readTree(settings);
+    var firstSettings = settingsTree.fields().next().getValue().path("settings").path("index");
+    String totalFields =
+        firstSettings.path("mapping").path("total_fields").path("limit").asText("");
+    String depthLimit = firstSettings.path("mapping").path("depth").path("limit").asText("");
+    assertThat(totalFields).as("total_fields.limit").isEqualTo("2000");
+    assertThat(depthLimit).as("depth.limit").isEqualTo("5");
+  }
+
+  @Test
+  void tenKUniqueAttributeKeysDoNotTripFieldLimit() throws Exception {
+    String marker = "stress-10k-" + UUID.randomUUID();
+    int batchCount = 50;
+    int keysPerBatch = 200; // 50 * 200 = 10,000 unique keys
+
+    BeaconConfig cfg = BeaconConfig.defaults();
+    SdkMetrics metrics = new SdkMetrics();
+    try (OtlpExporter exporter = new OtlpExporter(GATEWAY_GRPC, OtlpExporter.Transport.GRPC)) {
+      BatchSink sink = ResilientSink.of(exporter, cfg, metrics);
+      BeaconSdk sdk = BeaconSdk.builder().config(cfg).sink(sink).build();
+      for (int batch = 0; batch < batchCount; batch++) {
+        Map<String, Object> attrs = new HashMap<>();
+        for (int k = 0; k < keysPerBatch; k++) {
+          attrs.put("stress_key_" + batch + "_" + k, "v");
+        }
+        String body = (batch == batchCount - 1) ? marker : "stress-batch-" + batch;
+        sdk.emit(LogRecord.minimal(Instant.now(), 9, "INFO", body, attrs));
+      }
+      sdk.close();
+    }
+
+    assertSearchable(marker);
+
+    // Field count in the mapping should be low (root fields only, not 10k attribute fields)
+    String mapping = send("GET", ES + "/beacon-logs/_mapping", null);
+    assertThat(mapping).isNotNull();
+    int fieldCount = MAPPER.readTree(mapping).fields().next().getValue()
+        .path("mappings").path("properties").size();
+    assertThat(fieldCount)
+        .as("mapping field count (flattened absorbs attribute keys)")
+        .isLessThan(50);
+  }
+
+  @Test
+  void p99IngestToSearchableUnderFiveSeconds() throws Exception {
+    int sampleCount = 20;
+    Duration perRecordTimeout = Duration.ofSeconds(30);
+    List<Duration> latencies = new ArrayList<>();
+
+    for (int i = 0; i < sampleCount; i++) {
+      String marker = "p99-" + i + "-" + UUID.randomUUID();
+      Instant start = Instant.now();
+      emitViaSdk(GATEWAY_GRPC, marker);
+
+      // Tight poll loop: 500ms intervals until searchable
+      String query = "{\"query\":{\"match_phrase\":{\"body\":\"" + marker + "\"}}}";
+      Instant deadline = start.plus(perRecordTimeout);
+      boolean found = false;
+      while (Instant.now().isBefore(deadline)) {
+        send("POST", ES + "/" + INDEX + "/_refresh", null);
+        String body = send("POST", ES + "/" + INDEX + "/_search", query);
+        if (body != null) {
+          long hits = MAPPER.readTree(body).path("hits").path("total").path("value").asLong(0);
+          if (hits >= 1) {
+            found = true;
+            break;
+          }
+        }
+        Thread.sleep(500);
+      }
+      Duration elapsed = Duration.between(start, Instant.now());
+      latencies.add(elapsed);
+      assertThat(found)
+          .as("record %d searchable within %s (took %s)", i, perRecordTimeout, elapsed)
+          .isTrue();
+    }
+
+    Collections.sort(latencies);
+    // p99 of 20 samples = index 19 (the worst)
+    Duration p99 = latencies.get(sampleCount - 1);
+    Duration p50 = latencies.get(sampleCount / 2);
+
+    System.out.printf(
+        "INGEST-12 p99=%s  p50=%s  min=%s  max=%s  (n=%d)%n",
+        p99, p50, latencies.get(0), latencies.get(sampleCount - 1), sampleCount);
+
+    assertThat(p99.toMillis())
+        .as("p99 ingest-to-searchable latency (INGEST-12 acceptance gate: ≤5s)")
+        .isLessThanOrEqualTo(5000);
   }
 
   @Test

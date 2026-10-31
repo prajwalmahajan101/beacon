@@ -93,6 +93,17 @@ services:
       retries: 12
       start_period: 30s
 
+  es-init:
+    image: curlimages/curl:8.11.1
+    networks: [beacon]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - ./deploy/elasticsearch/init-templates.sh:/init.sh:ro
+    entrypoint: ["sh", "/init.sh"]
+    restart: "no"
+
   vector:
     image: timberio/vector:0.41.1-debian # debian variant -> ships bash for the /dev/tcp health probe (0.41.1 has no wget/curl/busybox)
     networks: [beacon]
@@ -103,12 +114,10 @@ services:
       # consume beacon.logs -> bulk-write the beacon-logs ES index.
       - ./deploy/vector/vector.yaml:/etc/vector/vector.yaml:ro
     depends_on:
-      # Start after both ends of the pipeline are healthy so Vector doesn't spin
-      # retrying an absent broker / ES on boot.
       kafka:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
+      es-init:
+        condition: service_completed_successfully
     healthcheck:
       # 0.41.1-debian has no wget/curl/busybox; bash /dev/tcp probes the API /health status line.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8686; printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3"]

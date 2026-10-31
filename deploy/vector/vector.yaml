@@ -25,6 +25,7 @@ sources:
     auto_offset_reset: "earliest"
     decoding:
       codec: bytes
+    headers_key: "kafka_headers"
 
 transforms:
   parse_json:
@@ -40,9 +41,13 @@ transforms:
         .dlq_reason = "json_decode_failure"
         del(.message)
       } else {
-        # Valid M0 JSON — replace the entire event with the parsed record,
-        # stripping Kafka metadata (topic/partition/offset) that log_namespace:false adds.
+        # Valid M0 JSON — capture tenant header before overwriting the event.
+        tenant_id = .kafka_headers."X-Scope-OrgID"
         . = parsed
+        ."@timestamp" = .timestamp
+        if tenant_id != null {
+          .tenant_id = to_string!(tenant_id)
+        }
       }
 
   route_valid:
@@ -64,6 +69,7 @@ sinks:
     mode: "bulk"
     bulk:
       index: "beacon-logs"
+      action: "create"
     healthcheck:
       enabled: false
     acknowledgements:
