@@ -176,7 +176,7 @@ Same as M1/M2 — the project-wide definition from [`CONTRIBUTING.md` § Per-pha
 
 ---
 
-### M3.1 — DLQ + idempotency + partition key ⬜
+### M3.1 — DLQ + idempotency + partition key ✅
 
 **Scope:** The durability and reliability hardening of the Kafka→ES path.
 
@@ -191,11 +191,9 @@ Same as M1/M2 — the project-wide definition from [`CONTRIBUTING.md` § Per-pha
 7. **Platform telemetry** — indexer lag metric + RED metrics (rate/errors/duration) per gateway endpoint.
 
 **Requirements:** INGEST-05, -06, -07, -08, -13, -14, -17
-**ADR (anticipated):** Partition key design, error taxonomy + offset ordering
-**Key decisions to make:**
-- Vector vs custom Kafka consumer for offset-commit-after-write semantics (Vector's `kafka` source auto-commits; may need `auto_offset_reset` + checkpoint tuning, or a custom consumer).
-- DLQ replay: CLI script vs admin API endpoint.
-- Hot-partition detector: Vector-internal metric vs external Kafka consumer-lag monitor.
+**ADR:** [ADR-0026](./adr/0026-ingest-dlq-partition-key-error-taxonomy.md)
+**Journal:** [`.journal/M3.1.md`](../.journal/M3.1.md)
+**Decisions locked:** Keep Vector + ES on_failure (no custom consumer); CLI replay script; 8 partitions; consumer-groups skew script; extend M3.0d E2E for restart; Actuator + Vector internal metrics; one combined ADR.
 
 ---
 

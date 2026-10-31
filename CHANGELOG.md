@@ -6,6 +6,25 @@ All notable changes to Beacon are documented here. Format loosely follows [Keep 
 
 ### Added
 
+- M3.1: **composite partition key** — `service.name|trace_id` key on every Kafka produce (INGEST-05); Kafka topic default 8 partitions; records from the same service land consistently on the same partition.
+- M3.1: **DLQ routing** — Vector remap transform with `bytes` codec routes JSON decode failures to `beacon.logs.dlq` Kafka topic AND `beacon-logs-rejected` ES index (INGEST-08, INGEST-14). Poison records carry `raw_message`, `error`, `dlq_reason`.
+- M3.1: **offset-commit-after-write** — Vector holds Kafka offset commits until ES confirms the bulk write via `acknowledgements.enabled: true` (INGEST-07).
+- M3.1: **restart resilience** — proven by E2E: restart of Vector, gateway, or ES mid-stream loses no acknowledged records (INGEST-13).
+- M3.1: **hot-partition detector** — `scripts/check-partition-skew.sh` computes max/avg lag ratio per partition, warns if > 1.5x (INGEST-06).
+- M3.1: **DLQ replay** — `scripts/replay-dlq.sh` replays `beacon.logs.dlq` → `beacon.logs` (INGEST-14).
+- M3.1: **platform telemetry** — `ingest.duration` Micrometer Timer on the gateway (completes RED metrics); Vector `internal_metrics` source enabled (INGEST-17).
+- M3.1: `docs/adr/0026-ingest-dlq-partition-key-error-taxonomy.md` — combined ADR covering partition key, DLQ routing, offset-commit-after-write, and error taxonomy.
+- M3.1: `docs/M3-ROADMAP.md` — detailed phase breakdown for the ingest milestone.
+
+### Changed
+
+- M3.1: `deploy/vector/vector.yaml` — replaced `codec: json` with `bytes` + remap/filter transforms + DLQ sinks; original M3.0c skeleton pipeline superseded.
+- M3.1: `docker-compose.yml` — `KAFKA_NUM_PARTITIONS: 8` for composite partition key.
+
+### Verified
+
+- M3.1: `./gradlew :beacon-gateway:test` green (36 tests); `docker compose up --wait` all-healthy; poison non-JSON lands in `beacon-logs-rejected` + `beacon.logs.dlq`; valid records clean in `beacon-logs`; 3/3 restart resilience E2E tests pass (Vector, gateway, ES); `check-partition-skew.sh --docker` runs clean; `ingest.duration` timer visible on `/actuator/metrics`.
+
 - M3.0d: **full-stack ingest E2E** driving BOTH real SDKs end-to-end (`SDK.emit → OTLP → gateway → Kafka → Vector → Elasticsearch`, asserted searchable in `beacon-logs`). Java: `IngestE2ETest` (`@Tag("e2e")`, a segregated `:beacon-gateway:e2eTest` task) constructs the real `BeaconSdk` (`OtlpExporter` → `ResilientSink`). Python: a new `platform/e2e/` uv project (path-dep on `sdk/python/core`) whose pytest drives `build_emit_pipeline` → `BeaconLoggingHandler` → `drain_and_stop`. Both boot the **real `docker-compose.yml`** via Testcontainers (local-compose mode) and cover **two scenarios each** — direct to the gateway and through the OTel Collector — closing **INGEST-16** (and functionally demonstrating **INGEST-12**). Export is forced with an explicit drain and asserted via ES (never the SDK return, PITFALLS #29).
 - M3.0d: **OTel-Collector-fronted path** — `deploy/collector/collector.yaml` (core collector: `otlp` receiver → `otlp_grpc` exporter to `gateway:4317`) + `docker-compose.collector.yml` overlay adding the `otel-collector` service (pinned `otel/opentelemetry-collector:0.156.0`, host 5317/5318). The gateway stays the single Kafka producer; the Collector is a transparent proxy in front (PRD §13.1, ADR-0025).
 - M3.0d: `.github/workflows/ingest.yml` — a dedicated CI gate that builds the gateway image once, then runs the Java (`:beacon-gateway:e2eTest`) and Python (`platform/e2e`) E2Es on any ingest-path change; uploads JUnit + pytest reports.
