@@ -51,8 +51,9 @@ class GrpcIngestKafkaDownIT {
 
     assertThatThrownBy(() -> stub.export(OtlpRequests.valid("will not land")))
         .isInstanceOf(StatusRuntimeException.class)
-        .satisfies(e ->
-            assertThat(((StatusRuntimeException) e).getStatus().getCode())
-                .isEqualTo(Status.Code.UNAVAILABLE));
+        .satisfies(
+            e ->
+                assertThat(((StatusRuntimeException) e).getStatus().getCode())
+                    .isEqualTo(Status.Code.UNAVAILABLE));
   }
 }

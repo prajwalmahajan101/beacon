@@ -137,16 +137,17 @@ class BoundedBufferTest {
 
     for (int t = 0; t < threads; t++) {
       final int tid = t;
-      pool.execute(() -> {
-        try {
-          start.await();
-          for (int i = 0; i < perThread; i++) b.offer(rec(tid * perThread + i));
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        } finally {
-          done.countDown();
-        }
-      });
+      pool.execute(
+          () -> {
+            try {
+              start.await();
+              for (int i = 0; i < perThread; i++) b.offer(rec(tid * perThread + i));
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } finally {
+              done.countDown();
+            }
+          });
     }
     start.countDown();
     assertThat(done.await(15, TimeUnit.SECONDS)).isTrue();

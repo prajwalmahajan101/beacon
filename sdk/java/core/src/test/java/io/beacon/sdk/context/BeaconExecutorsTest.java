@@ -49,10 +49,11 @@ class BeaconExecutorsTest {
     CountDownLatch done = new CountDownLatch(1);
 
     Runnable wrappedRun =
-        BeaconExecutors.wrap(() -> {
-          captured.set(MDC.get("trace_id"));
-          done.countDown();
-        });
+        BeaconExecutors.wrap(
+            () -> {
+              captured.set(MDC.get("trace_id"));
+              done.countDown();
+            });
     executor.submit(wrappedRun);
 
     assertThat(done.await(2, TimeUnit.SECONDS)).isTrue();
@@ -68,19 +69,21 @@ class BeaconExecutorsTest {
     // Caller has its own MDC.
     MDC.put("key", "caller");
     Runnable wrapped =
-        BeaconExecutors.wrap(() -> {
-          // body intentionally empty — we only care about the restoration in finally
-        });
+        BeaconExecutors.wrap(
+            () -> {
+              // body intentionally empty — we only care about the restoration in finally
+            });
 
     // Run on the worker; before+after observation done on the worker.
     AtomicReference<String> before = new AtomicReference<>();
     AtomicReference<String> after = new AtomicReference<>();
     executor
-        .submit(() -> {
-          before.set(MDC.get("key"));
-          wrapped.run();
-          after.set(MDC.get("key"));
-        })
+        .submit(
+            () -> {
+              before.set(MDC.get("key"));
+              wrapped.run();
+              after.set(MDC.get("key"));
+            })
         .get();
 
     assertThat(before.get()).isEqualTo("worker");
@@ -98,15 +101,16 @@ class BeaconExecutorsTest {
 
     AtomicReference<String> afterRestore = new AtomicReference<>();
     executor
-        .submit(() -> {
-          // Worker pre-populates its own MDC.
-          MDC.put("key", "worker-pre-existing");
-          // Now run the wrapped body — caller snapshot was null, so MDC inside body must be
-          // cleared.
-          wrapped.run();
-          // After the wrapped body returns, the worker's pre-existing state is restored.
-          afterRestore.set(MDC.get("key"));
-        })
+        .submit(
+            () -> {
+              // Worker pre-populates its own MDC.
+              MDC.put("key", "worker-pre-existing");
+              // Now run the wrapped body — caller snapshot was null, so MDC inside body must be
+              // cleared.
+              wrapped.run();
+              // After the wrapped body returns, the worker's pre-existing state is restored.
+              afterRestore.set(MDC.get("key"));
+            })
         .get();
 
     assertThat(insideAfterApply.get()).isNull();
@@ -131,10 +135,11 @@ class BeaconExecutorsTest {
     AtomicReference<String> captured = new AtomicReference<>();
     CountDownLatch done = new CountDownLatch(1);
 
-    wrapped.execute(() -> {
-      captured.set(MDC.get("trace_id"));
-      done.countDown();
-    });
+    wrapped.execute(
+        () -> {
+          captured.set(MDC.get("trace_id"));
+          done.countDown();
+        });
 
     assertThat(done.await(2, TimeUnit.SECONDS)).isTrue();
     assertThat(captured.get()).isEqualTo("from-caller");
@@ -159,12 +164,13 @@ class BeaconExecutorsTest {
 
     try (Scope ignored = Span.wrap(sc).makeCurrent()) {
       Callable<Void> task =
-          BeaconExecutors.wrap(() -> {
-            SpanContext seen = Span.current().getSpanContext();
-            capturedTrace.set(seen.getTraceId());
-            capturedSpan.set(seen.getSpanId());
-            return null;
-          });
+          BeaconExecutors.wrap(
+              () -> {
+                SpanContext seen = Span.current().getSpanContext();
+                capturedTrace.set(seen.getTraceId());
+                capturedSpan.set(seen.getSpanId());
+                return null;
+              });
       executor.submit(task).get(2, TimeUnit.SECONDS);
     }
 
@@ -187,14 +193,15 @@ class BeaconExecutorsTest {
 
     AtomicReference<String> afterFailure = new AtomicReference<>();
     Future<?> f =
-        executor.submit(() -> {
-          try {
-            boom.run();
-          } catch (RuntimeException expected) {
-            /* ignore */
-          }
-          afterFailure.set(MDC.get("key"));
-        });
+        executor.submit(
+            () -> {
+              try {
+                boom.run();
+              } catch (RuntimeException expected) {
+                /* ignore */
+              }
+              afterFailure.set(MDC.get("key"));
+            });
     f.get(2, TimeUnit.SECONDS);
 
     // The wrapped task threw, but the finally block must have restored the prior worker state.

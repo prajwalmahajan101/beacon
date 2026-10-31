@@ -50,7 +50,7 @@ subprojects {
     extensions.configure<com.diffplug.gradle.spotless.SpotlessExtension> {
         java {
             target("src/**/*.java")
-            googleJavaFormat("2.0.0")
+            googleJavaFormat("1.28.0")
             removeUnusedImports()
             trimTrailingWhitespace()
             endWithNewline()

@@ -158,10 +158,11 @@ class RedactorTest {
 
     assertThatThrownBy(() -> r.redact(in))
         .isInstanceOf(RedactorTimeoutException.class)
-        .satisfies(ex -> {
-          RedactorTimeoutException rte = (RedactorTimeoutException) ex;
-          assertThat(rte.original()).isSameAs(in);
-        });
+        .satisfies(
+            ex -> {
+              RedactorTimeoutException rte = (RedactorTimeoutException) ex;
+              assertThat(rte.original()).isSameAs(in);
+            });
     assertThat(metrics.redactorTimeouts()).isEqualTo(1L);
   }
 

@@ -59,16 +59,17 @@ class SdkMetricsTest {
     CountDownLatch done = new CountDownLatch(threads);
 
     for (int t = 0; t < threads; t++) {
-      pool.execute(() -> {
-        try {
-          start.await();
-          for (int i = 0; i < perThread; i++) m.incEnqueued();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        } finally {
-          done.countDown();
-        }
-      });
+      pool.execute(
+          () -> {
+            try {
+              start.await();
+              for (int i = 0; i < perThread; i++) m.incEnqueued();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } finally {
+              done.countDown();
+            }
+          });
     }
     start.countDown();
     assertThat(done.await(10, TimeUnit.SECONDS)).isTrue();
