@@ -152,6 +152,47 @@ class IngestServiceTest {
     assertThat(IngestService.partitionKey(noService)).isEqualTo("unknown|");
   }
 
+  @Test
+  void rejectsRecordWithUuidShapedAttributeKey() {
+    LogRecord withUuidKey =
+        LogRecord.builder()
+            .timestamp(Instant.parse("2026-06-02T10:15:30Z"))
+            .severityNumber(9)
+            .severityText("INFO")
+            .body("b")
+            .resource(Map.of("service.name", "svc", "telemetry.sdk.language", "java"))
+            .attributes(Map.of("550e8400-e29b-41d4-a716-446655440000", "some-value"))
+            .build();
+    when(mapper.map(any(), any(), any())).thenReturn(withUuidKey);
+
+    IngestResult result = service.ingest(requestWith(1));
+
+    assertThat(result.rejected()).isEqualTo(1);
+    assertThat(result.accepted()).isZero();
+    assertThat(result.reasons().get(0)).contains("UUID-shaped key");
+    verify(producer, never()).produce(any());
+  }
+
+  @Test
+  void acceptsRecordWithNormalAttributeKeys() {
+    LogRecord withNormalKeys =
+        LogRecord.builder()
+            .timestamp(Instant.parse("2026-06-02T10:15:30Z"))
+            .severityNumber(9)
+            .severityText("INFO")
+            .body("b")
+            .resource(Map.of("service.name", "svc", "telemetry.sdk.language", "java"))
+            .attributes(Map.of("http.method", "GET", "http.status_code", "200"))
+            .build();
+    when(mapper.map(any(), any(), any())).thenReturn(withNormalKeys);
+    when(validator.validate(anyString())).thenReturn(List.of());
+
+    IngestResult result = service.ingest(requestWith(1));
+
+    assertThat(result.accepted()).isEqualTo(1);
+    assertThat(result.rejected()).isZero();
+  }
+
   private static ExportLogsServiceRequest requestWith(int n) {
     ScopeLogs.Builder scopeLogs = ScopeLogs.newBuilder();
     for (int i = 0; i < n; i++) {

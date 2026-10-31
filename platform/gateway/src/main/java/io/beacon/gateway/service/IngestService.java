@@ -19,6 +19,7 @@ import io.opentelemetry.proto.resource.v1.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
 /**
@@ -34,6 +35,10 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class IngestService {
+
+  static final Pattern UUID_KEY =
+      Pattern.compile(
+          "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 
   private final OtlpRecordMapper mapper;
   private final RecordValidator validator;
