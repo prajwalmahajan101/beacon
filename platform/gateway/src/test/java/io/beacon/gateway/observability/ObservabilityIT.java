@@ -6,6 +6,7 @@ import io.beacon.gateway.support.KafkaContainerSupport;
 import io.beacon.gateway.support.OtlpRequests;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,16 @@ class ObservabilityIT extends KafkaContainerSupport {
 
     assertThat(count("ingest.accepted") - accepted0).isEqualTo(1.0);
     assertThat(count("ingest.rejected") - rejected0).isEqualTo(1.0);
+  }
+
+  @Test
+  void ingestRecordsDurationTimer() {
+    post(OtlpRequests.valid("duration check").toByteArray());
+
+    Timer timer = registry.find("ingest.duration").timer();
+    assertThat(timer).isNotNull();
+    assertThat(timer.count()).isGreaterThanOrEqualTo(1);
+    assertThat(timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS)).isPositive();
   }
 
   @Test
