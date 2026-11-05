@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: beacon-query
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+
+management:
+  server:
+    port: 9465
+
+beacon:
+  query:
+    es-host: ${BEACON_ES_HOST:http://localhost:9200}
+    default-page-size: 50
+    max-page-size: 200
+    # tenants:
+    #   - api-key: acme-secret
+    #     tenant-id: acme
+    #   - api-key: globex-secret
+    #     tenant-id: globex

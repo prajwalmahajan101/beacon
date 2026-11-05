@@ -161,3 +161,29 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
+
+# ---------------------------------------------------------------------------
+# Query service — M4.1, the REST API that reads ES.
+# Translates restricted query AST → ES queries with server-side tenant scoping.
+# ---------------------------------------------------------------------------
+  query:
+    build:
+      context: .
+      dockerfile: platform/query/Dockerfile
+    image: beacon-query:local
+    networks: [beacon]
+    ports:
+      - "8080:8080"   # REST API
+    environment:
+      BEACON_ES_HOST: http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      es-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9465/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s

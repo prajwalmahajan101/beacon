@@ -109,12 +109,7 @@ class IngestE2ETest {
     var mappingTree = MAPPER.readTree(mapping);
     var firstIndex = mappingTree.fields().next().getValue();
     String attrType =
-        firstIndex
-            .path("mappings")
-            .path("properties")
-            .path("attributes")
-            .path("type")
-            .asText("");
+        firstIndex.path("mappings").path("properties").path("attributes").path("type").asText("");
     assertThat(attrType).as("attributes field type").isEqualTo("flattened");
 
     // Settings: total_fields.limit and depth.limit
@@ -156,8 +151,15 @@ class IngestE2ETest {
     // Field count in the mapping should be low (root fields only, not 10k attribute fields)
     String mapping = send("GET", ES + "/beacon-logs/_mapping", null);
     assertThat(mapping).isNotNull();
-    int fieldCount = MAPPER.readTree(mapping).fields().next().getValue()
-        .path("mappings").path("properties").size();
+    int fieldCount =
+        MAPPER
+            .readTree(mapping)
+            .fields()
+            .next()
+            .getValue()
+            .path("mappings")
+            .path("properties")
+            .size();
     assertThat(fieldCount)
         .as("mapping field count (flattened absorbs attribute keys)")
         .isLessThan(50);
