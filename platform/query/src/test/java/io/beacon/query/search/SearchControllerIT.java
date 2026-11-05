@@ -241,4 +241,34 @@ class SearchControllerIT {
     assertThat(response.getBody().nextCursor()).isNull();
   }
 
+  @Test
+  void aggregateReturnsBuckets() {
+    var request = new AggregateRequest(
+        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+        null, null, "1h");
+
+    ResponseEntity<AggregateResponse> response =
+        restTemplate.postForEntity("/api/v1/logs/aggregate", request, AggregateResponse.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().buckets()).isNotEmpty();
+    long totalCount = response.getBody().buckets().stream()
+        .mapToLong(AggregateResponse.Bucket::count).sum();
+    assertThat(totalCount).isEqualTo(5);
+  }
+
+  @Test
+  void aggregateInvalidIntervalReturns400() {
+    var request = new AggregateRequest(
+        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+        null, null, "30s");
+
+    @SuppressWarnings("rawtypes")
+    ResponseEntity<Map> response =
+        restTemplate.postForEntity("/api/v1/logs/aggregate", request, Map.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).containsKey("error");
+  }
 }

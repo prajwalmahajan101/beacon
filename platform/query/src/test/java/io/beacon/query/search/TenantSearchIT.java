@@ -179,6 +179,33 @@ class TenantSearchIT {
     assertThat(response.statusCode()).isEqualTo(401);
   }
 
+  @Test
+  void aggregateRespectsTenantIsolation() {
+    var aggRequest = new AggregateRequest(
+        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+        null, null, "1h");
+
+    ResponseEntity<AggregateResponse> acmeResponse = restTemplate.postForEntity(
+        "/api/v1/logs/aggregate",
+        withAuth(aggRequest, "acme-key"),
+        AggregateResponse.class);
+
+    assertThat(acmeResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    long acmeTotal = acmeResponse.getBody().buckets().stream()
+        .mapToLong(AggregateResponse.Bucket::count).sum();
+    assertThat(acmeTotal).isEqualTo(3);
+
+    ResponseEntity<AggregateResponse> globexResponse = restTemplate.postForEntity(
+        "/api/v1/logs/aggregate",
+        withAuth(aggRequest, "globex-key"),
+        AggregateResponse.class);
+
+    assertThat(globexResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    long globexTotal = globexResponse.getBody().buckets().stream()
+        .mapToLong(AggregateResponse.Bucket::count).sum();
+    assertThat(globexTotal).isEqualTo(2);
+  }
+
   @SuppressWarnings("unchecked")
   private <T> HttpEntity<T> withAuth(T body, String token) {
     var headers = new HttpHeaders();
