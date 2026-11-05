@@ -44,6 +44,8 @@ testcontainers = "1.21.4"
 # Engine 25+ rejects ("client version 1.32 is too old"). 3.4.2 negotiates the API version with
 # the daemon. Test-scope only; explicit direct deps override spring-dependency-management.
 dockerJava = "3.4.2"
+# M4.1 — Query API. Official Elasticsearch Java client; aligns with ES 8.19.x in compose.
+elasticsearchJava = "8.19.0"
 
 [plugins]
 jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
@@ -100,5 +102,10 @@ testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "tes
 testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 # Core Testcontainers — provides ComposeContainer for the M3.0d full-stack E2E (local-compose mode).
 testcontainers-core = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-elasticsearch = { module = "org.testcontainers:elasticsearch", version.ref = "testcontainers" }
 docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "dockerJava" }
 docker-java-transport-zerodep = { module = "com.github.docker-java:docker-java-transport-zerodep", version.ref = "dockerJava" }
+
+# M4.1 — Query API: official Elasticsearch Java client (non-deprecated successor to RestHighLevelClient).
+elasticsearch-java = { module = "co.elastic.clients:elasticsearch-java", version.ref = "elasticsearchJava" }
+elasticsearch-rest-client = { module = "org.elasticsearch.client:elasticsearch-rest-client", version.ref = "elasticsearchJava" }

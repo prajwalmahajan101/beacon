@@ -41,3 +41,8 @@ project(":examples:spring-boot-sample").projectDir = file("examples/spring-boot-
 // sdk/ umbrella (which ships to consumers). See docs/adr/0025.
 include(":beacon-gateway")
 project(":beacon-gateway").projectDir = file("platform/gateway")
+
+// M4.1 — Query API: Spring Boot REST service that reads ES. Flat-name convention
+// (projectDir remap) matches :beacon-gateway.
+include(":beacon-query")
+project(":beacon-query").projectDir = file("platform/query")
