@@ -31,7 +31,6 @@ class CursorCodecTest {
 
   @Test
   void decodeRejectsEmptyString() {
-    assertThatThrownBy(() -> CursorCodec.decode(""))
-        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> CursorCodec.decode("")).isInstanceOf(IllegalArgumentException.class);
   }
 }

@@ -3,14 +3,12 @@ package io.beacon.query.search;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import co.elastic.clients.elasticsearch.core.SearchRequest;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import java.io.StringWriter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import co.elastic.clients.elasticsearch.core.SearchRequest;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import jakarta.json.stream.JsonGenerator;
 import org.junit.jupiter.api.Test;
 
 class QueryAstTranslatorTest {
@@ -26,10 +24,14 @@ class QueryAstTranslatorTest {
 
   @Test
   void timeRangeTranslatestoRangeFilter() {
-    var req = new io.beacon.query.search.SearchRequest(
-        new io.beacon.query.search.SearchRequest.TimeRange(
-            "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"),
-        null, null, null, null);
+    var req =
+        new io.beacon.query.search.SearchRequest(
+            new io.beacon.query.search.SearchRequest.TimeRange(
+                "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"),
+            null,
+            null,
+            null,
+            null);
 
     var esReq = QueryAstTranslator.translate(req, null, 50);
     String json = toJson(esReq);
