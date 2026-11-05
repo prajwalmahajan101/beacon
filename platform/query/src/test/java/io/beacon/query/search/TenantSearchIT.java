@@ -59,7 +59,9 @@ class TenantSearchIT {
   @BeforeAll
   void seedData() throws Exception {
     var componentReq = new Request("PUT", "/_component_template/beacon-logs-mappings");
-    componentReq.setEntity(new StringEntity("""
+    componentReq.setEntity(
+        new StringEntity(
+            """
         {
           "template": {
             "settings": { "index": { "number_of_shards": 1, "number_of_replicas": 0 } },
@@ -90,18 +92,22 @@ class TenantSearchIT {
             }
           }
         }
-        """, ContentType.APPLICATION_JSON));
+        """,
+            ContentType.APPLICATION_JSON));
     lowLevelClient.performRequest(componentReq);
 
     var templateReq = new Request("PUT", "/_index_template/beacon-logs-template");
-    templateReq.setEntity(new StringEntity("""
+    templateReq.setEntity(
+        new StringEntity(
+            """
         {
           "index_patterns": ["beacon-logs"],
           "data_stream": {},
           "composed_of": ["beacon-logs-mappings"],
           "priority": 500
         }
-        """, ContentType.APPLICATION_JSON));
+        """,
+            ContentType.APPLICATION_JSON));
     lowLevelClient.performRequest(templateReq);
 
     // 3 docs for acme, 2 for globex
@@ -125,15 +131,19 @@ class TenantSearchIT {
     esClient.indices().refresh(r -> r.index("beacon-logs"));
   }
 
-
   @Test
   void acmeSees3Docs() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, 10, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            10,
+            null);
 
-    ResponseEntity<SearchResponse> response = restTemplate.postForEntity(
-        "/api/v1/logs/search", withAuth(request, "acme-key"), SearchResponse.class);
+    ResponseEntity<SearchResponse> response =
+        restTemplate.postForEntity(
+            "/api/v1/logs/search", withAuth(request, "acme-key"), SearchResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody().total()).isEqualTo(3);
@@ -141,12 +151,17 @@ class TenantSearchIT {
 
   @Test
   void globexSees2Docs() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, 10, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            10,
+            null);
 
-    ResponseEntity<SearchResponse> response = restTemplate.postForEntity(
-        "/api/v1/logs/search", withAuth(request, "globex-key"), SearchResponse.class);
+    ResponseEntity<SearchResponse> response =
+        restTemplate.postForEntity(
+            "/api/v1/logs/search", withAuth(request, "globex-key"), SearchResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody().total()).isEqualTo(2);
@@ -155,11 +170,12 @@ class TenantSearchIT {
   @Test
   void noAuthHeaderReturns401() throws Exception {
     var client = HttpClient.newHttpClient();
-    var request = HttpRequest.newBuilder()
-        .uri(URI.create("http://localhost:" + port + "/api/v1/logs/search"))
-        .header("Content-Type", "application/json")
-        .POST(HttpRequest.BodyPublishers.ofString("{\"page_size\":10}"))
-        .build();
+    var request =
+        HttpRequest.newBuilder()
+            .uri(URI.create("http://localhost:" + port + "/api/v1/logs/search"))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString("{\"page_size\":10}"))
+            .build();
 
     var response = client.send(request, HttpResponse.BodyHandlers.ofString());
     assertThat(response.statusCode()).isEqualTo(401);
@@ -168,12 +184,13 @@ class TenantSearchIT {
   @Test
   void badKeyReturns401() throws Exception {
     var client = HttpClient.newHttpClient();
-    var request = HttpRequest.newBuilder()
-        .uri(URI.create("http://localhost:" + port + "/api/v1/logs/search"))
-        .header("Content-Type", "application/json")
-        .header("Authorization", "Bearer wrong-key")
-        .POST(HttpRequest.BodyPublishers.ofString("{\"page_size\":10}"))
-        .build();
+    var request =
+        HttpRequest.newBuilder()
+            .uri(URI.create("http://localhost:" + port + "/api/v1/logs/search"))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer wrong-key")
+            .POST(HttpRequest.BodyPublishers.ofString("{\"page_size\":10}"))
+            .build();
 
     var response = client.send(request, HttpResponse.BodyHandlers.ofString());
     assertThat(response.statusCode()).isEqualTo(401);
@@ -181,28 +198,31 @@ class TenantSearchIT {
 
   @Test
   void aggregateRespectsTenantIsolation() {
-    var aggRequest = new AggregateRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, "1h");
+    var aggRequest =
+        new AggregateRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            "1h");
 
-    ResponseEntity<AggregateResponse> acmeResponse = restTemplate.postForEntity(
-        "/api/v1/logs/aggregate",
-        withAuth(aggRequest, "acme-key"),
-        AggregateResponse.class);
+    ResponseEntity<AggregateResponse> acmeResponse =
+        restTemplate.postForEntity(
+            "/api/v1/logs/aggregate", withAuth(aggRequest, "acme-key"), AggregateResponse.class);
 
     assertThat(acmeResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-    long acmeTotal = acmeResponse.getBody().buckets().stream()
-        .mapToLong(AggregateResponse.Bucket::count).sum();
+    long acmeTotal =
+        acmeResponse.getBody().buckets().stream().mapToLong(AggregateResponse.Bucket::count).sum();
     assertThat(acmeTotal).isEqualTo(3);
 
-    ResponseEntity<AggregateResponse> globexResponse = restTemplate.postForEntity(
-        "/api/v1/logs/aggregate",
-        withAuth(aggRequest, "globex-key"),
-        AggregateResponse.class);
+    ResponseEntity<AggregateResponse> globexResponse =
+        restTemplate.postForEntity(
+            "/api/v1/logs/aggregate", withAuth(aggRequest, "globex-key"), AggregateResponse.class);
 
     assertThat(globexResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-    long globexTotal = globexResponse.getBody().buckets().stream()
-        .mapToLong(AggregateResponse.Bucket::count).sum();
+    long globexTotal =
+        globexResponse.getBody().buckets().stream()
+            .mapToLong(AggregateResponse.Bucket::count)
+            .sum();
     assertThat(globexTotal).isEqualTo(2);
   }
 

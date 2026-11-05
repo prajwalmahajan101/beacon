@@ -47,8 +47,7 @@ public class SearchController {
     try {
       var esResponse = esClient.search(esRequest, Map.class);
 
-      long total =
-          esResponse.hits().total() != null ? esResponse.hits().total().value() : 0;
+      long total = esResponse.hits().total() != null ? esResponse.hits().total().value() : 0;
 
       List<Map<String, Object>> results = new ArrayList<>();
       String nextCursor = null;
@@ -87,7 +86,8 @@ public class SearchController {
 
     if (!ALLOWED_INTERVALS.contains(interval)) {
       return ResponseEntity.badRequest()
-          .body(Map.of("error", "Invalid interval: " + interval + ". Allowed: " + ALLOWED_INTERVALS));
+          .body(
+              Map.of("error", "Invalid interval: " + interval + ". Allowed: " + ALLOWED_INTERVALS));
     }
 
     var bool = new BoolQuery.Builder();
@@ -95,12 +95,15 @@ public class SearchController {
       bool.filter(f -> f.term(t -> t.field("tenant_id").value(tenantId)));
     }
     if (request.timeRange() != null) {
-      bool.filter(f ->
-          f.range(r ->
-              r.date(d ->
-                  d.field("@timestamp")
-                      .gte(request.timeRange().from())
-                      .lte(request.timeRange().to()))));
+      bool.filter(
+          f ->
+              f.range(
+                  r ->
+                      r.date(
+                          d ->
+                              d.field("@timestamp")
+                                  .gte(request.timeRange().from())
+                                  .lte(request.timeRange().to()))));
     }
     if (request.filters() != null) {
       try {
@@ -114,14 +117,20 @@ public class SearchController {
         String field = entry.getKey();
         Object value = entry.getValue();
         if (value instanceof List<?> values) {
-          bool.filter(f ->
-              f.terms(t ->
-                  t.field(field)
-                      .terms(tv ->
-                          tv.value(values.stream()
-                              .map(v -> co.elastic.clients.elasticsearch._types.FieldValue.of(
-                                  v.toString()))
-                              .toList()))));
+          bool.filter(
+              f ->
+                  f.terms(
+                      t ->
+                          t.field(field)
+                              .terms(
+                                  tv ->
+                                      tv.value(
+                                          values.stream()
+                                              .map(
+                                                  v ->
+                                                      co.elastic.clients.elasticsearch._types
+                                                          .FieldValue.of(v.toString()))
+                                              .toList()))));
         } else {
           bool.filter(f -> f.term(t -> t.field(field).value(value.toString())));
         }
@@ -139,9 +148,9 @@ public class SearchController {
               .query(Query.of(q -> q.bool(bool.build())))
               .aggregations(
                   "histogram",
-                  a -> a.dateHistogram(
-                      dh -> dh.field("@timestamp")
-                          .fixedInterval(fi -> fi.time(interval))))
+                  a ->
+                      a.dateHistogram(
+                          dh -> dh.field("@timestamp").fixedInterval(fi -> fi.time(interval))))
               .build();
 
       var response = esClient.search(esRequest, Void.class);

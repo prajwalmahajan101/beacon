@@ -41,20 +41,19 @@ class SearchControllerIT {
     registry.add("beacon.query.es-host", () -> "http://" + ES.getHttpHostAddress());
   }
 
-  @Autowired
-  private TestRestTemplate restTemplate;
+  @Autowired private TestRestTemplate restTemplate;
 
-  @Autowired
-  private RestClient lowLevelClient;
+  @Autowired private RestClient lowLevelClient;
 
-  @Autowired
-  private co.elastic.clients.elasticsearch.ElasticsearchClient esClient;
+  @Autowired private co.elastic.clients.elasticsearch.ElasticsearchClient esClient;
 
   @BeforeAll
   void seedData() throws Exception {
     // Seed component template via low-level client (mirrors init-templates.sh)
     var componentReq = new Request("PUT", "/_component_template/beacon-logs-mappings");
-    componentReq.setEntity(new StringEntity("""
+    componentReq.setEntity(
+        new StringEntity(
+            """
         {
           "template": {
             "settings": { "index": { "number_of_shards": 1, "number_of_replicas": 0 } },
@@ -85,18 +84,22 @@ class SearchControllerIT {
             }
           }
         }
-        """, ContentType.APPLICATION_JSON));
+        """,
+            ContentType.APPLICATION_JSON));
     lowLevelClient.performRequest(componentReq);
 
     var templateReq = new Request("PUT", "/_index_template/beacon-logs-template");
-    templateReq.setEntity(new StringEntity("""
+    templateReq.setEntity(
+        new StringEntity(
+            """
         {
           "index_patterns": ["beacon-logs"],
           "data_stream": {},
           "composed_of": ["beacon-logs-mappings"],
           "priority": 500
         }
-        """, ContentType.APPLICATION_JSON));
+        """,
+            ContentType.APPLICATION_JSON));
     lowLevelClient.performRequest(templateReq);
 
     // Index sample documents
@@ -110,15 +113,13 @@ class SearchControllerIT {
       doc.put("span_id", "00f067aa0ba90" + i + "b8");
       doc.put("trace_flags", 1);
       doc.put("schema_version", 1);
-      doc.put("resource", Map.of(
-          "service.name", i < 3 ? "checkout" : "payments",
-          "host.name", "host-" + i));
+      doc.put(
+          "resource",
+          Map.of("service.name", i < 3 ? "checkout" : "payments", "host.name", "host-" + i));
       doc.put("tenant_id", "acme");
       doc.put("attributes", Map.of("order.id", 9920 + i));
 
-      esClient.index(idx -> idx
-          .index("beacon-logs")
-          .document(doc));
+      esClient.index(idx -> idx.index("beacon-logs").document(doc));
     }
 
     esClient.indices().refresh(r -> r.index("beacon-logs"));
@@ -126,9 +127,13 @@ class SearchControllerIT {
 
   @Test
   void searchReturnsResults() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, 10, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            10,
+            null);
 
     ResponseEntity<SearchResponse> response =
         restTemplate.postForEntity("/api/v1/logs/search", request, SearchResponse.class);
@@ -142,10 +147,13 @@ class SearchControllerIT {
 
   @Test
   void filterBySeverityText() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        Map.of("severity_text", List.of("ERROR")),
-        null, 10, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            Map.of("severity_text", List.of("ERROR")),
+            null,
+            10,
+            null);
 
     ResponseEntity<SearchResponse> response =
         restTemplate.postForEntity("/api/v1/logs/search", request, SearchResponse.class);
@@ -156,10 +164,13 @@ class SearchControllerIT {
 
   @Test
   void filterByServiceName() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        Map.of("resource.service.name", "checkout"),
-        null, 10, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            Map.of("resource.service.name", "checkout"),
+            null,
+            10,
+            null);
 
     ResponseEntity<SearchResponse> response =
         restTemplate.postForEntity("/api/v1/logs/search", request, SearchResponse.class);
@@ -170,9 +181,13 @@ class SearchControllerIT {
 
   @Test
   void freeTextSearch() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, "declined", 10, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            "declined",
+            10,
+            null);
 
     ResponseEntity<SearchResponse> response =
         restTemplate.postForEntity("/api/v1/logs/search", request, SearchResponse.class);
@@ -183,9 +198,13 @@ class SearchControllerIT {
 
   @Test
   void paginationWithSearchAfter() {
-    var firstPage = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, 3, null);
+    var firstPage =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            3,
+            null);
 
     ResponseEntity<SearchResponse> first =
         restTemplate.postForEntity("/api/v1/logs/search", firstPage, SearchResponse.class);
@@ -193,9 +212,13 @@ class SearchControllerIT {
     assertThat(first.getBody().results()).hasSize(3);
     assertThat(first.getBody().nextCursor()).isNotNull();
 
-    var secondPage = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, 3, first.getBody().nextCursor());
+    var secondPage =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            3,
+            first.getBody().nextCursor());
 
     ResponseEntity<SearchResponse> second =
         restTemplate.postForEntity("/api/v1/logs/search", secondPage, SearchResponse.class);
@@ -228,9 +251,13 @@ class SearchControllerIT {
 
   @Test
   void emptySearchReturnsEmptyResults() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2020-01-01T00:00:00Z", "2020-01-02T00:00:00Z"),
-        null, null, 10, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2020-01-01T00:00:00Z", "2020-01-02T00:00:00Z"),
+            null,
+            null,
+            10,
+            null);
 
     ResponseEntity<SearchResponse> response =
         restTemplate.postForEntity("/api/v1/logs/search", request, SearchResponse.class);
@@ -243,9 +270,12 @@ class SearchControllerIT {
 
   @Test
   void aggregateReturnsBuckets() {
-    var request = new AggregateRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, "1h");
+    var request =
+        new AggregateRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            "1h");
 
     ResponseEntity<AggregateResponse> response =
         restTemplate.postForEntity("/api/v1/logs/aggregate", request, AggregateResponse.class);
@@ -253,16 +283,19 @@ class SearchControllerIT {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().buckets()).isNotEmpty();
-    long totalCount = response.getBody().buckets().stream()
-        .mapToLong(AggregateResponse.Bucket::count).sum();
+    long totalCount =
+        response.getBody().buckets().stream().mapToLong(AggregateResponse.Bucket::count).sum();
     assertThat(totalCount).isEqualTo(5);
   }
 
   @Test
   void aggregateInvalidIntervalReturns400() {
-    var request = new AggregateRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, "30s");
+    var request =
+        new AggregateRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            "30s");
 
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> response =

@@ -46,9 +46,7 @@ public class FacetController {
       bool.filter(f -> f.term(t -> t.field("tenant_id").value(tenantId)));
     }
     if (from != null && to != null) {
-      bool.filter(f ->
-          f.range(r ->
-              r.date(d -> d.field("@timestamp").gte(from).lte(to))));
+      bool.filter(f -> f.range(r -> r.date(d -> d.field("@timestamp").gte(from).lte(to))));
     }
 
     try {
@@ -61,8 +59,7 @@ public class FacetController {
       for (var entry : FACET_FIELDS.entrySet()) {
         String field = entry.getKey();
         int cap = entry.getValue();
-        searchBuilder.aggregations(
-            field, a -> a.terms(t -> t.field(field).size(cap)));
+        searchBuilder.aggregations(field, a -> a.terms(t -> t.field(field).size(cap)));
       }
 
       var response = esClient.search(searchBuilder.build(), Void.class);

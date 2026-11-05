@@ -54,7 +54,9 @@ class FacetControllerIT {
   @BeforeAll
   void seedData() throws Exception {
     var componentReq = new Request("PUT", "/_component_template/beacon-logs-mappings");
-    componentReq.setEntity(new StringEntity("""
+    componentReq.setEntity(
+        new StringEntity(
+            """
         {
           "template": {
             "settings": { "index": { "number_of_shards": 1, "number_of_replicas": 0 } },
@@ -85,28 +87,32 @@ class FacetControllerIT {
             }
           }
         }
-        """, ContentType.APPLICATION_JSON));
+        """,
+            ContentType.APPLICATION_JSON));
     lowLevelClient.performRequest(componentReq);
 
     var templateReq = new Request("PUT", "/_index_template/beacon-logs-template");
-    templateReq.setEntity(new StringEntity("""
+    templateReq.setEntity(
+        new StringEntity(
+            """
         {
           "index_patterns": ["beacon-logs"],
           "data_stream": {},
           "composed_of": ["beacon-logs-mappings"],
           "priority": 500
         }
-        """, ContentType.APPLICATION_JSON));
+        """,
+            ContentType.APPLICATION_JSON));
     lowLevelClient.performRequest(templateReq);
 
     String[][] acmeDocs = {
-        {"ERROR", "checkout", "host-1", "production"},
-        {"WARN", "checkout", "host-1", "production"},
-        {"INFO", "payments", "host-2", "staging"},
+      {"ERROR", "checkout", "host-1", "production"},
+      {"WARN", "checkout", "host-1", "production"},
+      {"INFO", "payments", "host-2", "staging"},
     };
     String[][] globexDocs = {
-        {"DEBUG", "inventory", "host-3", "development"},
-        {"ERROR", "shipping", "host-4", "production"},
+      {"DEBUG", "inventory", "host-3", "development"},
+      {"ERROR", "shipping", "host-4", "production"},
     };
 
     int i = 0;
@@ -132,8 +138,9 @@ class FacetControllerIT {
     doc.put("span_id", "00f067aa0ba90" + seq + "b8");
     doc.put("trace_flags", 1);
     doc.put("schema_version", 1);
-    doc.put("resource", Map.of(
-        "service.name", service, "host.name", host, "deployment.environment", env));
+    doc.put(
+        "resource",
+        Map.of("service.name", service, "host.name", host, "deployment.environment", env));
     doc.put("tenant_id", tenant);
     doc.put("attributes", Map.of());
     esClient.index(idx -> idx.index("beacon-logs").document(doc));
@@ -148,56 +155,62 @@ class FacetControllerIT {
   @Test
   @SuppressWarnings("unchecked")
   void acmeFacetsReturnOnlyAcmeValues() {
-    ResponseEntity<Map> response = restTemplate.exchange(
-        "/api/v1/facets",
-        org.springframework.http.HttpMethod.GET,
-        new HttpEntity<>(authHeaders("acme-key")),
-        Map.class);
+    ResponseEntity<Map> response =
+        restTemplate.exchange(
+            "/api/v1/facets",
+            org.springframework.http.HttpMethod.GET,
+            new HttpEntity<>(authHeaders("acme-key")),
+            Map.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     Map<String, List<String>> facets = (Map<String, List<String>>) response.getBody().get("facets");
 
-    assertThat(facets).containsKeys(
-        "severity_text", "resource.service.name", "resource.host.name",
-        "resource.deployment.environment");
+    assertThat(facets)
+        .containsKeys(
+            "severity_text",
+            "resource.service.name",
+            "resource.host.name",
+            "resource.deployment.environment");
     assertThat(facets.get("resource.service.name"))
         .containsExactlyInAnyOrder("checkout", "payments");
-    assertThat(facets.get("severity_text"))
-        .containsExactlyInAnyOrder("ERROR", "WARN", "INFO");
-    assertThat(facets.get("resource.host.name"))
-        .containsExactlyInAnyOrder("host-1", "host-2");
+    assertThat(facets.get("severity_text")).containsExactlyInAnyOrder("ERROR", "WARN", "INFO");
+    assertThat(facets.get("resource.host.name")).containsExactlyInAnyOrder("host-1", "host-2");
   }
 
   @Test
   @SuppressWarnings("unchecked")
   void globexFacetsReturnOnlyGlobexValues() {
-    ResponseEntity<Map> response = restTemplate.exchange(
-        "/api/v1/facets",
-        org.springframework.http.HttpMethod.GET,
-        new HttpEntity<>(authHeaders("globex-key")),
-        Map.class);
+    ResponseEntity<Map> response =
+        restTemplate.exchange(
+            "/api/v1/facets",
+            org.springframework.http.HttpMethod.GET,
+            new HttpEntity<>(authHeaders("globex-key")),
+            Map.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     Map<String, List<String>> facets = (Map<String, List<String>>) response.getBody().get("facets");
 
     assertThat(facets.get("resource.service.name"))
         .containsExactlyInAnyOrder("inventory", "shipping");
-    assertThat(facets.get("severity_text"))
-        .containsExactlyInAnyOrder("DEBUG", "ERROR");
+    assertThat(facets.get("severity_text")).containsExactlyInAnyOrder("DEBUG", "ERROR");
   }
 
   @Test
   @SuppressWarnings("unchecked")
   void facetsResponseContainsExactlyAllowListedFields() {
-    ResponseEntity<Map> response = restTemplate.exchange(
-        "/api/v1/facets",
-        org.springframework.http.HttpMethod.GET,
-        new HttpEntity<>(authHeaders("acme-key")),
-        Map.class);
+    ResponseEntity<Map> response =
+        restTemplate.exchange(
+            "/api/v1/facets",
+            org.springframework.http.HttpMethod.GET,
+            new HttpEntity<>(authHeaders("acme-key")),
+            Map.class);
 
     Map<String, List<String>> facets = (Map<String, List<String>>) response.getBody().get("facets");
-    assertThat(facets.keySet()).containsExactlyInAnyOrder(
-        "severity_text", "resource.service.name", "resource.host.name",
-        "resource.deployment.environment");
+    assertThat(facets.keySet())
+        .containsExactlyInAnyOrder(
+            "severity_text",
+            "resource.service.name",
+            "resource.host.name",
+            "resource.deployment.environment");
   }
 }

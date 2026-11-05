@@ -51,7 +51,9 @@ class QueryAcceptanceIT {
   @BeforeAll
   void seedData() throws Exception {
     var componentReq = new Request("PUT", "/_component_template/beacon-logs-mappings");
-    componentReq.setEntity(new StringEntity("""
+    componentReq.setEntity(
+        new StringEntity(
+            """
         {
           "template": {
             "settings": { "index": { "number_of_shards": 1, "number_of_replicas": 0 } },
@@ -82,18 +84,22 @@ class QueryAcceptanceIT {
             }
           }
         }
-        """, ContentType.APPLICATION_JSON));
+        """,
+            ContentType.APPLICATION_JSON));
     lowLevelClient.performRequest(componentReq);
 
     var templateReq = new Request("PUT", "/_index_template/beacon-logs-template");
-    templateReq.setEntity(new StringEntity("""
+    templateReq.setEntity(
+        new StringEntity(
+            """
         {
           "index_patterns": ["beacon-logs"],
           "data_stream": {},
           "composed_of": ["beacon-logs-mappings"],
           "priority": 500
         }
-        """, ContentType.APPLICATION_JSON));
+        """,
+            ContentType.APPLICATION_JSON));
     lowLevelClient.performRequest(templateReq);
 
     Instant base = Instant.parse("2026-06-02T00:00:00Z");
@@ -115,10 +121,15 @@ class QueryAcceptanceIT {
       doc.put("span_id", String.format("00f067aa0ba9%04x", i));
       doc.put("trace_flags", 1);
       doc.put("schema_version", 1);
-      doc.put("resource", Map.of(
-          "service.name", service,
-          "host.name", "host-" + (i % 3),
-          "deployment.environment", "production"));
+      doc.put(
+          "resource",
+          Map.of(
+              "service.name",
+              service,
+              "host.name",
+              "host-" + (i % 3),
+              "deployment.environment",
+              "production"));
       doc.put("tenant_id", "acme");
       doc.put("attributes", Map.of("order.id", 9900 + i, "region", "us-east-1"));
 
@@ -130,9 +141,13 @@ class QueryAcceptanceIT {
   /** QUERY-05: search latency p95 < 2s on last-24h range. */
   @Test
   void searchLatencyUnder2Seconds() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        null, null, 50, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            null,
+            null,
+            50,
+            null);
 
     for (int i = 0; i < 10; i++) {
       Instant start = Instant.now();
@@ -149,12 +164,13 @@ class QueryAcceptanceIT {
   @Test
   @SuppressWarnings("unchecked")
   void operatorFlowSearchAndInspect() {
-    var request = new SearchRequest(
-        new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
-        Map.of(
-            "severity_text", List.of("ERROR", "FATAL"),
-            "resource.service.name", "checkout"),
-        null, 50, null);
+    var request =
+        new SearchRequest(
+            new SearchRequest.TimeRange("2026-06-02T00:00:00Z", "2026-06-02T23:59:59Z"),
+            Map.of("severity_text", List.of("ERROR", "FATAL"), "resource.service.name", "checkout"),
+            null,
+            50,
+            null);
 
     Instant start = Instant.now();
     ResponseEntity<SearchResponse> response =
@@ -178,9 +194,18 @@ class QueryAcceptanceIT {
 
     // Record detail — canonical JSON view (the "click record" step)
     Map<String, Object> record = body.results().get(0);
-    assertThat(record).containsKeys(
-        "@timestamp", "severity_text", "severity_number", "body",
-        "trace_id", "span_id", "trace_flags", "schema_version",
-        "resource", "attributes", "tenant_id");
+    assertThat(record)
+        .containsKeys(
+            "@timestamp",
+            "severity_text",
+            "severity_number",
+            "body",
+            "trace_id",
+            "span_id",
+            "trace_flags",
+            "schema_version",
+            "resource",
+            "attributes",
+            "tenant_id");
   }
 }
